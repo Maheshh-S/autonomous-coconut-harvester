@@ -19,3 +19,13 @@ class Task(Base):
     tree_id = Column(Integer)
     coconut_id = Column(Integer)
     status = Column(String, default="pending")
+
+class Tree(Base):
+    __tablename__ = "trees"
+
+    id = Column(Integer, primary_key=True, index=True)
+    gps_lat = Column(Float)
+    gps_lon = Column(Float)
+    detected_time = Column(String)
+
+

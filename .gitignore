@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.env
+
+# Mac
+.DS_Store
+
+# Training outputs
+runs/
+weights/
+
+# Large datasets
+datasets/
+*.zip
+
+# Model checkpoints
+*.pt
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary
+tmp/
+temp/
+
+models/
