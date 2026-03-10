@@ -4,6 +4,9 @@ from api.planner_api import router as planner_router
 from api.robot_api import router as robot_router
 from api.tree_api import router as tree_router
 from api.drone_api import router as drone_router
+from api.map_api import router as map_router
+from api.harvest_planner import router as harvest_router
+
 
 app = FastAPI()
 
@@ -12,6 +15,9 @@ app.include_router(planner_router)
 app.include_router(robot_router)
 app.include_router(tree_router)
 app.include_router(drone_router)
+app.include_router(map_router)
+app.include_router(harvest_router)
+
 
 @app.get("/")
 def root():

@@ -1,60 +1,69 @@
+import sys
 import os
 import time
 import requests
+import random
+import cv2
 from ultralytics import YOLO
 
-# Backend APIs
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from mapping.coverage_path import generate_lawnmower_path
+
 API_URL_TREE = "http://127.0.0.1:8000/drone/tree_detected"
 API_URL_DETECTION = "http://127.0.0.1:8000/drone/detection"
 
-# Load trained tree detector
-model = YOLO("../models/tree_model/tree_detector.pt")
+tree_model = YOLO("../models/tree_model/tree_detector.pt")
+coconut_model = YOLO("../models/coconut_model/coconut_detector.pt")
 
-# Coconut counter only (tree_id comes from backend)
+IMAGE_POOL = [
+    "drone_images/grid_0_0.jpg",
+    "drone_images/grid_0_1.jpg",
+    "drone_images/grid_0_2.jpg",
+    "drone_images/grid_1_0.jpg",
+    "drone_images/grid_1_1.jpg"
+]
+
 coconut_counter = 1
 
-IMAGE_FOLDER = "drone_images"
+path = generate_lawnmower_path(
+    lat_start=12.9715,
+    lon_start=77.5941,
+    rows=3,
+    cols=3,
+    step=0.0001
+)
 
-# Fake GPS grid for simulation
-BASE_LAT = 12.9715
-BASE_LON = 77.5941
-STEP = 0.0001
+for gps_lat, gps_lon in path:
 
+    print("\nDrone flying to:", gps_lat, gps_lon)
 
-for image_file in os.listdir(IMAGE_FOLDER):
+    image_path = random.choice(IMAGE_POOL)
+    print("Captured image:", image_path)
 
-    if not image_file.startswith("grid"):
-        continue
+    image = cv2.imread(image_path)
 
-    # Extract grid position
-    grid_pos = image_file.replace(".jpg", "").split("_")
-    row = int(grid_pos[1])
-    col = int(grid_pos[2])
+    tree_results = tree_model(image)
 
-    gps_lat = BASE_LAT + (row * STEP)
-    gps_lon = BASE_LON + (col * STEP)
+    for r in tree_results:
 
-    image_path = os.path.join(IMAGE_FOLDER, image_file)
-
-    print("\nDrone scanning:", image_file)
-    print("GPS:", gps_lat, gps_lon)
-
-    # Run tree detection
-    results = model(image_path)
-
-    for r in results:
         boxes = r.boxes
-
         print("Trees detected:", len(boxes))
 
         for box in boxes:
 
-            # Store tree in backend
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+
+            tree_crop = image[y1:y2, x1:x2]
+
+            tree_lat = gps_lat + random.uniform(-0.00003, 0.00003)
+            tree_lon = gps_lon + random.uniform(-0.00003, 0.00003)
+
             tree_response = requests.post(
                 API_URL_TREE,
                 params={
-                    "gps_lat": gps_lat,
-                    "gps_lon": gps_lon
+                    "gps_lat": tree_lat,
+                    "gps_lon": tree_lon
                 }
             )
 
@@ -63,20 +72,34 @@ for image_file in os.listdir(IMAGE_FOLDER):
 
             print("Tree stored:", tree_data)
 
-            # Create coconut detection linked to tree
-            detection = {
-                "tree_id": tree_id,
-                "coconut_id": coconut_counter,
-                "ripeness": "mature",  # placeholder until coconut model
-                "confidence": float(box.conf[0])
-            }
+            coconut_results = coconut_model(tree_crop)
 
-            coconut_counter += 1
+            for cr in coconut_results:
 
-            response = requests.post(API_URL_DETECTION, json=detection)
+                c_boxes = cr.boxes
 
-            print("Coconut stored:", response.json())
+                print("Coconuts detected:", len(c_boxes))
 
-    time.sleep(2)
+                for cbox in c_boxes:
 
-print("\nDrone scan completed")
+                    class_id = int(cbox.cls[0])
+                    confidence = float(cbox.conf[0])
+
+                    class_name = coconut_model.names[class_id]
+
+                    detection = {
+                        "tree_id": tree_id,
+                        "coconut_id": coconut_counter,
+                        "ripeness": class_name,
+                        "confidence": confidence
+                    }
+
+                    coconut_counter += 1
+
+                    response = requests.post(API_URL_DETECTION, json=detection)
+
+                    print("Coconut stored:", response.json())
+
+    time.sleep(1)
+
+print("\nDrone coverage scan completed")

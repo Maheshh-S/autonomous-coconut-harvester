@@ -10,7 +10,9 @@ def get_next_task():
 
     db = SessionLocal()
 
-    task = db.query(Task).filter(Task.status == "pending").first()
+    task = db.query(Task).filter(
+    Task.status == "pending"
+).order_by(Task.tree_id).first()
 
     if not task:
         db.close()
