@@ -41,7 +41,8 @@ export async function storeDetection(
   treeId: number,
   coconutId: number,
   ripeness: string,
-  confidence: number
+  confidence: number,
+  harvestType: string
 ) {
 
   const res = await fetch(
@@ -56,6 +57,7 @@ export async function storeDetection(
         coconut_id: coconutId,
         ripeness,
         confidence,
+  harvest_type: harvestType,
       }),
     }
   )
@@ -71,11 +73,34 @@ export async function storeDetection(
 export async function getTreesSummary() {
 
   const res = await fetch(
-    "http://127.0.0.1:8000/trees/summary"
+    "http://localhost:8000/trees/summary",
+    {
+      cache: "no-store",
+      next: { revalidate: 0 }
+    }
   )
 
   if (!res.ok) {
+    console.error("Fetch failed", res.status)
     throw new Error("Failed to fetch trees")
+  }
+
+  return res.json()
+
+}
+
+
+export async function getMapData() {
+
+  const res = await fetch(
+    "http://127.0.0.1:8000/plantation/map",
+    {
+      cache: "no-store"
+    }
+  )
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch map data")
   }
 
   return res.json()

@@ -1,19 +1,34 @@
 "use client"
 
 import { useState } from "react"
+import {
+  detectCoconuts,
+  storeDetection,
+} from "@/lib/api/detection"
 
 export default function CoconutUploader({
   treeId,
+  harvestType,
 }: {
   treeId: number
+  harvestType: string
 }) {
 
-  const [image, setImage] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [result, setResult] = useState<string | null>(null)
-  const [count, setCount] = useState<number | null>(null)
+  const [image, setImage] =
+    useState<File | null>(null)
 
-  function handleChange(
+  const [preview, setPreview] =
+    useState<string | null>(null)
+
+  const [result, setResult] =
+    useState<string | null>(null)
+
+  const [count, setCount] =
+    useState<number | null>(null)
+
+
+
+  async function handleChange(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
 
@@ -29,39 +44,60 @@ export default function CoconutUploader({
   }
 
 
+
   async function detect() {
 
     if (!image) return
 
-    const formData = new FormData()
+    try {
 
-    formData.append("file", image)
+      const data =
+        await detectCoconuts(image)
 
-    const res = await fetch(
-      "http://127.0.0.1:8000/detect/coconuts",
-      {
-        method: "POST",
-        body: formData
+      setResult(
+        "data:image/jpeg;base64," +
+        data.annotated_image
+      )
+
+      setCount(
+        data.coconuts_detected
+      )
+
+
+      // ✅ STORE EACH DETECTION
+
+      let coconutId = 1
+
+      for (const det of data.detections) {
+
+        await storeDetection(
+          treeId,
+          coconutId,
+          det.ripeness,
+          det.confidence,
+          harvestType
+        )
+
+        coconutId++
+
       }
-    )
 
-    const data = await res.json()
+      console.log(
+        "Stored detections for tree",
+        treeId
+      )
 
-    setResult(
-      "data:image/jpeg;base64," +
-      data.annotated_image
-    )
+    } catch (err) {
 
-    setCount(
-      data.coconuts_detected
-    )
+      console.error(
+        "Detection failed",
+        err
+      )
 
-    console.log(
-      "Tree",
-      treeId,
-      data
-    )
+    }
+
   }
+
 
 
   return (
@@ -87,19 +123,40 @@ export default function CoconutUploader({
       </button>
 
 
+
       {preview && (
+
         <div>
+
           <p>Preview</p>
-          <img src={preview} width={400} />
+
+          <img
+            src={preview}
+            width={400}
+          />
+
         </div>
+
       )}
 
 
+
       {result && (
+
         <div>
-          <p>Coconuts detected: {count}</p>
-          <img src={result} width={400} />
+
+          <p>
+            Coconuts detected:
+            {count}
+          </p>
+
+          <img
+            src={result}
+            width={400}
+          />
+
         </div>
+
       )}
 
     </div>
