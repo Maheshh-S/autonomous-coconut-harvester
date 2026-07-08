@@ -9,6 +9,9 @@ type Task = {
   status: string
 }
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
+
 export default function RobotPage() {
 
   const [task, setTask] = useState<Task | null>(null)
@@ -17,7 +20,7 @@ export default function RobotPage() {
   async function loadTask() {
 
     const res = await fetch(
-      "http://127.0.0.1:8000/robot/next_task",
+      `${API_BASE_URL}/robot/next_task`,
       { cache: "no-store" }
     )
 
@@ -37,7 +40,7 @@ export default function RobotPage() {
     if (!task) return
 
     await fetch(
-      "http://127.0.0.1:8000/robot/complete_task",
+      `${API_BASE_URL}/robot/complete_task`,
       {
         method: "POST",
         headers: {

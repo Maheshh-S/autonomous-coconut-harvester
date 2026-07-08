@@ -13,20 +13,18 @@ type Tree = {
   confidence: number
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
+
 export default function DroneUploader() {
 
-  const [image,setImage] = useState<File | null>(null)
-  const [preview,setPreview] = useState<string | null>(null)
+  const [image, setImage] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
 
-  const [trees,setTrees] = useState<Tree[]>([])
-  const [result,setResult] = useState<string | null>(null)
-  const [count,setCount] = useState<number | null>(null)
-
-  const [selectedTree,setSelectedTree] = useState<Tree | null>(null)
-
+  const [trees, setTrees] = useState<Tree[]>([])
+  const [result, setResult] = useState<string | null>(null)
+  const [count, setCount] = useState<number | null>(null)
 
   const router = useRouter()
-
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
@@ -37,7 +35,6 @@ export default function DroneUploader() {
 
     const url = URL.createObjectURL(file)
     setPreview(url)
-
   }
 
   async function runTreeDetection() {
@@ -55,18 +52,42 @@ export default function DroneUploader() {
     } catch (err) {
 
       console.error("Tree detection failed", err)
-
     }
-
   }
 
-  function selectTree(tree: Tree) {
+  async function selectTree(tree: Tree) {
 
-  console.log("Navigate to tree:", tree.id)
+    try {
 
-  router.push(`/tree/${tree.id}`)
+      const gps_lat = 12.9716 + tree.x1 / 1000000
+      const gps_lon = 77.5946 + tree.y1 / 1000000
 
-}
+      const params = new URLSearchParams({
+        gps_lat: gps_lat.toString(),
+        gps_lon: gps_lon.toString(),
+      })
+
+      const res = await fetch(
+        `${API_BASE_URL}/drone/tree_detected?${params.toString()}`,
+        {
+          method: "POST",
+        }
+      )
+
+      if (!res.ok) {
+        throw new Error("Failed to register tree")
+      }
+
+      const data = await res.json()
+
+      router.push(`/trees/${data.tree_id}`)
+
+    } catch (err) {
+
+      console.error("Failed to register tree", err)
+      router.push("/trees")
+    }
+  }
 
   return (
 
@@ -101,7 +122,6 @@ export default function DroneUploader() {
           />
 
         </div>
-
       )}
 
       {result && (
@@ -138,13 +158,7 @@ export default function DroneUploader() {
           </div>
 
         </div>
-
       )}
-
-      
-
     </div>
-
   )
-
 }

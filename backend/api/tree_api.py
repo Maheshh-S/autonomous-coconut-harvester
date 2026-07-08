@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File
 from database.db import SessionLocal
 from database.models import Tree, Detection, Task
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -15,34 +16,9 @@ router = APIRouter()
 # Load tree detection model
 # -------------------------
 
-tree_model = YOLO("../models/tree_model/tree_detector.pt")
-
-
-# -------------------------
-# Register tree (from drone)
-# -------------------------
-
-@router.post("/drone/tree_detected")
-def tree_detected(gps_lat: float, gps_lon: float):
-
-    db = SessionLocal()
-
-    tree = Tree(
-        gps_lat=gps_lat,
-        gps_lon=gps_lon
-    )
-
-    db.add(tree)
-    db.commit()
-    db.refresh(tree)
-
-    db.close()
-
-    return {
-        "tree_id": tree.id,
-        "gps_lat": gps_lat,
-        "gps_lon": gps_lon
-    }
+REPO_ROOT = Path(__file__).resolve().parents[2]
+tree_model_path = REPO_ROOT / "models" / "tree_model" / "tree_detector.pt"
+tree_model = YOLO(str(tree_model_path))
 
 
 # -------------------------
@@ -99,7 +75,7 @@ async def detect_trees(file: UploadFile = File(...)):
 
 
 # -------------------------
-# Trees summary (NEW API)
+# Trees summary
 # -------------------------
 
 @router.get("/trees/summary")

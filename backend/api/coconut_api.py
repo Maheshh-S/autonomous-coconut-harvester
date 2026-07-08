@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File
+from pathlib import Path
 import cv2
 import numpy as np
 import base64
@@ -6,7 +7,9 @@ from ultralytics import YOLO
 
 router = APIRouter()
 
-coconut_model = YOLO("../models/coconut_model/coconut_detector.pt")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+coconut_model_path = REPO_ROOT / "models" / "coconut_model" / "coconut_detector.pt"
+coconut_model = YOLO(str(coconut_model_path))
 
 
 @router.post("/detect/coconuts")

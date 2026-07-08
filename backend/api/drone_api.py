@@ -27,6 +27,7 @@ def gps_distance(lat1, lon1, lat2, lon2):
 
 
 @router.post("/drone/tree_detected")
+@router.get("/drone/tree_detected")
 def register_tree(gps_lat: float, gps_lon: float):
 
     db = SessionLocal()
@@ -52,8 +53,6 @@ def register_tree(gps_lat: float, gps_lon: float):
                 "status": "existing tree reused",
                 "tree_id": tree.id
             }
-
-    # if no nearby tree found → create new tree
 
     tree = Tree(
         gps_lat=gps_lat,

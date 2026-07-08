@@ -48,9 +48,7 @@ export default async function TreesPage() {
 
               <td>
 
-                <Link
-                  href={`/tree/${t.tree_id}`}
-                >
+                <Link href={`/trees/${t.tree_id}`}>
                   Open
                 </Link>
 

@@ -1,41 +1,43 @@
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
+
+function getApiUrl(path: string) {
+  return `${API_BASE_URL}${path}`
+}
+
 export async function detectTrees(image: File) {
 
-const formData = new FormData()
-formData.append("file", image)
+  const formData = new FormData()
+  formData.append("file", image)
 
-const res = await fetch("http://127.0.0.1:8000/detect/trees", {
-method: "POST",
-body: formData
-})
+  const res = await fetch(getApiUrl("/detect/trees"), {
+    method: "POST",
+    body: formData
+  })
 
-if (!res.ok) {
-throw new Error("Tree detection failed")
+  if (!res.ok) {
+    throw new Error("Tree detection failed")
+  }
+
+  return res.json()
 }
-
-return res.json()
-
-}
-
-
 
 export async function detectCoconuts(image: File) {
 
-const formData = new FormData()
-formData.append("file", image)
+  const formData = new FormData()
+  formData.append("file", image)
 
-const res = await fetch("http://127.0.0.1:8000/detect/coconuts", {
-method: "POST",
-body: formData
-})
+  const res = await fetch(getApiUrl("/detect/coconuts"), {
+    method: "POST",
+    body: formData
+  })
 
-if (!res.ok) {
-throw new Error("Coconut detection failed")
+  if (!res.ok) {
+    throw new Error("Coconut detection failed")
+  }
+
+  return res.json()
 }
-
-return res.json()
-
-}
-
 
 export async function storeDetection(
   treeId: number,
@@ -46,7 +48,7 @@ export async function storeDetection(
 ) {
 
   const res = await fetch(
-    "http://127.0.0.1:8000/drone/detection",
+    getApiUrl("/drone/detection"),
     {
       method: "POST",
       headers: {
@@ -57,7 +59,7 @@ export async function storeDetection(
         coconut_id: coconutId,
         ripeness,
         confidence,
-  harvest_type: harvestType,
+        harvest_type: harvestType,
       }),
     }
   )
@@ -67,13 +69,12 @@ export async function storeDetection(
   }
 
   return res.json()
-
 }
 
 export async function getTreesSummary() {
 
   const res = await fetch(
-    "http://localhost:8000/trees/summary",
+    getApiUrl("/trees/summary"),
     {
       cache: "no-store",
       next: { revalidate: 0 }
@@ -86,14 +87,12 @@ export async function getTreesSummary() {
   }
 
   return res.json()
-
 }
-
 
 export async function getMapData() {
 
   const res = await fetch(
-    "http://127.0.0.1:8000/plantation/map",
+    getApiUrl("/plantation/map"),
     {
       cache: "no-store"
     }
@@ -104,5 +103,4 @@ export async function getMapData() {
   }
 
   return res.json()
-
 }

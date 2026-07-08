@@ -23,7 +23,8 @@ for r in results:
             "tree_id": 1,
             "coconut_id": i + 10,
             "ripeness": "mature",
-            "confidence": float(box.conf)
+            "confidence": float(box.conf),
+            "harvest_type": "both"
         }
 
         response = requests.post(API_URL, json=detection)
