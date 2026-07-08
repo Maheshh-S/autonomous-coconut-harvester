@@ -1,36 +1,91 @@
+# -----------------------------
 # Python
+# -----------------------------
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 
-# Virtual env
+# -----------------------------
+# Virtual Environments
+# -----------------------------
 venv/
+.venv/
+env/
 .env
+.python-version
 
-# Mac
+# -----------------------------
+# macOS
+# -----------------------------
 .DS_Store
 
-# Training outputs
-runs/
-weights/
-
-# Large datasets
-datasets/
-*.zip
-
-# Model checkpoints
-*.pt
-
-# Logs
-*.log
-
+# -----------------------------
 # IDE
+# -----------------------------
 .vscode/
 .idea/
 
+# -----------------------------
+# Logs
+# -----------------------------
+*.log
+
+# -----------------------------
 # Temporary
+# -----------------------------
 tmp/
 temp/
+.cache/
 
+# -----------------------------
+# ML Outputs
+# -----------------------------
+runs/
+weights/
+checkpoints/
+
+# Model Weights
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# -----------------------------
+# Datasets
+# -----------------------------
+datasets/
 models/
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# -----------------------------
+# Python Testing
+# -----------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+
+# -----------------------------
+# Build
+# -----------------------------
+build/
+dist/
+*.egg-info/
+
+# -----------------------------
+# Frontend
+# -----------------------------
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# -----------------------------
+# Environment
+# -----------------------------
+.env.*
+!.env.example
+
+.codebase-memory/
+.claude/settings.local.json
