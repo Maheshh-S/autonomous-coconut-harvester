@@ -19,7 +19,10 @@ from api.harvest_planner import router as harvest_router
 from fastapi.middleware.cors import CORSMiddleware
 from api.coconut_api import router as coconut_router
 from api.survey_api import router as survey_router, SURVEY_UPLOAD_ROOT
-from api.inspection_api import router as inspection_router
+from api.inspection_api import (
+    router as inspection_router,
+    INSPECTION_UPLOAD_ROOT,
+)
 
 app = FastAPI()
 
@@ -30,6 +33,15 @@ app.mount(
     "/survey/uploads",
     StaticFiles(directory=str(SURVEY_UPLOAD_ROOT)),
     name="survey_uploads",
+)
+
+# Serve uploaded Inspection close-up images (Feature 8). Stored under
+# ``uploads/inspection``; exposed at ``/inspection/uploads``.
+INSPECTION_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/inspection/uploads",
+    StaticFiles(directory=str(INSPECTION_UPLOAD_ROOT)),
+    name="inspection_uploads",
 )
 
 app.add_middleware(

@@ -14,7 +14,11 @@ import {
   startInspection,
   completeInspection,
   getTreeInspections,
+  uploadInspectionImages,
+  processInspectionImages,
+  getInspectionImages,
   type Inspection,
+  type InspectionImage,
 } from "@/lib/api/detection"
 
 type Mission = {
@@ -99,7 +103,9 @@ export default function SurveyPage() {
   const [permTrees, setPermTrees] = useState<PermanentTrees | null>(null)
   const [expandedTree, setExpandedTree] = useState<number | null>(null)
   const [treeInspections, setTreeInspections] = useState<Record<number, Inspection[]>>({})
+  const [inspectionImages, setInspectionImages] = useState<Record<number, InspectionImage[]>>({})
   const [inspLoading, setInspLoading] = useState(false)
+  const [inspUploading, setInspUploading] = useState<Record<number, boolean>>({})
   const [completeCount, setCompleteCount] = useState<Record<number, number>>({})
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const loadSeq = useRef(0)
@@ -247,12 +253,14 @@ export default function SurveyPage() {
     }
   }
 
-  async function loadTreeInspections(treeId: number) {
+  async function loadTreeInspections(treeId: number): Promise<Inspection[]> {
     try {
       const data = await getTreeInspections(treeId)
       setTreeInspections((prev) => ({ ...prev, [treeId]: data.inspections }))
+      return data.inspections
     } catch (err) {
       setError("Failed to load inspections: " + (err as Error).message)
+      return []
     }
   }
 
@@ -286,8 +294,58 @@ export default function SurveyPage() {
 
   function toggleTree(treeId: number) {
     setExpandedTree((prev) => (prev === treeId ? null : treeId))
-    if (expandedTree !== treeId) loadTreeInspections(treeId)
+    if (expandedTree !== treeId) {
+      loadTreeInspections(treeId).then((insps) =>
+        insps.forEach((i) => loadInspectionImages(i.id))
+      )
+    }
   }
+
+  async function loadInspectionImages(inspId: number) {
+    try {
+      const data = await getInspectionImages(inspId)
+      setInspectionImages((prev) => ({ ...prev, [inspId]: data.images }))
+    } catch (err) {
+      setError("Failed to load inspection images: " + (err as Error).message)
+    }
+  }
+
+  async function handleUploadInspectionImages(
+    treeId: number,
+    inspId: number,
+    files: File[]
+  ) {
+    if (files.length === 0) return
+    setInspUploading((prev) => ({ ...prev, [inspId]: true }))
+    setError(null)
+    try {
+      await uploadInspectionImages(inspId, files)
+      // Run ripeness detection immediately after upload (idempotent per image).
+      await processInspectionImages(inspId)
+      await loadInspectionImages(inspId)
+      // Refresh the inspection so inspection_image_count stays in sync.
+      await loadTreeInspections(treeId)
+    } catch (err) {
+      setError("Failed to upload inspection images: " + (err as Error).message)
+    } finally {
+      setInspUploading((prev) => ({ ...prev, [inspId]: false }))
+    }
+  }
+
+  async function handleProcessInspectionImages(treeId: number, inspId: number) {
+    setInspLoading(true)
+    setError(null)
+    try {
+      await processInspectionImages(inspId)
+      await loadInspectionImages(inspId)
+      await loadTreeInspections(treeId)
+    } catch (err) {
+      setError("Failed to process inspection images: " + (err as Error).message)
+    } finally {
+      setInspLoading(false)
+    }
+  }
+
 
   async function handleCreateMission() {
     const source_folder = newFolder.trim() || `mission_${Date.now()}`
@@ -638,7 +696,12 @@ export default function SurveyPage() {
                             </p>
                           ) : (
                             <div className="space-y-2">
-                              {insps.map((insp) => (
+                              {insps.map((insp) => {
+                                const imgs = inspectionImages[insp.id] || []
+                                const canAddImages =
+                                  insp.status === "CREATED" ||
+                                  insp.status === "IN_PROGRESS"
+                                return (
                                 <div
                                   key={insp.id}
                                   className="border rounded p-2 text-sm"
@@ -665,12 +728,95 @@ export default function SurveyPage() {
                                       : ""}
                                     {insp.notes ? ` · ${insp.notes}` : ""}
                                   </div>
-                                  {insp.status === "IN_PROGRESS" && (
+
+                                  {canAddImages && (
+                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                      <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                          const files = e.target.files
+                                            ? Array.from(e.target.files)
+                                            : []
+                                          handleUploadInspectionImages(
+                                            t.id,
+                                            insp.id,
+                                            files
+                                          )
+                                          e.target.value = ""
+                                        }}
+                                        className="text-xs"
+                                        disabled={inspUploading[insp.id]}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleProcessInspectionImages(
+                                            t.id,
+                                            insp.id
+                                          )
+                                        }
+                                        disabled={inspLoading || inspUploading[insp.id]}
+                                        className="px-3 py-1 text-sm border rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                                      >
+                                        Process / Re-scan
+                                      </button>
+                                      <span className="text-xs text-gray-500">
+                                        {inspUploading[insp.id]
+                                          ? "Uploading & scanning…"
+                                          : ""}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {imgs.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      <div className="text-xs font-semibold">
+                                        Inspection Images
+                                      </div>
+                                      {imgs.map((img) => (
+                                        <div
+                                          key={img.id}
+                                          className="border rounded px-2 py-1"
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="truncate">
+                                              {img.original_filename}
+                                            </span>
+                                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">
+                                              {img.status}
+                                            </span>
+                                          </div>
+                                          <div className="text-xs text-gray-600 mt-0.5">
+                                            Detections: {img.detection_count}
+                                            {img.detection_count > 0 && (
+                                              <span className="ml-1">
+                                                (
+                                                {Object.entries(
+                                                  img.detection_summary
+                                                )
+                                                  .map(([k, v]) => `${k}: ${v}`)
+                                                  .join(", ")}
+                                                )
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {(insp.status === "CREATED" ||
+                                    insp.status === "IN_PROGRESS") && (
                                     <div className="flex items-center gap-2 mt-2">
                                       <input
                                         type="number"
                                         min={0}
-                                        value={completeCount[insp.id] ?? 1}
+                                        value={
+                                          completeCount[insp.id] ??
+                                          Math.max(imgs.length, 1)
+                                        }
                                         onChange={(e) =>
                                           setCompleteCount((prev) => ({
                                             ...prev,
@@ -692,7 +838,8 @@ export default function SurveyPage() {
                                     </div>
                                   )}
                                 </div>
-                              ))}
+                                )})}
+
                             </div>
                           )}
                         </div>

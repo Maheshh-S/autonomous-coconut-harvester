@@ -120,6 +120,82 @@ class Inspection(Base):
     tree = relationship("Tree")
 
 
+class InspectionImageStatus(str, Enum):
+    """Lifecycle states for an Inspection Image (Feature 8).
+
+    An uploaded close-up coconut image flows PENDING → PROCESSING → COMPLETED
+    (or FAILED). Processing is idempotent: a COMPLETED image is never processed
+    twice (PROJECT_SPECIFICATION.md §22).
+    """
+
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class InspectionImage(Base):
+    """One close-up coconut image uploaded for an Inspection Session (Feature 8).
+
+    Each image belongs to exactly one ``Inspection``. The binary is stored on disk
+    under ``uploads/inspection/<inspection_id>/`` (mirrors the Survey image storage,
+    PROJECT_SPECIFICATION.md §22.2) and processed by the ripeness model.
+    """
+
+    __tablename__ = "inspection_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    inspection_id = Column(
+        Integer,
+        ForeignKey("inspections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    filename = Column(String, nullable=False)
+    original_filename = Column(String, nullable=False)
+    upload_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    status = Column(String, default=InspectionImageStatus.PENDING.value, nullable=False)
+
+    inspection = relationship("Inspection")
+    coconut_detections = relationship(
+        "CoconutDetection",
+        cascade="all, delete-orphan",
+        back_populates="inspection_image",
+    )
+
+
+class CoconutDetection(Base):
+    """A temporary coconut detection produced by the ripeness model (Feature 8).
+
+    One detection belongs to exactly one ``InspectionImage``. Per
+    PROJECT_SPECIFICATION.md §22.5 each stores only the bounding box, detected
+    ripeness class, and confidence — no inventory, no tree/coconut IDs. These rows
+    are temporary session data, not the tree's inventory (inventory is out of
+    scope here). The class label follows the frozen lowercasing invariant (§22.3).
+    """
+
+    __tablename__ = "coconut_detections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    inspection_image_id = Column(
+        Integer,
+        ForeignKey("inspection_images.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    x1 = Column(Integer, nullable=False)
+    y1 = Column(Integer, nullable=False)
+    x2 = Column(Integer, nullable=False)
+    y2 = Column(Integer, nullable=False)
+    detected_class = Column(String, nullable=False)
+    confidence = Column(Float, nullable=False)
+
+    inspection_image = relationship(
+        "InspectionImage", back_populates="coconut_detections"
+    )
+
+
 class SurveyMission(Base):
     __tablename__ = "survey_missions"
 

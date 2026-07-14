@@ -251,3 +251,65 @@ export async function getTreeInspections(treeId: number) {
   if (!res.ok) throw new Error("Failed to load tree inspections")
   return res.json() as Promise<{ tree_id: number; tree_code: string | null; inspections: Inspection[] }>
 }
+
+export type InspectionImageStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED"
+
+export interface InspectionImage {
+  id: number
+  inspection_id: number
+  filename: string
+  original_filename: string
+  upload_order: number
+  created_at: string | null
+  status: InspectionImageStatus
+  detection_count: number
+  detection_summary: Record<string, number>
+  url: string
+}
+
+export async function uploadInspectionImages(
+  inspectionId: number,
+  files: File[]
+) {
+  const formData = new FormData()
+  for (const file of files) {
+    formData.append("files", file)
+  }
+  const res = await fetch(getApiUrl(`/inspection/${inspectionId}/images`), {
+    method: "POST",
+    body: formData,
+  })
+  if (!res.ok) throw new Error("Failed to upload inspection images")
+  return res.json() as Promise<{
+    inspection_id: number
+    uploaded: InspectionImage[]
+    uploaded_count: number
+  }>
+}
+
+export async function processInspectionImages(inspectionId: number) {
+  const res = await fetch(getApiUrl(`/inspection/${inspectionId}/process`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  })
+  if (!res.ok) throw new Error("Failed to process inspection images")
+  return res.json() as Promise<{
+    inspection_id: number
+    processed: number
+    detections_created: number
+    images: InspectionImage[]
+  }>
+}
+
+export async function getInspectionImages(inspectionId: number) {
+  const res = await fetch(getApiUrl(`/inspection/${inspectionId}/images`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load inspection images")
+  return res.json() as Promise<{ inspection_id: number; images: InspectionImage[] }>
+}
