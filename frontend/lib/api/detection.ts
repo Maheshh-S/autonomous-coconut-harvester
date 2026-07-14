@@ -313,3 +313,47 @@ export async function getInspectionImages(inspectionId: number) {
   if (!res.ok) throw new Error("Failed to load inspection images")
   return res.json() as Promise<{ inspection_id: number; images: InspectionImage[] }>
 }
+
+// ---------------------------------------------------------------------------
+// Inventory Snapshot (Feature 9)
+// ---------------------------------------------------------------------------
+
+export interface InventorySnapshot {
+  id: number
+  snapshot_code: string | null
+  tree_id: number
+  tree_code: string | null
+  inspection_id: number
+  inspection_code: string | null
+  created_at: string | null
+  total_coconuts: number
+  mature_count: number
+  potential_count: number
+  premature_count: number
+}
+
+export async function getTreeInventory(treeId: number) {
+  const res = await fetch(getApiUrl(`/tree/${treeId}/inventory`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load tree inventory")
+  return res.json() as Promise<{
+    tree_id: number
+    tree_code: string | null
+    current_inventory_id: number | null
+    current: InventorySnapshot | null
+  }>
+}
+
+export async function getTreeInventoryHistory(treeId: number) {
+  const res = await fetch(getApiUrl(`/tree/${treeId}/inventory/history`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load tree inventory history")
+  return res.json() as Promise<{
+    tree_id: number
+    tree_code: string | null
+    current_inventory_id: number | null
+    snapshots: InventorySnapshot[]
+  }>
+}

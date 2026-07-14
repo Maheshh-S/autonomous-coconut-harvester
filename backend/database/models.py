@@ -66,6 +66,14 @@ class Tree(Base):
     last_box_w = Column(Integer, nullable=True)
     last_box_h = Column(Integer, nullable=True)
 
+    # Feature 9 — Inventory Builder & Inventory Snapshot.
+    # Pointer to the tree's latest (current) InventorySnapshot (PROJECT_SPECIFICATION.md
+    # §13, §17.2). Replaced on every completed inspection; prior snapshots stay in
+    # history and are never modified. Plain Integer (no FK) to match this table's
+    # existing no-FK convention and to avoid a circular Tree<->InventorySnapshot
+    # foreign key at table-creation time.
+    current_inventory_id = Column(Integer, nullable=True)
+
 
 class InspectionStatus(str, Enum):
     """Lifecycle states for a Tree Inspection Session (Feature 7).
@@ -194,6 +202,58 @@ class CoconutDetection(Base):
     inspection_image = relationship(
         "InspectionImage", back_populates="coconut_detections"
     )
+
+
+class InventorySnapshot(Base):
+    """A permanent, immutable Coconut Inventory snapshot (Feature 9).
+
+    Each completed Inspection produces exactly **one** InventorySnapshot: the
+    aggregated coconut counts built from that inspection's Temporary Coconut
+    Detections (PROJECT_SPECIFICATION.md §17, §23). The snapshot is write-once —
+    historical snapshots are never modified (§18); a re-scan produces a *new*
+    snapshot and the Tree's ``current_inventory_id`` is repointed at it
+    (replace-on-scan, §17.2).
+
+    The count fields use the trained ripeness model's own class names
+    (``models/coconut_model/data.yaml``: ``Mature``, ``Potential``, ``Premature``),
+    stored lowercased to match ``CoconutDetection.detected_class`` (§22.3). This
+    keeps aggregation a direct group-by with no lossy remapping; farmer-friendly
+    labels are a presentation concern only.
+
+    ``snapshot_code`` is the immutable public identifier (INV-0001, INV-0002, …),
+    written once from the row id (§11.2). ``inspection_id`` is UNIQUE so a single
+    inspection can own only one snapshot (idempotent rebuilds create no duplicate).
+    ``tree_id`` uses ``ondelete="RESTRICT"`` so inventory history survives — a tree
+    with snapshots cannot be silently deleted (§18).
+    """
+
+    __tablename__ = "inventory_snapshots"
+    __table_args__ = (
+        UniqueConstraint("inspection_id", name="uq_inventory_inspection"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    snapshot_code = Column(String, unique=True, nullable=True, index=True)
+    tree_id = Column(
+        Integer,
+        ForeignKey("trees.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    inspection_id = Column(
+        Integer,
+        ForeignKey("inspections.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    total_coconuts = Column(Integer, default=0, nullable=False)
+    mature_count = Column(Integer, default=0, nullable=False)
+    potential_count = Column(Integer, default=0, nullable=False)
+    premature_count = Column(Integer, default=0, nullable=False)
+
+    tree = relationship("Tree")
+    inspection = relationship("Inspection")
 
 
 class SurveyMission(Base):

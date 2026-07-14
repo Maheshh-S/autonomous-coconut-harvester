@@ -1293,13 +1293,19 @@ chronicle rather than a snapshot.
 ## 17.1 Ownership and semantics
 
 Each Tree has exactly **one current Coconut Inventory**, owned by the climbing
-robot's ripeness scan. The inventory is the tree's latest observed fruit composition:
+robot's ripeness scan. The inventory is the tree's latest observed fruit composition.
+The count fields use the trained ripeness model's **own class names** (the source of
+truth is `models/coconut_model/data.yaml`: `Mature`, `Potential`, `Premature`),
+stored lowercased to match the detection rows (§22.3):
 
 - `total_coconuts`
-- `mature`
-- `premature`
-- `immature` (the `Potential` class maps here; see §later ripeness)
+- `mature_count`
+- `potential_count`
+- `premature_count`
 - `last_scan_time` (UTC)
+
+Farmer-friendly terminology (e.g. calling `premature` "tender") is a **presentation
+concern only** and never changes the stored fields or the API.
 
 *[Implementation note: the current `Detection` table stores per-coconut ripeness
 rows (`tree_id`, `coconut_id`, `ripeness`, `confidence`, `harvest_type`) rather than
@@ -1399,10 +1405,10 @@ are impossible without retained, unmutated records.
 
 **Inventory history (Tree #12)**
 
-| scan_ts (UTC) | mature | premature | immature | total |
+| scan_ts (UTC) | mature | potential | premature | total |
 |---|---|---|---|---|
-| 2026-07-11 14:20 | 10 | 3 | 1 | 14 |
-| 2026-08-20 11:00 | 8 | 2 | 0 | 10 |
+| 2026-07-11 14:20 | 10 | 1 | 3 | 14 |
+| 2026-08-20 11:00 | 8 | 0 | 2 | 10 |
 
 ---
 
@@ -1622,8 +1628,9 @@ to Tree Detection and runs exclusively on close-up imagery.
 The coconut detector is an Ultralytics YOLOv8 model trained on the
 `coconut-maturity-detection` dataset with `nc: 3` and
 `names: ['Mature', 'Potential', 'Premature']` (`models/coconut_model/data.yaml`).
-`Potential` is treated as the **immature** ripeness class in the inventory model
-(§23). The model is loaded once at backend start.
+These three class names are the **canonical inventory vocabulary**: detections and
+Inventory Snapshots store `mature` / `potential` / `premature` directly, with no
+remapping (§23). The model is loaded once at backend start.
 
 *[Implementation note: ripeness labels arrive capitalised and are stored lowercased
 (`detection_api` applies `ripeness.lower()`); queries use `func.lower(...)`. This
@@ -1639,8 +1646,9 @@ normalisation is a frozen invariant.]*
 
 ## 22.5 Ripeness classes, confidence, boxes, filtering
 
-- **Classes:** `Mature`, `Premature`, `Immature` (model `Potential`). These three
-  drive harvest eligibility (§24).
+- **Classes:** `Mature`, `Potential`, `Premature` (the trained model's own class
+  names, `models/coconut_model/data.yaml`). These three drive harvest eligibility
+  (§24).
 - **Confidence:** per-box objectness×class probability; used to filter false
   positives before counting.
 - **Boxes:** axis-aligned rectangles around individual coconuts.
@@ -1673,7 +1681,7 @@ modularity is exactly why the frozen architecture rejects a single combined mode
 flowchart LR
     A[Detection results - boxes + class] --> B[Group by ripeness class]
     B --> C[Count per class]
-    C --> D[Aggregate: total/mature/premature/immature]
+    C --> D[Aggregate: total/mature/potential/premature]
     D --> E[Write Inventory snapshot]
     E --> F[Tree.current_inventory_id = new]
     E --> G[Retire old snapshot -> History]
@@ -1681,19 +1689,27 @@ flowchart LR
 
 1. **Detection results** — list of `(box, class, confidence)` from §22.
 2. **Grouping** — partition detections by ripeness class.
-3. **Counting** — tally `mature`, `premature`, `immature`.
-4. **Inventory** — assemble `total_coconuts`, `mature`, `premature`, `immature`,
-   `last_scan_time` (UTC).
+3. **Counting** — tally `mature`, `potential`, `premature`.
+4. **Inventory** — assemble `total_coconuts`, `mature_count`, `potential_count`,
+   `premature_count`, `last_scan_time` (UTC).
 
 ## 23.2 Inventory contents
+
+The count fields carry the trained model's own class names (§22.3), stored
+lowercased so aggregation is a direct group-by with no lossy remapping.
 
 | Field | Meaning |
 |---|---|
 | `total_coconuts` | All detected coconuts on the tree. |
-| `mature` | Count of `Mature` class. |
-| `premature` | Count of `Premature` class. |
-| `immature` | Count of `Immature` (model `Potential`) class. |
+| `mature_count` | Count of `mature` class. |
+| `potential_count` | Count of `potential` class. |
+| `premature_count` | Count of `premature` class. |
 | `last_scan_time` | UTC timestamp of this scan. |
+
+*[Feature 9 note: the immutable snapshot is stored in `inventory_snapshots`
+(`snapshot_code` INV-0001…, `tree_id`, `inspection_id` UNIQUE, `created_at`, the
+four counts). Each completed Inspection builds exactly one snapshot and repoints
+`Tree.current_inventory_id`; historical snapshots are never modified (§18).]*
 
 ## 23.3 Only latest is current; previous stay in history
 

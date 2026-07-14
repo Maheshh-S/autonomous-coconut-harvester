@@ -17,8 +17,10 @@ import {
   uploadInspectionImages,
   processInspectionImages,
   getInspectionImages,
+  getTreeInventoryHistory,
   type Inspection,
   type InspectionImage,
+  type InventorySnapshot,
 } from "@/lib/api/detection"
 
 type Mission = {
@@ -104,6 +106,9 @@ export default function SurveyPage() {
   const [expandedTree, setExpandedTree] = useState<number | null>(null)
   const [treeInspections, setTreeInspections] = useState<Record<number, Inspection[]>>({})
   const [inspectionImages, setInspectionImages] = useState<Record<number, InspectionImage[]>>({})
+  const [treeInventory, setTreeInventory] = useState<
+    Record<number, { currentId: number | null; snapshots: InventorySnapshot[] }>
+  >({})
   const [inspLoading, setInspLoading] = useState(false)
   const [inspUploading, setInspUploading] = useState<Record<number, boolean>>({})
   const [completeCount, setCompleteCount] = useState<Record<number, number>>({})
@@ -283,12 +288,30 @@ export default function SurveyPage() {
     setError(null)
     try {
       const count = completeCount[inspId] ?? 1
+      // Completing an inspection builds its immutable Inventory Snapshot and
+      // repoints the tree at it (Feature 9); refresh both so the UI reflects it.
       await completeInspection(inspId, count)
       await loadTreeInspections(treeId)
+      await loadTreeInventory(treeId)
     } catch (err) {
       setError("Failed to complete inspection: " + (err as Error).message)
     } finally {
       setInspLoading(false)
+    }
+  }
+
+  async function loadTreeInventory(treeId: number) {
+    try {
+      const data = await getTreeInventoryHistory(treeId)
+      setTreeInventory((prev) => ({
+        ...prev,
+        [treeId]: {
+          currentId: data.current_inventory_id,
+          snapshots: data.snapshots,
+        },
+      }))
+    } catch (err) {
+      setError("Failed to load inventory: " + (err as Error).message)
     }
   }
 
@@ -298,6 +321,7 @@ export default function SurveyPage() {
       loadTreeInspections(treeId).then((insps) =>
         insps.forEach((i) => loadInspectionImages(i.id))
       )
+      loadTreeInventory(treeId)
     }
   }
 
@@ -687,6 +711,100 @@ export default function SurveyPage() {
 
                       {isOpen && (
                         <div className="mt-3">
+                          {(() => {
+                            const inv = treeInventory[t.id]
+                            const snaps = inv?.snapshots || []
+                            const current =
+                              snaps.find((s) => s.id === inv?.currentId) || null
+                            return (
+                              <div className="mb-3">
+                                <h4 className="text-sm font-semibold mb-2">
+                                  Current Inventory
+                                </h4>
+                                {current ? (
+                                  <div className="rounded border border-emerald-300 bg-emerald-50 p-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-sm font-semibold text-emerald-800">
+                                        <span className="font-mono">
+                                          {current.snapshot_code}
+                                        </span>{" "}
+                                        · {current.total_coconuts} coconuts
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {current.created_at
+                                          ? new Date(
+                                              current.created_at
+                                            ).toLocaleString()
+                                          : ""}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                                      <span className="rounded bg-white px-2 py-0.5">
+                                        Mature: {current.mature_count}
+                                      </span>
+                                      <span className="rounded bg-white px-2 py-0.5">
+                                        Potential: {current.potential_count}
+                                      </span>
+                                      <span className="rounded bg-white px-2 py-0.5">
+                                        Premature: {current.premature_count}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-500">
+                                    No inventory yet. Complete an inspection to
+                                    build one.
+                                  </p>
+                                )}
+
+                                {snaps.length > 0 && (
+                                  <div className="mt-2">
+                                    <h4 className="text-sm font-semibold mb-1">
+                                      Inventory History
+                                    </h4>
+                                    <div className="space-y-1">
+                                      {snaps.map((s) => (
+                                        <div
+                                          key={s.id}
+                                          className={
+                                            "rounded border px-2 py-1 text-xs " +
+                                            (s.id === inv?.currentId
+                                              ? "border-emerald-300 bg-emerald-50"
+                                              : "border-gray-200")
+                                          }
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="font-mono">
+                                              {s.snapshot_code}
+                                              {s.id === inv?.currentId && (
+                                                <span className="ml-1 rounded bg-emerald-600 px-1 py-0.5 text-[10px] text-white">
+                                                  CURRENT
+                                                </span>
+                                              )}
+                                            </span>
+                                            <span className="text-gray-500">
+                                              {s.created_at
+                                                ? new Date(
+                                                    s.created_at
+                                                  ).toLocaleString()
+                                                : ""}
+                                            </span>
+                                          </div>
+                                          <div className="text-gray-700 mt-0.5">
+                                            Total: {s.total_coconuts} · Mature:{" "}
+                                            {s.mature_count} · Potential:{" "}
+                                            {s.potential_count} · Premature:{" "}
+                                            {s.premature_count}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
+
                           <h4 className="text-sm font-semibold mb-2">
                             Inspection History
                           </h4>
@@ -701,6 +819,9 @@ export default function SurveyPage() {
                                 const canAddImages =
                                   insp.status === "CREATED" ||
                                   insp.status === "IN_PROGRESS"
+                                const inspSnap = (
+                                  treeInventory[t.id]?.snapshots || []
+                                ).find((s) => s.inspection_id === insp.id)
                                 return (
                                 <div
                                   key={insp.id}
@@ -804,6 +925,32 @@ export default function SurveyPage() {
                                           </div>
                                         </div>
                                       ))}
+                                    </div>
+                                  )}
+
+                                  {inspSnap && (
+                                    <div className="mt-2 rounded border border-emerald-200 bg-emerald-50 px-2 py-1">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-semibold text-emerald-800">
+                                          Inventory Snapshot{" "}
+                                          <span className="font-mono">
+                                            {inspSnap.snapshot_code}
+                                          </span>
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          {inspSnap.created_at
+                                            ? new Date(
+                                                inspSnap.created_at
+                                              ).toLocaleString()
+                                            : ""}
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-emerald-900 mt-0.5">
+                                        Total: {inspSnap.total_coconuts} · Mature:{" "}
+                                        {inspSnap.mature_count} · Potential:{" "}
+                                        {inspSnap.potential_count} · Premature:{" "}
+                                        {inspSnap.premature_count}
+                                      </div>
                                     </div>
                                   )}
 

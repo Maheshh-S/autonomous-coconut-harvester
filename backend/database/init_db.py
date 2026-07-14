@@ -99,6 +99,14 @@ def init_db():
             )
         )
 
+        # Tree (Feature 9 — Inventory Builder & Inventory Snapshot). Pointer to the
+        # tree's latest InventorySnapshot; create_all never alters an existing table.
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS current_inventory_id INTEGER"
+            )
+        )
+
     # Backfill the immutable public `tree_code` for any legacy/Feature-6 trees that
     # were created before the column existed, so every permanent tree has one.
     # Using the row id keeps codes unique, monotonic, and stable across reboots.
