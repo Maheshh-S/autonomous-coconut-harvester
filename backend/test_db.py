@@ -20,7 +20,7 @@ def test_database_connection_and_schema():
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
 
-    for table in ("trees", "detections", "tasks", "survey_missions"):
+    for table in ("trees", "detections", "tasks", "survey_missions", "survey_images"):
         assert table in tables, f"Missing expected table: {table}"
 
     detection_cols = {c["name"] for c in inspector.get_columns("detections")}

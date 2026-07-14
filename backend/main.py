@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from api.detection_api import router as detection_router
 from api.planner_api import router as planner_router
 from api.robot_api import router as robot_router
@@ -17,9 +18,18 @@ from api.map_api import router as map_router
 from api.harvest_planner import router as harvest_router
 from fastapi.middleware.cors import CORSMiddleware
 from api.coconut_api import router as coconut_router
-from api.survey_api import router as survey_router
+from api.survey_api import router as survey_router, SURVEY_UPLOAD_ROOT
 
 app = FastAPI()
+
+# Serve uploaded Survey Mission images (Feature 2). Binary assets are stored on
+# disk under ``uploads/survey``; this mount exposes them at ``/survey/uploads``.
+SURVEY_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/survey/uploads",
+    StaticFiles(directory=str(SURVEY_UPLOAD_ROOT)),
+    name="survey_uploads",
+)
 
 app.add_middleware(
     CORSMiddleware,

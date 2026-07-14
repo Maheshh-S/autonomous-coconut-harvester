@@ -90,7 +90,7 @@ export async function getTreesSummary() {
 }
 
 export async function getMapData() {
-
+ 
   const res = await fetch(
     getApiUrl("/plantation/map"),
     {
@@ -102,5 +102,60 @@ export async function getMapData() {
     throw new Error("Failed to fetch map data")
   }
 
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
+// Survey Mission + image ingestion (Feature 2)
+// ---------------------------------------------------------------------------
+
+export async function getMissions() {
+  const res = await fetch(getApiUrl("/missions"), { cache: "no-store" })
+  if (!res.ok) throw new Error("Failed to load missions")
+  return res.json()
+}
+
+export async function createMission(payload: {
+  source_folder: string
+  base_gps_lat?: number
+  base_gps_lon?: number
+}) {
+  const res = await fetch(getApiUrl("/mission/create"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error("Failed to create mission")
+  return res.json()
+}
+
+export async function uploadSurveyImages(missionId: number, files: File[]) {
+  const formData = new FormData()
+  for (const file of files) {
+    formData.append("files", file)
+  }
+  const res = await fetch(getApiUrl(`/mission/${missionId}/images`), {
+    method: "POST",
+    body: formData,
+  })
+  if (!res.ok) throw new Error("Image upload failed")
+  return res.json()
+}
+
+export async function getMissionImages(missionId: number) {
+  const res = await fetch(getApiUrl(`/mission/${missionId}/images`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load mission images")
+  return res.json()
+}
+
+export async function completeMission(missionId: number) {
+  const res = await fetch(getApiUrl("/mission/complete"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mission_id: missionId }),
+  })
+  if (!res.ok) throw new Error("Failed to complete mission")
   return res.json()
 }

@@ -42,6 +42,10 @@ export default function RootLayout({
   Map
 </Link>
 
+<Link href="/survey">
+  Survey
+</Link>
+
 <Link href="/robot">Robot</Link>
 
         </div>

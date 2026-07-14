@@ -65,3 +65,25 @@ class SurveyMission(Base):
     base_gps_lon = Column(Float, nullable=True)
 
 
+class SurveyImage(Base):
+    """One uploaded image belonging to a Survey Mission (Feature 2: ingestion).
+
+    The binary file is stored on disk under ``uploads/survey/<mission_id>/``;
+    this row records the metadata and the on-disk filename so the file can be
+    served back. ``mission_id`` mirrors the existing convention of plain
+    integer relation columns (no FK constraint), consistent with ``Tree`` /
+    ``Detection`` / ``Task``.
+    """
+
+    __tablename__ = "survey_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mission_id = Column(Integer, nullable=False, index=True)
+    filename = Column(String, nullable=False)
+    original_filename = Column(String, nullable=False)
+    content_type = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=False, default=0)
+    upload_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+

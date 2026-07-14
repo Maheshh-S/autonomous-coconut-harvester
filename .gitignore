@@ -89,3 +89,7 @@ frontend/out/
 
 .codebase-memory/
 .claude/settings.local.json
+# -----------------------------
+# Uploaded Survey Mission images (Feature 2)
+# -----------------------------
+uploads/
