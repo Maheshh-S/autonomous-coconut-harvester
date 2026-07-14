@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+from sqlalchemy import func
+
 from database.db import SessionLocal
 from database.models import Tree, Detection
 
@@ -17,7 +19,7 @@ def harvest_order():
 
         coconut_count = db.query(Detection).filter(
             Detection.tree_id == tree.id,
-            Detection.ripeness == "mature"
+            func.lower(Detection.ripeness) == "mature"
         ).count()
 
         result.append({

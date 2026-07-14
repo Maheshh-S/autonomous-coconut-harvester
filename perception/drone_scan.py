@@ -91,7 +91,8 @@ for gps_lat, gps_lon in path:
                         "tree_id": tree_id,
                         "coconut_id": coconut_counter,
                         "ripeness": class_name,
-                        "confidence": confidence
+                        "confidence": confidence,
+                        "harvest_type": "both"
                     }
 
                     coconut_counter += 1

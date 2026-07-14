@@ -1,3 +1,12 @@
+import sys
+from pathlib import Path
+
+# Ensure the backend package root is importable regardless of the current
+# working directory, so `from api…` / `from database…` resolve both when the
+# app is launched as `uvicorn main:app` (from backend/) and as
+# `uvicorn backend.main:app` (from the project root).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from fastapi import FastAPI
 from api.detection_api import router as detection_router
 from api.planner_api import router as planner_router
@@ -13,7 +22,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,6 +38,12 @@ app.include_router(map_router)
 app.include_router(harvest_router)
 app.include_router(coconut_router)
 
+
+# Ensure the database schema matches the models on startup. This is idempotent
+# (create_all + conditional ALTERs) and safe to run on every boot.
+from database.init_db import init_db
+
+init_db()
 
 
 @app.get("/")

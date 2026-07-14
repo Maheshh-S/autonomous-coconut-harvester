@@ -1,9 +1,17 @@
 import { getTreesSummary } from "@/lib/api/detection"
 import Link from "next/link"
 
+type TreeSummary = {
+  tree_id: number
+  gps_lat: number
+  gps_lon: number
+  coconuts_detected: number
+  tasks_remaining: number
+}
+
 export default async function TreesPage() {
 
-  const trees = await getTreesSummary()
+  const trees: TreeSummary[] = await getTreesSummary()
 
   return (
 
@@ -32,7 +40,7 @@ export default async function TreesPage() {
 
         <tbody>
 
-          {trees.map((t: any) => (
+          {trees.map((t: TreeSummary) => (
 
             <tr key={t.tree_id}>
 

@@ -16,24 +16,30 @@ export default function RobotPage() {
 
   const [task, setTask] = useState<Task | null>(null)
   const [message, setMessage] = useState("")
+  const [reload, setReload] = useState(0)
 
-  async function loadTask() {
+  useEffect(() => {
 
-    const res = await fetch(
-      `${API_BASE_URL}/robot/next_task`,
-      { cache: "no-store" }
-    )
+    async function loadTask() {
 
-    const data = await res.json()
+      const res = await fetch(
+        `${API_BASE_URL}/robot/next_task`,
+        { cache: "no-store" }
+      )
 
-    if (data.message) {
-      setMessage(data.message)
-      setTask(null)
-    } else {
-      setTask(data)
-      setMessage("")
+      const data = await res.json()
+
+      if (data.message) {
+        setMessage(data.message)
+        setTask(null)
+      } else {
+        setTask(data)
+        setMessage("")
+      }
     }
-  }
+
+    loadTask()
+  }, [reload])
 
   async function completeTask() {
 
@@ -52,12 +58,8 @@ export default function RobotPage() {
       }
     )
 
-    loadTask()
+    setReload((r) => r + 1)
   }
-
-  useEffect(() => {
-    loadTask()
-  }, [])
 
   return (
 

@@ -5,14 +5,14 @@ Create an autonomous system that detects coconut trees, plans harvesting tasks, 
 
 ## Read Order
 1. AGENTS.md
-2. development/CURRENT.md (if present)
-3. Relevant specification in `.engineering/specs/`
-4. Relevant architecture document in `knowledge/`
+2. CURRENT.md (project status)
+3. Relevant specification in `.engineering/specs/` (planned — not yet created)
+4. Relevant architecture/ADR document in `knowledge/` (planned — not yet created)
 5. Source code (`frontend/`, `backend/`)
 
 ## Repository Layout
-- `.engineering/` – stores governance, prompts, specs, templates, workflows, and review artefacts.
-- `knowledge/` – design decisions, ADRs, and external references.
+- `.engineering/` – stores governance, prompts, specs, templates, workflows, and review artefacts (specs not yet populated).
+- `knowledge/` – design decisions, ADRs, and external references (to be created as decisions are made).
 - `development/` – experimental scripts, notebooks, and tooling not shipped with the product.
 - `frontend/` – React/Next.js UI components and pages.
 - `backend/` – FastAPI services, database models, and perception modules.

@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from database.db import SessionLocal
-from database.models import Detection, Task
+from database.models import Detection
+from database.tasks import create_task_if_needed
 
 router = APIRouter()
 
@@ -34,8 +35,9 @@ def receive_detection(data: CoconutDetection):
     detection = Detection(
         tree_id=data.tree_id,
         coconut_id=data.coconut_id,
-        ripeness=data.ripeness,
+        ripeness=data.ripeness.lower(),
         confidence=data.confidence,
+        harvest_type=data.harvest_type,
     )
 
     db.add(detection)
@@ -71,22 +73,7 @@ def receive_detection(data: CoconutDetection):
     # -------------------------
 
     if create_task:
-
-        existing_task = db.query(Task).filter(
-            Task.tree_id == data.tree_id,
-            Task.coconut_id == data.coconut_id
-        ).first()
-
-        if not existing_task:
-
-            task = Task(
-                tree_id=data.tree_id,
-                coconut_id=data.coconut_id,
-                status="pending"
-            )
-
-            db.add(task)
-            db.commit()
+        create_task_if_needed(db, data.tree_id, data.coconut_id)
 
 
     db.close()

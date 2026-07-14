@@ -10,30 +10,39 @@ type Props = {
   }>
 }
 
+type TreeSummary = {
+  tree_id: number
+  gps_lat: number
+  gps_lon: number
+  coconuts_detected: number
+  tasks_remaining: number
+}
+
 export default function TreePage({ params }: Props) {
 
   // ✅ unwrap async params (Next 16 rule)
   const { treeId } = use(params)
 
   const [harvestType, setHarvestType] = useState("mature")
-  const [tree, setTree] = useState<any>(null)
+  const [tree, setTree] = useState<TreeSummary | null>(null)
 
 
-
-  async function loadTree() {
-
-    const trees = await getTreesSummary()
-
-    const t = trees.find(
-      (x: any) => x.tree_id == treeId
-    )
-
-    setTree(t)
-  }
 
   useEffect(() => {
+
+    async function loadTree() {
+
+      const trees: TreeSummary[] = await getTreesSummary()
+
+      const t = trees.find(
+        (x) => String(x.tree_id) === treeId
+      )
+
+      setTree(t ?? null)
+    }
+
     loadTree()
-  }, [])
+  }, [treeId])
 
   // --------------------------
 

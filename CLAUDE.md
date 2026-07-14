@@ -1,60 +1,61 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for working in the Autonomous Coconut Harvester repository.
 
-## Common Development Commands
+## Stack
+- **Frontend:** Next.js 16 (App Router) + React 19 + Tailwind 4, in `frontend/`.
+- **Backend:** FastAPI + SQLAlchemy, in `backend/` (launched with `uvicorn`).
+- **Database:** **PostgreSQL** (Neon) via `DATABASE_URL` in `.env`. No migration
+  framework; schema is evolved manually and ensured at startup (see below).
+- **ML:** Ultralytics YOLOv8 models in `models/` (`tree_detector.pt`,
+  `coconut_detector.pt`). Both files are **gitignored** — they are local only.
 
-**Frontend (Next.js + Tailwind)**
-- Install dependencies: `npm install` (run in `frontend/`)
-- Development server: `npm run dev` → `http://localhost:3000`
-- Build for production: `npm run build`
-- Start production server: `npm start`
-- Lint: `npm run lint`
-- Run a single test (if using Jest or similar): `npm test -- <path/to/test>`
+## Common commands
+- **Frontend:** `cd frontend && npm install`, then `npm run dev` (localhost:3000),
+  `npm run lint`, `npm run test:e2e` (Playwright).
+- **Backend (either works):**
+  - from the project root: `uvicorn backend.main:app --reload` (port 8000)
+  - from `backend/`: `uvicorn main:app --reload`
+  A `sys.path` bootstrap in `backend/main.py` makes `from api…` / `from database…`
+  resolve in both cases.
+- **Database:** schema is ensured automatically when the backend starts
+  (`database/init_db.init_db` → `create_all` + idempotent `ALTER … IF NOT EXISTS`).
+  For a fresh clone, copy `.env.example` to `.env` and set `DATABASE_URL`.
+- **Models / `.env` are gitignored** — never commit them, and the app will not
+  start without a valid `DATABASE_URL`.
 
-**Backend (FastAPI)**
-- Install Python dependencies: `pip install -r requirements.txt`
-- Run API locally: `uvicorn backend.main:app --reload` (default port 8000)
-- Run a specific test file: `pytest tests/<test_file>.py`
+## Architecture
+Frontend → `frontend/lib/api/detection.ts` → FastAPI routers in `backend/api/*`:
+- `tree_api` — YOLO tree detection + trees summary
+- `drone_api` — GPS dedup (4 m) → stores a `Tree`
+- `coconut_api` — YOLO coconut ripeness detection
+- `detection_api` — stores a `Detection` (ripeness normalised to lowercase) and
+  gates `Task` creation by `harvest_type`
+- `robot_api` — robot task polling / completion
+- `planner_api` / `harvest_planner` — bulk task generation + harvest order
+- `map_api` — geo data for the map view
 
-**Database**
-- The project uses SQLite via SQLAlchemy (file `backend/database/<something>.sqlite` is created on first run).
-- To reset the DB: delete the SQLite file and restart the backend.
+Support modules: `mapping/coverage_path.py` (lawnmower GPS path),
+`simulation/robot_simulator.py` (polls the task API), `perception/*` (detection
+scripts). Shared task de-duplication lives in `backend/database/tasks.py`
+(`create_task_if_needed`).
 
-**Perception / Model Assets**
-- YOLO model files are located under `models/`. Ensure the required `.pt` files are present before running detection endpoints.
+Data model (`backend/database/models.py`): `Tree` (gps + detected_time),
+`Detection` (tree/coconut, ripeness, confidence, harvest_type), `Task`
+(tree/coconut, status, priority, created_at, claimed_at).
 
-## High‑Level Architecture
+## Conventions (from AGENTS.md)
+- Frontend is presentation only; all business logic lives in the backend.
+- Reuse existing code; keep API definitions single-source; no duplicated logic.
+- Workflow: Understand → Plan → Implement → Verify → Docs → Commit.
+- Models (`*.pt`) and `.env` are gitignored; do not commit them.
 
-- **Frontend (React/Next.js)** – Lives in `frontend/`. Pages are under `frontend/app/` (e.g., `robot/`, `trees/[treeId]/`). Components such as `DroneUploader`, `CoconutUploader`, and map utilities interact with the backend via the thin wrapper in `frontend/lib/api/detection.ts`.
-- **API Layer (FastAPI)** – Central entry point `backend/main.py` mounts several routers:
-  - `tree_api.py` – Handles image upload, runs YOLO tree detection, returns bounding boxes and annotated image.
-  - `drone_api.py` – Registers a tree based on GPS coordinates, de‑duplicates nearby detections.
-  - `detection_api.py` – Stores coconut detection results and optionally creates harvesting tasks.
-  - `robot_api.py`, `planner_api.py`, `harvest_planner.py`, `map_api.py` – Manage robot task queues, planning, and map coverage paths.
-- **Database (SQLAlchemy)** – Defined in `backend/database/models.py` with tables for `Tree`, `Detection`, and `Task`. Session management is via `backend/database/db.py`.
-- **Perception Modules** – `perception/detect_coconut.py` and `perception/drone_scan.py` contain the core computer‑vision logic used by the API endpoints.
-- **Mapping / Planning** – `mapping/coverage_path.py` and `planning/` (if present) generate routes for the robot to follow.
-- **Simulation** – `simulation/robot_simulator.py` can be used to test robot behaviour without hardware.
-
-### Primary Data Flow (Implemented)
-1. **Drone image upload** – `frontend/components/DroneUploader.tsx` posts an image to `POST /detect/trees`.
-2. **Tree detection** – `backend/api/tree_api.py` runs YOLO, returns box coordinates and annotated image.
-3. **Tree registration** – Frontend selects a box, extracts GPS, and calls `POST /drone/tree_detected`.
-4. **Tree detail page** – Frontend navigates to `frontend/app/trees/[treeId]/page.tsx` which loads summary data via `frontend/lib/api/detection.ts`.
-5. **Coconut detection** – `frontend/components/CoconutUploader.tsx` sends detection data to `POST /drone/detection`.
-6. **Task creation** – `backend/api/detection_api.py` optionally creates a `Task` for harvesting.
-7. **Robot execution** – `frontend/app/robot/page.tsx` fetches next task from `GET /robot/next_task` and marks it complete via `POST /robot/complete_task`.
-
-### Intended Full System Flow (Future Work)
-- Drone scanning (`perception/drone_scan.py`) → tree detection → tree registration → coconut detection (`perception/detect_coconut.py`) → task generation (`backend/api/harvest_planner.py`) → robot simulation (`simulation/robot_simulator.py`) → real‑world robot execution.
-- Mapping and coverage path planning will be wired through `mapping/coverage_path.py` and the robot API.
-
-## Project‑Specific Notes
-- The repository does not currently contain a `.cursor/` rules directory or a `.github/copilot-instructions.md` file.
-- The README (`README.md`) already describes the current and intended flows; the above summary mirrors that information for quick reference.
-- Database migrations are not set up; schema changes require manual updates to `backend/database/models.py` and recreation of the SQLite file.
-- Ensure the YOLO model path (`models/tree_model/tree_detector.pt`) matches the file location before invoking detection endpoints.
-
----
-*Generated by Claude Code to bootstrap future Claude instances.*
+## Known gotchas
+- Ripeness labels from the model are capitalised (`Mature`/`Premature`/`Potential`)
+  but are **stored lowercased**; queries use `func.lower(...)`.
+- `harvest_type` is accepted by `detection_api` and now persisted on `Detection`;
+  it drives whether a `Task` is created (mature/tender/both).
+- `GET /robot/next_task` mutates state: it claims the next pending task
+  (`in_progress` + `claimed_at`) and reclaims tasks stuck `in_progress` for >5 min.
+- The DB schema is migrated by `init_db` at startup; there are no Alembic
+  migrations (see `DECISIONS.md`: "migrations will be manual").

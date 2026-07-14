@@ -1,11 +1,21 @@
 # CURRENT.md
 
-- **Project Version:** 0.1.0
-- **Current Sprint:** Sprint 1 – Baseline Integration
-- **Current Feature:** End‑to‑end tree detection and UI display
-- **Completed:** Backend API stubs, initial Next.js pages, YOLO model integration
-- **Next:** Add task generation, robot UI, basic simulation
-- **Known Issues:**
-  - Model file path may differ on new machines
-  - SQLite DB schema not final
-  - Limited test coverage for edge cases
+- **Project Version:** 0.2.0
+- **Current Sprint:** Sprint 1 – Baseline Integration (hardening)
+- **Current Feature:** End‑to‑end tree detection, ripeness analysis, task planning, and robot execution
+- **Completed:**
+  - Backend API routers (tree, coconut, detection, drone, robot, planner, harvest, map)
+  - Next.js pages (upload, dashboard, tree detail, map, robot)
+  - YOLOv8 tree + coconut‑ripeness models wired into detection endpoints
+  - Task planning (per‑detection + bulk `planner/generate_tasks`) and harvest ordering
+  - Robot task flow with stale‑task reclamation
+  - Database schema ensured at startup via `init_db` (manual migrations)
+- **Next:**
+  - Add backend unit tests for task‑generation/ripeness logic
+  - Real geotagging of drone images (currently GPS is derived from the box position)
+  - Model versioning / distribution strategy (weights are gitignored)
+- **Known Issues / Decisions:**
+  - Database is **PostgreSQL (Neon)**, not SQLite (documentation previously said SQLite).
+  - `requirements.txt` is a placeholder and incomplete.
+  - Model weights (`*.pt`) and `.env` are gitignored; they are local‑only.
+  - `Navbar.tsx` is unused (navigation lives in `layout.tsx`).

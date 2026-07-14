@@ -7,10 +7,18 @@ const MapView = dynamic(
   { ssr: false }
 )
 
+type Tree = {
+  tree_id: number
+  gps_lat: number
+  gps_lon: number
+  coconuts_detected: number
+  tasks_remaining: number
+}
+
 export default function MapWrapper({
   trees,
 }: {
-  trees: any[]
+  trees: Tree[]
 }) {
 
   return <MapView trees={trees} />
