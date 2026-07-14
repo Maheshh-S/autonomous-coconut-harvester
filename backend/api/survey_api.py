@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import List, Optional
 
 import uuid
+import cv2
+import numpy as np
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -14,7 +16,11 @@ from database.models import (
     SurveyImage,
     SurveyTile,
     SurveyTileStatus,
+    TileDetection,
 )
+# Reuse the single YOLO tree-detection model already loaded by the tree API
+# (PROJECT_SPECIFICATION.md §9.2). Avoids loading the weights twice.
+from api.tree_api import tree_model
 
 
 router = APIRouter()
@@ -327,7 +333,106 @@ def generate_tiles_for_mission(db, mission_id: int) -> int:
         )
         created += 1
     db.commit()
+
+    # Keep the denormalized mission tile counter in sync with the actual tile rows.
+    mission = db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
+    if mission is not None:
+        mission.tile_count = (
+            db.query(func.count(SurveyTile.id))
+            .filter(SurveyTile.mission_id == mission_id)
+            .scalar()
+            or 0
+        )
+        db.commit()
+
+    # Feature 5: tiles are processed as soon as they are generated. The pipeline
+    # is idempotent — only PENDING tiles are picked up, and process_tile rewrites
+    # a tile's detections on retry, so re-running never duplicates detections.
+    process_pending_tiles_for_mission(db, mission_id)
     return created
+
+
+# -------------------------
+# Survey Tile processing (Feature 5)
+# -------------------------
+# Runs the existing YOLO tree model on each PENDING tile and stores raw
+# detections. No permanent Tree records, no GPS, no matching.
+
+
+def process_tile(db, tile: SurveyTile) -> int:
+    image = (
+        db.query(SurveyImage).filter(SurveyImage.id == tile.image_id).first()
+    )
+    if image is None:
+        tile.status = SurveyTileStatus.FAILED.value
+        db.commit()
+        return 0
+
+    img_path = SURVEY_UPLOAD_ROOT / str(image.mission_id) / image.filename
+    if not img_path.exists():
+        tile.status = SurveyTileStatus.FAILED.value
+        db.commit()
+        return 0
+
+    # Mark PROCESSING so a concurrent/retry run cannot pick this tile up twice.
+    tile.status = SurveyTileStatus.PROCESSING.value
+    db.commit()
+
+    try:
+        contents = img_path.read_bytes()
+        npimg = np.frombuffer(contents, np.uint8)
+        frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+        if frame is None:
+            raise ValueError("could not decode image bytes")
+
+        results = tree_model(frame, conf=0.4)
+
+        # Idempotent retry: clear any prior detections for this tile, then store
+        # the fresh set. The (survey_tile_id, detection_index) unique constraint
+        # is a secondary guard.
+        db.query(TileDetection).filter(
+            TileDetection.survey_tile_id == tile.id
+        ).delete()
+
+        created = 0
+        for r in results:
+            for i, box in enumerate(r.boxes):
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                confidence = float(box.conf[0])
+                db.add(
+                    TileDetection(
+                        survey_tile_id=tile.id,
+                        detection_index=i,
+                        x1=x1,
+                        y1=y1,
+                        x2=x2,
+                        y2=y2,
+                        confidence=confidence,
+                    )
+                )
+                created += 1
+
+        tile.status = SurveyTileStatus.COMPLETED.value
+        db.commit()
+        return created
+    except Exception:
+        db.rollback()
+        tile.status = SurveyTileStatus.FAILED.value
+        db.commit()
+        return 0
+
+
+def process_pending_tiles_for_mission(db, mission_id: int) -> int:
+    tiles = (
+        db.query(SurveyTile)
+        .filter(SurveyTile.mission_id == mission_id)
+        .filter(SurveyTile.status == SurveyTileStatus.PENDING.value)
+        .all()
+    )
+    total_detections = 0
+    for tile in tiles:
+        total_detections += process_tile(db, tile)
+    return total_detections
 
 
 # -------------------------
@@ -386,6 +491,17 @@ def survey_tile_stats(mission_id: int):
         for status, count in rows:
             counts[status] = count
         total = sum(counts.values())
+
+        # Feature 5: raw detections produced from this mission's tiles (audit
+        # only — no permanent Tree records, no GPS, no matching).
+        detections_total = (
+            db.query(func.count(TileDetection.id))
+            .join(SurveyTile, TileDetection.survey_tile_id == SurveyTile.id)
+            .filter(SurveyTile.mission_id == mission_id)
+            .scalar()
+            or 0
+        )
+
         return {
             "mission_id": mission_id,
             "total": total,
@@ -393,6 +509,9 @@ def survey_tile_stats(mission_id: int):
             "processing": counts[SurveyTileStatus.PROCESSING],
             "completed": counts[SurveyTileStatus.COMPLETED],
             "failed": counts[SurveyTileStatus.FAILED],
+            "detections_total": detections_total,
+            "processed_tiles": counts[SurveyTileStatus.COMPLETED],
+            "remaining_tiles": counts[SurveyTileStatus.PENDING],
         }
     finally:
         db.close()

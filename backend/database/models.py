@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, UniqueConstraint
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -127,5 +127,37 @@ class SurveyTile(Base):
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
+
+
+class TileDetection(Base):
+    """A raw, transient tree detection produced by running YOLO on one SurveyTile.
+
+    Introduced in Feature 5. Each detection belongs to exactly one ``SurveyTile``
+    (``survey_tile_id``, plain integer relation, no FK — matches the repo
+    convention). Per PROJECT_SPECIFICATION.md §9.3 a detection stores only the
+    bounding box (pixel coords) and confidence; no GPS, no permanent Tree ID, no
+    matching. Permanent ``Tree`` records are created later by Tree Matching
+    (out of scope here).
+    """
+
+    __tablename__ = "survey_tile_detections"
+    __table_args__ = (
+        # Enforce one detection row per (tile, index) within a tile. Reprocessing
+        # a tile clears and rewrites its detections, so this also guards against
+        # duplicate detections.
+        UniqueConstraint(
+            "survey_tile_id", "detection_index", name="uq_tile_detection_idx"
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    survey_tile_id = Column(Integer, nullable=False, index=True)
+    detection_index = Column(Integer, nullable=False, default=0)
+    x1 = Column(Integer, nullable=False)
+    y1 = Column(Integer, nullable=False)
+    x2 = Column(Integer, nullable=False)
+    y2 = Column(Integer, nullable=False)
+    confidence = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

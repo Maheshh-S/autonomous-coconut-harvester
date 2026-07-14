@@ -32,6 +32,9 @@ type TileStats = {
   processing: number
   completed: number
   failed: number
+  detections_total: number
+  processed_tiles: number
+  remaining_tiles: number
 }
 
 type TileGeneration = {
@@ -64,47 +67,61 @@ export default function SurveyPage() {
   const selectedMission = missions.find((m) => m.id === selectedMissionId) ?? null
 
   async function loadMissions() {
-    try {
-      const data = await getMissions()
-      const list: Mission[] = data.missions ?? []
-      setMissions(list)
-      if (selectedMissionId === null && list.length > 0) {
-        setSelectedMissionId(list[0].id)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const data = await getMissions()
+        const list: Mission[] = data.missions ?? []
+        setMissions(list)
+        if (selectedMissionId === null && list.length > 0) {
+          setSelectedMissionId(list[0].id)
+        }
+        return
+      } catch (err) {
+        if (attempt === 1) console.error("Failed to load missions", err)
       }
-    } catch (err) {
-      console.error("Failed to load missions", err)
     }
   }
 
   async function loadImages(missionId: number) {
-    try {
-      const data = await getMissionImages(missionId)
-      setImages(
-        (data.images ?? []).map((img: UploadedImage) => ({
-          ...img,
-          url: API_BASE_URL + img.url,
-        }))
-      )
-    } catch (err) {
-      console.error("Failed to load mission images", err)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const data = await getMissionImages(missionId)
+        setImages(
+          (data.images ?? []).map((img: UploadedImage) => ({
+            ...img,
+            url: API_BASE_URL + img.url,
+          }))
+        )
+        return
+      } catch (err) {
+        if (attempt === 1) console.error("Failed to load mission images", err)
+      }
     }
   }
 
   async function loadTileStats(missionId: number) {
-    try {
-      const data = await getTileStats(missionId)
-      setTileStats(data as TileStats)
-    } catch (err) {
-      console.error("Failed to load tile statistics", err)
+    // Retry once: the burst of reads right after a heavy completion request can
+    // occasionally drop a connection; these are idempotent GETs.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const data = await getTileStats(missionId)
+        setTileStats(data as TileStats)
+        return
+      } catch (err) {
+        if (attempt === 1) console.error("Failed to load tile statistics", err)
+      }
     }
   }
 
   async function loadTileGeneration(missionId: number) {
-    try {
-      const data = await getTileGeneration(missionId)
-      setTileGen(data as TileGeneration)
-    } catch (err) {
-      console.error("Failed to load tile generation progress", err)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const data = await getTileGeneration(missionId)
+        setTileGen(data as TileGeneration)
+        return
+      } catch (err) {
+        if (attempt === 1) console.error("Failed to load tile generation progress", err)
+      }
     }
   }
 
@@ -386,6 +403,31 @@ export default function SurveyPage() {
               <div className="border rounded p-3 text-center">
                 <div className="text-2xl font-bold">{tileStats.failed}</div>
                 <div className="text-xs text-gray-600">Failed</div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Detected Trees (Feature 5) — raw detections only; no Tree IDs / GPS / map */}
+      {selectedMissionId !== null && (
+        <section className="mt-6 border rounded p-4">
+          <h2 className="text-xl font-semibold mb-3">Detected Trees</h2>
+          {tileStats === null ? (
+            <p className="text-gray-500 text-sm">Loading detection progress…</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileStats.detections_total}</div>
+                <div className="text-xs text-gray-600">Total detections</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileStats.processed_tiles}</div>
+                <div className="text-xs text-gray-600">Processed tiles</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileStats.remaining_tiles}</div>
+                <div className="text-xs text-gray-600">Remaining tiles</div>
               </div>
             </div>
           )}
