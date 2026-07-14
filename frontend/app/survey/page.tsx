@@ -8,6 +8,7 @@ import {
   getMissionImages,
   completeMission,
   getTileStats,
+  getTileGeneration,
 } from "@/lib/api/detection"
 
 type Mission = {
@@ -33,6 +34,14 @@ type TileStats = {
   failed: number
 }
 
+type TileGeneration = {
+  mission_id: number
+  images_uploaded: number
+  tiles_generated: number
+  remaining: number
+  generation_status: "not_started" | "in_progress" | "complete"
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
 
@@ -49,6 +58,7 @@ export default function SurveyPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [tileStats, setTileStats] = useState<TileStats | null>(null)
+  const [tileGen, setTileGen] = useState<TileGeneration | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
 
   const selectedMission = missions.find((m) => m.id === selectedMissionId) ?? null
@@ -89,6 +99,15 @@ export default function SurveyPage() {
     }
   }
 
+  async function loadTileGeneration(missionId: number) {
+    try {
+      const data = await getTileGeneration(missionId)
+      setTileGen(data as TileGeneration)
+    } catch (err) {
+      console.error("Failed to load tile generation progress", err)
+    }
+  }
+
   useEffect(() => {
     loadMissions()
   }, [])
@@ -104,11 +123,12 @@ export default function SurveyPage() {
     loadImages(selectedMissionId)
   }, [selectedMissionId, uploading])
 
-  // Tile statistics are independent of the image-upload loop, so they load on
-  // every mission switch regardless of upload state.
+  // Tile statistics and generation progress are independent of the image-upload
+  // loop, so they load on every mission switch regardless of upload state.
   useEffect(() => {
     if (selectedMissionId === null) return
     loadTileStats(selectedMissionId)
+    loadTileGeneration(selectedMissionId)
   }, [selectedMissionId])
 
   // Reset completion state only when the selected mission changes (not on every
@@ -117,6 +137,7 @@ export default function SurveyPage() {
     setDone(false)
     setError(null)
     setSuccess(null)
+    setTileGen(null)
   }, [selectedMissionId])
 
   const canComplete =
@@ -135,6 +156,9 @@ export default function SurveyPage() {
       setSuccess("✅ Survey Mission completed and set active.")
       setError(null)
       await loadMissions()
+      // Generation runs server-side on completion; refresh the dependent views.
+      await loadTileStats(selectedMissionId)
+      await loadTileGeneration(selectedMissionId)
     } catch (err) {
       setError("Failed to complete mission: " + (err as Error).message)
     }
@@ -362,6 +386,41 @@ export default function SurveyPage() {
               <div className="border rounded p-3 text-center">
                 <div className="text-2xl font-bold">{tileStats.failed}</div>
                 <div className="text-xs text-gray-600">Failed</div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Survey Tile Generation (Feature 4) */}
+      {selectedMissionId !== null && (
+        <section className="mt-6 border rounded p-4">
+          <h2 className="text-xl font-semibold mb-3">Survey Tile Generation</h2>
+          {tileGen === null ? (
+            <p className="text-gray-500 text-sm">Loading generation progress…</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileGen.images_uploaded}</div>
+                <div className="text-xs text-gray-600">Images Uploaded</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileGen.tiles_generated}</div>
+                <div className="text-xs text-gray-600">Tiles Generated</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileGen.remaining}</div>
+                <div className="text-xs text-gray-600">Remaining</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">
+                  {tileGen.generation_status === "complete"
+                    ? "Complete"
+                    : tileGen.generation_status === "in_progress"
+                      ? "In Progress"
+                      : "Not Started"}
+                </div>
+                <div className="text-xs text-gray-600">Generation Status</div>
               </div>
             </div>
           )}

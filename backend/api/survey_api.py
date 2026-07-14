@@ -158,6 +158,12 @@ def complete_survey_mission(payload: SurveyMissionComplete):
 
         db.commit()
         db.refresh(mission)
+
+        # Feature 4: generation is triggered automatically when a mission becomes
+        # COMPLETED (no manual button). The service is idempotent, so re-running
+        # completion would never duplicate tiles.
+        generate_tiles_for_mission(db, mission.id)
+
         return _serialize(mission)
     finally:
         db.close()
@@ -286,6 +292,45 @@ def list_survey_images(mission_id: int):
 
 
 # -------------------------
+# Survey Tile generation (Feature 4)
+# -------------------------
+# Generates one SurveyTile per uploaded Survey Image for a completed mission.
+# Idempotent: re-running never creates duplicate tiles (enforced by a pre-check
+# against the unique ``image_id`` column, not by catching IntegrityError). No
+# AI/processing happens here — tiles are created in PENDING and await downstream
+# processing in a later feature (§7.9, §8.5).
+
+
+def generate_tiles_for_mission(db, mission_id: int) -> int:
+    images = (
+        db.query(SurveyImage)
+        .filter(SurveyImage.mission_id == mission_id)
+        .order_by(SurveyImage.upload_order)
+        .all()
+    )
+    existing = {
+        row[0]
+        for row in db.query(SurveyTile.image_id)
+        .filter(SurveyTile.mission_id == mission_id)
+        .all()
+    }
+    created = 0
+    for image in images:
+        if image.id in existing:
+            continue
+        db.add(
+            SurveyTile(
+                mission_id=mission_id,
+                image_id=image.id,
+                status=SurveyTileStatus.PENDING.value,
+            )
+        )
+        created += 1
+    db.commit()
+    return created
+
+
+# -------------------------
 # Survey Tile management (Feature 3)
 # -------------------------
 # Tiles are introduced here as a first-class entity. No tile records are created
@@ -361,5 +406,54 @@ def get_survey_tile(tile_id: int):
         if tile is None:
             raise HTTPException(status_code=404, detail="Survey tile not found")
         return _serialize_tile(tile)
+    finally:
+        db.close()
+
+
+@router.get("/mission/{mission_id}/tile-generation")
+def tile_generation_progress(mission_id: int):
+    """Generation progress for a mission, computed from real DB counts (Feature 4).
+
+    ``images_uploaded`` counts Survey Images; ``tiles_generated`` counts Survey
+    Tiles; ``remaining`` is the gap. No simulated progress.
+    """
+    db = SessionLocal()
+    try:
+        mission = (
+            db.query(SurveyMission)
+            .filter(SurveyMission.id == mission_id)
+            .first()
+        )
+        if mission is None:
+            raise HTTPException(status_code=404, detail="Survey mission not found")
+
+        images_uploaded = (
+            db.query(func.count(SurveyImage.id))
+            .filter(SurveyImage.mission_id == mission_id)
+            .scalar()
+            or 0
+        )
+        tiles_generated = (
+            db.query(func.count(SurveyTile.id))
+            .filter(SurveyTile.mission_id == mission_id)
+            .scalar()
+            or 0
+        )
+        remaining = max(images_uploaded - tiles_generated, 0)
+
+        if images_uploaded == 0:
+            status = "not_started"
+        elif remaining == 0:
+            status = "complete"
+        else:
+            status = "in_progress"
+
+        return {
+            "mission_id": mission_id,
+            "images_uploaded": images_uploaded,
+            "tiles_generated": tiles_generated,
+            "remaining": remaining,
+            "generation_status": status,
+        }
     finally:
         db.close()

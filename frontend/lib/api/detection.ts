@@ -175,3 +175,11 @@ export async function getTileStats(missionId: number) {
   if (!res.ok) throw new Error("Failed to load tile statistics")
   return res.json()
 }
+
+export async function getTileGeneration(missionId: number) {
+  const res = await fetch(getApiUrl(`/mission/${missionId}/tile-generation`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load tile generation progress")
+  return res.json()
+}
