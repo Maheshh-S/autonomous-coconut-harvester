@@ -17,6 +17,7 @@ from api.map_api import router as map_router
 from api.harvest_planner import router as harvest_router
 from fastapi.middleware.cors import CORSMiddleware
 from api.coconut_api import router as coconut_router
+from api.survey_api import router as survey_router
 
 app = FastAPI()
 
@@ -37,6 +38,7 @@ app.include_router(drone_router)
 app.include_router(map_router)
 app.include_router(harvest_router)
 app.include_router(coconut_router)
+app.include_router(survey_router)
 
 
 # Ensure the database schema matches the models on startup. This is idempotent
