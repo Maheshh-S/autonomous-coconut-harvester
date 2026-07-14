@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import uuid
+import math
 import cv2
 import numpy as np
 from fastapi import APIRouter, HTTPException, UploadFile, File
@@ -17,10 +18,17 @@ from database.models import (
     SurveyTile,
     SurveyTileStatus,
     TileDetection,
+    Tree,
 )
 # Reuse the single YOLO tree-detection model already loaded by the tree API
 # (PROJECT_SPECIFICATION.md §9.2). Avoids loading the weights twice.
 from api.tree_api import tree_model
+# Reuse the GPS projection + Haversine service (single source, §10/§11).
+from api.gps_projection import (
+    gps_distance,
+    project_detection_gps,
+    DISTANCE_THRESHOLD,
+)
 
 
 router = APIRouter()
@@ -349,6 +357,158 @@ def generate_tiles_for_mission(db, mission_id: int) -> int:
     # is idempotent — only PENDING tiles are picked up, and process_tile rewrites
     # a tile's detections on retry, so re-running never duplicates detections.
     process_pending_tiles_for_mission(db, mission_id)
+
+    # Feature 6: convert the freshly generated detections into permanent Trees.
+    # Idempotent — reprojecting the same detections finds the existing Trees
+    # (within the 4 m GPS radius) and reuses them, so re-running never creates
+    # duplicate permanent trees.
+    match_trees_for_mission(db, mission_id)
+    return created
+
+
+# -------------------------
+# Permanent Tree Matching (Feature 6)
+# -------------------------
+# Converts a mission's SurveyTile detections into stable permanent Tree records.
+# For every detection it projects a GPS coordinate, searches nearby permanent
+# Trees, and reuses an existing one (GPS-proximity, §11.3) or creates a new one.
+# Candidate selection and the reported match confidence also use a geometry
+# comparison (detection centre + bounding-box dimensions), per the hybrid
+# matching requirement.
+
+# Hybrid confidence weights: GPS proximity is the primary, frozen reuse signal;
+# geometry refines which candidate wins and is reported as the match confidence.
+GPS_WEIGHT = 0.7
+GEO_WEIGHT = 0.3
+
+
+def _tile_grid_positions(db, mission_id: int) -> dict:
+    """Map image_id -> (row, col) in a deterministic coverage grid.
+
+    The mission system does not yet compute a real coverage grid (§8.3); we lay
+    the uploaded images out in a square-ish grid by their upload order so that
+    each tile gets a stable spatial cell for projection. Deterministic and good
+    enough for the matching foundation — a real grid would slot in here later.
+    """
+
+    images = (
+        db.query(SurveyImage)
+        .filter(SurveyImage.mission_id == mission_id)
+        .order_by(SurveyImage.upload_order)
+        .all()
+    )
+    n = len(images)
+    cols = max(1, math.ceil(math.sqrt(n)))
+    return {img.id: (idx // cols, idx % cols) for idx, img in enumerate(images)}
+
+
+def match_trees_for_mission(db, mission_id: int) -> int:
+    mission = (
+        db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
+    )
+    if mission is None:
+        return 0
+
+    # The GPS Projection service always reads the coordinates from the Survey
+    # Mission (single-farm system — no fallback origin). The UI prefills the
+    # farmer's real farm coordinates, so these are always present.
+    base_lat = mission.base_gps_lat
+    base_lon = mission.base_gps_lon
+
+    grid = _tile_grid_positions(db, mission_id)
+    tiles = (
+        db.query(SurveyTile)
+        .filter(SurveyTile.mission_id == mission_id)
+        .filter(SurveyTile.status == SurveyTileStatus.COMPLETED.value)
+        .order_by(SurveyTile.id)
+        .all()
+    )
+    # Working set of all permanent Trees, kept current as we create new ones so
+    # within-run observations of the same tree converge on one Tree.
+    all_trees = db.query(Tree).all()
+
+    created = 0
+    for tile in tiles:
+        image = (
+            db.query(SurveyImage).filter(SurveyImage.id == tile.image_id).first()
+        )
+        if image is None:
+            continue
+        img_path = SURVEY_UPLOAD_ROOT / str(mission_id) / image.filename
+        if not img_path.exists():
+            continue
+        frame = cv2.imdecode(
+            np.frombuffer(img_path.read_bytes(), np.uint8), cv2.IMREAD_COLOR
+        )
+        if frame is None:
+            continue
+        img_h, img_w = frame.shape[:2]
+        row, col = grid.get(image.id, (0, 0))
+
+        detections = (
+            db.query(TileDetection)
+            .filter(TileDetection.survey_tile_id == tile.id)
+            .order_by(TileDetection.detection_index)
+            .all()
+        )
+        for d in detections:
+            cx = (d.x1 + d.x2) / 2.0
+            cy = (d.y1 + d.y2) / 2.0
+            bw = d.x2 - d.x1
+            bh = d.y2 - d.y1
+            lat, lon = project_detection_gps(
+                base_lat, base_lon, row, col, img_w, img_h, cx, cy
+            )
+
+            # Step 1+2: candidate search by projected GPS, then geometry compare.
+            best = None
+            best_conf = -1.0
+            for t in all_trees:
+                dist = gps_distance(lat, lon, t.gps_lat, t.gps_lon)
+                if dist > DISTANCE_THRESHOLD:
+                    continue
+                geo = 1.0
+                if t.last_box_w and t.last_box_h:
+                    geo = (
+                        min(bw, t.last_box_w) / max(bw, t.last_box_w)
+                        * min(bh, t.last_box_h) / max(bh, t.last_box_h)
+                    )
+                # Step 3: hybrid matching confidence (0..1).
+                conf = GPS_WEIGHT * max(0.0, 1.0 - dist / DISTANCE_THRESHOLD) + GEO_WEIGHT * geo
+                if conf > best_conf:
+                    best_conf = conf
+                    best = t
+
+            if best is not None:
+                # Reuse existing permanent Tree (§11.2 invariants).
+                best.last_seen_mission_id = mission_id
+                best.times_seen = (best.times_seen or 0) + 1
+                best.last_matching_confidence = round(best_conf, 4)
+                best.last_box_w = bw
+                best.last_box_h = bh
+                best.availability = "ACTIVE"
+            else:
+                tree = Tree(
+                    gps_lat=lat,
+                    gps_lon=lon,
+                    detected_time=str(datetime.utcnow()),
+                    first_seen_mission_id=mission_id,
+                    last_seen_mission_id=mission_id,
+                    times_seen=1,
+                    last_matching_confidence=None,
+                    availability="ACTIVE",
+                    lifecycle_state="DETECTED",
+                    last_box_w=bw,
+                    last_box_h=bh,
+                )
+                db.add(tree)
+                db.flush()
+                # Immutable public code derived from the row id — unique/stable.
+                tree.tree_code = f"TREE-{tree.id:04d}"
+                all_trees.append(tree)
+                created += 1
+
+    db.commit()
     return created
 
 
@@ -525,6 +685,63 @@ def get_survey_tile(tile_id: int):
         if tile is None:
             raise HTTPException(status_code=404, detail="Survey tile not found")
         return _serialize_tile(tile)
+    finally:
+        db.close()
+
+
+@router.get("/mission/{mission_id}/permanent-trees")
+def get_permanent_trees(mission_id: int):
+    """Permanent Trees touched by a mission (Feature 6).
+
+    Summarises the digital-twin foundation for the selected mission: how many
+    permanent Trees were first seen vs. re-observed, and the average matching
+    confidence over re-observations. Stable Tree IDs are the core guarantee.
+    """
+    db = SessionLocal()
+    try:
+        mission = (
+            db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
+        )
+        if mission is None:
+            raise HTTPException(
+                status_code=404, detail="Survey mission not found"
+            )
+
+        observed = (
+            db.query(Tree).filter(Tree.last_seen_mission_id == mission_id).all()
+        )
+        newly_created = [t for t in observed if t.first_seen_mission_id == mission_id]
+        matched_existing = [
+            t for t in observed if t.first_seen_mission_id != mission_id
+        ]
+        confs = [
+            t.last_matching_confidence
+            for t in matched_existing
+            if t.last_matching_confidence is not None
+        ]
+        avg_conf = round(sum(confs) / len(confs), 4) if confs else None
+
+        return {
+            "mission_id": mission_id,
+            "total": len(observed),
+            "newly_created": len(newly_created),
+            "matched_existing": len(matched_existing),
+            "avg_match_confidence": avg_conf,
+            "trees": [
+                {
+                    "id": t.id,
+                    "tree_code": t.tree_code or f"TREE-{t.id:04d}",
+                    "gps_lat": t.gps_lat,
+                    "gps_lon": t.gps_lon,
+                    "times_seen": t.times_seen,
+                    "first_seen_mission_id": t.first_seen_mission_id,
+                    "last_seen_mission_id": t.last_seen_mission_id,
+                    "last_matching_confidence": t.last_matching_confidence,
+                    "is_new": t.first_seen_mission_id == mission_id,
+                }
+                for t in observed
+            ],
+        }
     finally:
         db.close()
 

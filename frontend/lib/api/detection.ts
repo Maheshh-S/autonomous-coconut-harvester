@@ -183,3 +183,11 @@ export async function getTileGeneration(missionId: number) {
   if (!res.ok) throw new Error("Failed to load tile generation progress")
   return res.json()
 }
+
+export async function getPermanentTrees(missionId: number) {
+  const res = await fetch(getApiUrl(`/mission/${missionId}/permanent-trees`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load permanent trees")
+  return res.json()
+}

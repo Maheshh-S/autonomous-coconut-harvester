@@ -9,6 +9,7 @@ import {
   completeMission,
   getTileStats,
   getTileGeneration,
+  getPermanentTrees,
 } from "@/lib/api/detection"
 
 type Mission = {
@@ -45,10 +46,37 @@ type TileGeneration = {
   generation_status: "not_started" | "in_progress" | "complete"
 }
 
+type PermanentTree = {
+  id: number
+  tree_code: string
+  gps_lat: number
+  gps_lon: number
+  times_seen: number
+  first_seen_mission_id: number | null
+  last_seen_mission_id: number | null
+  last_matching_confidence: number | null
+  is_new: boolean
+}
+
+type PermanentTrees = {
+  mission_id: number
+  total: number
+  newly_created: number
+  matched_existing: number
+  avg_match_confidence: number | null
+  trees: PermanentTree[]
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
 
 const IMAGE_EXT = /\.(jpe?g|png)$/i
+
+// Single-farm system: the Survey Mission creation form prefills the farmer's
+// real farm coordinates. These are sent to the backend and stored on the
+// mission; the GPS Projection service always reads them from the mission.
+const FARM_DEFAULT_LAT = 12.1947222
+const FARM_DEFAULT_LON = 76.6100556
 
 export default function SurveyPage() {
   const [missions, setMissions] = useState<Mission[]>([])
@@ -57,12 +85,15 @@ export default function SurveyPage() {
   const [files, setFiles] = useState<File[]>([])
   const [images, setImages] = useState<UploadedImage[]>([])
   const [uploading, setUploading] = useState(false)
+  const [processing, setProcessing] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [tileStats, setTileStats] = useState<TileStats | null>(null)
   const [tileGen, setTileGen] = useState<TileGeneration | null>(null)
+  const [permTrees, setPermTrees] = useState<PermanentTrees | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
+  const loadSeq = useRef(0)
 
   const selectedMission = missions.find((m) => m.id === selectedMissionId) ?? null
 
@@ -125,6 +156,22 @@ export default function SurveyPage() {
     }
   }
 
+  async function loadPermanentTrees(missionId: number) {
+    // Guard against stale responses overwriting fresh data (e.g. a slow
+    // pre-completion read resolving after the post-completion read). Only the
+    // most recent load for a given mission is applied.
+    const seq = ++loadSeq.current
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const data = await getPermanentTrees(missionId)
+        if (seq === loadSeq.current) setPermTrees(data as PermanentTrees)
+        return
+      } catch (err) {
+        if (attempt === 1) console.error("Failed to load permanent trees", err)
+      }
+    }
+  }
+
   useEffect(() => {
     loadMissions()
   }, [])
@@ -146,6 +193,7 @@ export default function SurveyPage() {
     if (selectedMissionId === null) return
     loadTileStats(selectedMissionId)
     loadTileGeneration(selectedMissionId)
+    loadPermanentTrees(selectedMissionId)
   }, [selectedMissionId])
 
   // Reset completion state only when the selected mission changes (not on every
@@ -155,12 +203,14 @@ export default function SurveyPage() {
     setError(null)
     setSuccess(null)
     setTileGen(null)
+    setPermTrees(null)
   }, [selectedMissionId])
 
   const canComplete =
     selectedMissionId !== null &&
     selectedMission?.status === "PROCESSING" &&
-    images.length > 0
+    images.length > 0 &&
+    !processing
 
   async function handleComplete() {
     if (selectedMissionId === null) return
@@ -168,23 +218,37 @@ export default function SurveyPage() {
       "Complete this Survey Mission? It becomes the active source of truth and further uploads will be disabled."
     )
     if (!confirmed) return
+    setProcessing(true)
+    setError(null)
+    setSuccess(null)
     try {
       await completeMission(selectedMissionId)
       setSuccess("✅ Survey Mission completed and set active.")
-      setError(null)
+      // Generation + permanent-tree matching run server-side on completion;
+      // refresh every Survey-related view exactly once, after the backend
+      // returns success, so the UI never shows a transient empty state.
       await loadMissions()
-      // Generation runs server-side on completion; refresh the dependent views.
       await loadTileStats(selectedMissionId)
       await loadTileGeneration(selectedMissionId)
+      await loadPermanentTrees(selectedMissionId)
     } catch (err) {
       setError("Failed to complete mission: " + (err as Error).message)
+    } finally {
+      setProcessing(false)
     }
   }
 
   async function handleCreateMission() {
     const source_folder = newFolder.trim() || `mission_${Date.now()}`
     try {
-      const mission = await createMission({ source_folder })
+      // The simulated drone automatically provides the farm's base GPS; the
+      // farmer never enters coordinates. The mission is the single source of
+      // truth and the GPS Projection service reads these values from it.
+      const mission = await createMission({
+        source_folder,
+        base_gps_lat: FARM_DEFAULT_LAT,
+        base_gps_lon: FARM_DEFAULT_LON,
+      })
       setNewFolder("")
       // Add the new mission locally and select it directly, so we never reset
       // selection to an unrelated mission or trigger a competing image load.
@@ -322,14 +386,14 @@ export default function SurveyPage() {
         <button
           className="ml-3 bg-purple-700 text-white px-4 py-2 rounded disabled:opacity-50"
           onClick={handleComplete}
-          disabled={!canComplete}
+          disabled={!canComplete || processing}
           title={
             canComplete
               ? "Mark this mission complete and active"
               : "Available once a PROCESSING mission has at least one uploaded image"
           }
         >
-          Complete Survey Mission
+          {processing ? "Processing…" : "Complete Survey Mission"}
         </button>
 
         <div className="mt-4">
@@ -430,6 +494,89 @@ export default function SurveyPage() {
                 <div className="text-xs text-gray-600">Remaining tiles</div>
               </div>
             </div>
+          )}
+        </section>
+      )}
+
+      {/* Permanent Trees (Feature 6) — digital-twin foundation; stable Tree IDs */}
+      {selectedMissionId !== null && (
+        <section className="mt-6 border rounded p-4">
+          <h2 className="text-xl font-semibold mb-3">Permanent Trees</h2>
+          {processing ? (
+            <p className="text-gray-500 text-sm">
+              Processing… matching detections to permanent Tree IDs.
+            </p>
+          ) : permTrees === null ? (
+            <p className="text-gray-500 text-sm">Loading permanent trees…</p>
+          ) : permTrees.total === 0 ? (
+            <p className="text-gray-500">
+              No permanent trees yet. Complete the mission to match detections to
+              permanent Tree IDs.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="border rounded p-3 text-center">
+                  <div className="text-2xl font-bold">{permTrees.total}</div>
+                  <div className="text-xs text-gray-600">Total Trees</div>
+                </div>
+                <div className="border rounded p-3 text-center">
+                  <div className="text-2xl font-bold">{permTrees.newly_created}</div>
+                  <div className="text-xs text-gray-600">Newly Created</div>
+                </div>
+                <div className="border rounded p-3 text-center">
+                  <div className="text-2xl font-bold">
+                    {permTrees.matched_existing}
+                  </div>
+                  <div className="text-xs text-gray-600">Matched Existing</div>
+                </div>
+                <div className="border rounded p-3 text-center">
+                  <div className="text-2xl font-bold">
+                    {permTrees.avg_match_confidence !== null
+                      ? permTrees.avg_match_confidence.toFixed(3)
+                      : "—"}
+                  </div>
+                  <div className="text-xs text-gray-600">Avg Match Confidence</div>
+                </div>
+              </div>
+
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm text-gray-700">
+                  Show {permTrees.trees.length} permanent tree
+                  {permTrees.trees.length === 1 ? "" : "s"}
+                </summary>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full text-sm border">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border px-2 py-1 text-left">Tree ID</th>
+                        <th className="border px-2 py-1 text-left">Times Seen</th>
+                        <th className="border px-2 py-1 text-left">
+                          Match Confidence
+                        </th>
+                        <th className="border px-2 py-1 text-left">GPS (lat, lon)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {permTrees.trees.map((t) => (
+                        <tr key={t.id}>
+                          <td className="border px-2 py-1">{t.tree_code}</td>
+                          <td className="border px-2 py-1">{t.times_seen}</td>
+                          <td className="border px-2 py-1">
+                            {t.last_matching_confidence !== null
+                              ? t.last_matching_confidence.toFixed(3)
+                              : "new"}
+                          </td>
+                          <td className="border px-2 py-1">
+                            {t.gps_lat.toFixed(6)}, {t.gps_lon.toFixed(6)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </>
           )}
         </section>
       )}

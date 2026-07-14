@@ -52,6 +52,64 @@ def init_db():
             )
         )
 
+        # Tree (Feature 6 — Permanent Tree Matching & Digital Twin Foundation).
+        # Extend the legacy `trees` table with the permanent-tree metadata without
+        # disturbing the existing `drone_api.register_tree` columns.
+        conn.execute(
+            text("ALTER TABLE trees ADD COLUMN IF NOT EXISTS tree_code VARCHAR")
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS first_seen_mission_id INTEGER"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS last_seen_mission_id INTEGER"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS times_seen INTEGER DEFAULT 1"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS last_matching_confidence FLOAT"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS availability VARCHAR DEFAULT 'ACTIVE'"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS lifecycle_state VARCHAR DEFAULT 'DETECTED'"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS last_box_w INTEGER"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS last_box_h INTEGER"
+            )
+        )
+
+    # Backfill the immutable public `tree_code` for any legacy/Feature-6 trees that
+    # were created before the column existed, so every permanent tree has one.
+    # Using the row id keeps codes unique, monotonic, and stable across reboots.
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE trees SET tree_code = 'TREE-' || LPAD(id::text, 4, '0') "
+                "WHERE tree_code IS NULL"
+            )
+        )
+
 
 if __name__ == "__main__":
     init_db()

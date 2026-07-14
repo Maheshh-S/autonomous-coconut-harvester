@@ -49,6 +49,23 @@ class Tree(Base):
     gps_lon = Column(Float)
     detected_time = Column(String)
 
+    # Feature 6 — Permanent Tree Matching & Digital Twin Foundation.
+    # ``tree_code`` is the immutable public identifier (TREE-0001, TREE-0002, …).
+    # It is write-once; Tree Matching is the only writer (PROJECT_SPECIFICATION.md §11.2, §14).
+    tree_code = Column(String, unique=True, nullable=True, index=True)
+    first_seen_mission_id = Column(Integer, nullable=True)
+    last_seen_mission_id = Column(Integer, nullable=True)
+    times_seen = Column(Integer, default=1, nullable=False)
+    last_matching_confidence = Column(Float, nullable=True)
+    # availability: ACTIVE / MISSING / INACTIVE (§16). Set ACTIVE on every observation.
+    availability = Column(String, default="ACTIVE", nullable=False)
+    # lifecycle_state: NEW → DETECTED → … (§15). Matching creates a tree in DETECTED.
+    lifecycle_state = Column(String, default="DETECTED", nullable=False)
+    # Representative detection bounding-box dimensions (pixels) used by the hybrid
+    # geometry comparison in Tree Matching; refreshed on each observation.
+    last_box_w = Column(Integer, nullable=True)
+    last_box_h = Column(Integer, nullable=True)
+
 
 class SurveyMission(Base):
     __tablename__ = "survey_missions"
