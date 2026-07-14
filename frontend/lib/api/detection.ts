@@ -159,3 +159,19 @@ export async function completeMission(missionId: number) {
   if (!res.ok) throw new Error("Failed to complete mission")
   return res.json()
 }
+
+export async function getMissionTiles(missionId: number) {
+  const res = await fetch(getApiUrl(`/mission/${missionId}/tiles`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load survey tiles")
+  return res.json()
+}
+
+export async function getTileStats(missionId: number) {
+  const res = await fetch(getApiUrl(`/mission/${missionId}/tiles/stats`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load tile statistics")
+  return res.json()
+}

@@ -87,3 +87,45 @@ class SurveyImage(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class SurveyTileStatus(str, Enum):
+    """Lifecycle states for a Survey Tile (see PROJECT_SPECIFICATION.md §8.5).
+
+    A tile is one georeferenced drone frame from a survey. Processing creates
+    and advances these states; this feature only introduces the entity and the
+    states, it performs no processing.
+    """
+
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class SurveyTile(Base):
+    """One Survey Tile: a georeferenced frame tied to a Survey Mission + Image.
+
+    Introduced in Feature 3 as a first-class domain entity. Records are NOT
+    created here (that happens in Feature 4); this model only defines the
+    storage and lifecycle states.
+
+    ``mission_id`` / ``image_id`` use the repository's plain-integer relation
+    convention (no FK constraint), matching ``SurveyImage``. ``grid_row`` /
+    ``grid_col`` capture the tile's position in the coverage grid
+    (``plantation_position``, PROJECT_SPECIFICATION.md §8.3) and are populated
+    when tiles are generated.
+    """
+
+    __tablename__ = "survey_tiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mission_id = Column(Integer, nullable=False, index=True)
+    image_id = Column(Integer, nullable=False, index=True, unique=True)
+    status = Column(String, default=SurveyTileStatus.PENDING.value, nullable=False)
+    grid_row = Column(Integer, nullable=True)
+    grid_col = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+

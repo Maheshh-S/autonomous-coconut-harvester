@@ -8,7 +8,13 @@ from pydantic import BaseModel
 from sqlalchemy import func
 
 from database.db import SessionLocal
-from database.models import SurveyMission, SurveyMissionStatus, SurveyImage
+from database.models import (
+    SurveyMission,
+    SurveyMissionStatus,
+    SurveyImage,
+    SurveyTile,
+    SurveyTileStatus,
+)
 
 
 router = APIRouter()
@@ -62,6 +68,19 @@ def _serialize_image(image: SurveyImage) -> dict:
         "upload_order": image.upload_order,
         "url": f"/survey/uploads/{image.mission_id}/{image.filename}",
         "created_at": image.created_at.isoformat() if image.created_at else None,
+    }
+
+
+def _serialize_tile(tile: SurveyTile) -> dict:
+    return {
+        "id": tile.id,
+        "mission_id": tile.mission_id,
+        "image_id": tile.image_id,
+        "status": tile.status,
+        "grid_row": tile.grid_row,
+        "grid_col": tile.grid_col,
+        "created_at": tile.created_at.isoformat() if tile.created_at else None,
+        "updated_at": tile.updated_at.isoformat() if tile.updated_at else None,
     }
 
 
@@ -262,5 +281,85 @@ def list_survey_images(mission_id: int):
             "images": [_serialize_image(image) for image in images],
             "count": len(images),
         }
+    finally:
+        db.close()
+
+
+# -------------------------
+# Survey Tile management (Feature 3)
+# -------------------------
+# Tiles are introduced here as a first-class entity. No tile records are created
+# by this feature (that is Feature 4); these endpoints only read and report.
+
+
+@router.get("/mission/{mission_id}/tiles")
+def list_survey_tiles(mission_id: int):
+    db = SessionLocal()
+    try:
+        mission = (
+            db.query(SurveyMission)
+            .filter(SurveyMission.id == mission_id)
+            .first()
+        )
+        if mission is None:
+            raise HTTPException(status_code=404, detail="Survey mission not found")
+
+        tiles = (
+            db.query(SurveyTile)
+            .filter(SurveyTile.mission_id == mission_id)
+            .order_by(SurveyTile.id)
+            .all()
+        )
+        return {
+            "mission_id": mission_id,
+            "tiles": [_serialize_tile(tile) for tile in tiles],
+            "count": len(tiles),
+        }
+    finally:
+        db.close()
+
+
+@router.get("/mission/{mission_id}/tiles/stats")
+def survey_tile_stats(mission_id: int):
+    db = SessionLocal()
+    try:
+        mission = (
+            db.query(SurveyMission)
+            .filter(SurveyMission.id == mission_id)
+            .first()
+        )
+        if mission is None:
+            raise HTTPException(status_code=404, detail="Survey mission not found")
+
+        rows = (
+            db.query(SurveyTile.status, func.count(SurveyTile.id))
+            .filter(SurveyTile.mission_id == mission_id)
+            .group_by(SurveyTile.status)
+            .all()
+        )
+        counts = {status: 0 for status in SurveyTileStatus}
+        for status, count in rows:
+            counts[status] = count
+        total = sum(counts.values())
+        return {
+            "mission_id": mission_id,
+            "total": total,
+            "pending": counts[SurveyTileStatus.PENDING],
+            "processing": counts[SurveyTileStatus.PROCESSING],
+            "completed": counts[SurveyTileStatus.COMPLETED],
+            "failed": counts[SurveyTileStatus.FAILED],
+        }
+    finally:
+        db.close()
+
+
+@router.get("/tile/{tile_id}")
+def get_survey_tile(tile_id: int):
+    db = SessionLocal()
+    try:
+        tile = db.query(SurveyTile).filter(SurveyTile.id == tile_id).first()
+        if tile is None:
+            raise HTTPException(status_code=404, detail="Survey tile not found")
+        return _serialize_tile(tile)
     finally:
         db.close()

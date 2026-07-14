@@ -33,6 +33,25 @@ def init_db():
             )
         )
 
+        # SurveyTile (Feature 3): create_all only adds the table, it never
+        # alters an existing one. Reconcile a table that may have been created
+        # by an earlier model revision (which used a `tile_order` column) with
+        # the current grid-based schema.
+        conn.execute(
+            text("ALTER TABLE survey_tiles DROP COLUMN IF EXISTS tile_order")
+        )
+        conn.execute(
+            text("ALTER TABLE survey_tiles ADD COLUMN IF NOT EXISTS grid_row INTEGER")
+        )
+        conn.execute(
+            text("ALTER TABLE survey_tiles ADD COLUMN IF NOT EXISTS grid_col INTEGER")
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE survey_tiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP"
+            )
+        )
+
 
 if __name__ == "__main__":
     init_db()

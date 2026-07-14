@@ -623,7 +623,7 @@ sequenceDiagram
         DET-->>API: bounding boxes + confidence
         API->>MAT: match by GPS proximity (4m)
         MAT->>DB: reuse or create permanent Tree
-        API->>DB: UPDATE Tile -> DONE
+        API->>DB: UPDATE Tile -> COMPLETED
     end
     API->>DB: UPDATE Mission -> COMPLETED/ACTIVE
     API->>DB: UPDATE previous ACTIVE -> SUPERSEDED
@@ -670,7 +670,7 @@ flowchart TD
     F --> G[Generate GPS per box - Sec 10]
     G --> H[Tree Matching - Sec 11]
     H --> I[Persist Tree observation]
-    I --> J[Mark Tile DONE - update progress]
+    I --> J[Mark Tile COMPLETED - update progress]
     J --> D
     D -->|no| K[Mark Mission COMPLETED + ACTIVE]
     K --> L[Supersede previous ACTIVE]
@@ -679,7 +679,7 @@ flowchart TD
 
 ## 8.5 Mission progress and progress tracking
 
-Each `Tile` carries a status (`PENDING`, `PROCESSING`, `DONE`, `FAILED`). Mission
+Each `Tile` carries a status (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`). Mission
 progress is `processed_count / tile_count`. The dashboard reads this to show a
 progress bar and to decide when the mission is safe to activate.
 
@@ -702,7 +702,7 @@ is retried while the rest proceed.
 
 Because missions are immutable only after `COMPLETED`, an in-flight `PROCESSING`
 mission can be **restarted**: only `PENDING`/`FAILED` tiles are re-processed;
-already `DONE` tiles are skipped. This makes a crash mid-mission recoverable
+already `COMPLETED` tiles are skipped. This makes a crash mid-mission recoverable
 without re-detecting the whole farm. Completed missions are never restarted — a new
 upload creates a new mission.
 
@@ -3110,7 +3110,7 @@ later requires no test changes — only a different client.
 # 57. Performance Considerations
 
 - **Tile processing** — per-tile YOLO inference is the dominant cost; tiles enable
-  parallelism and skip already-`DONE` tiles on restart (§8). At plantation scale
+  parallelism and skip already-`COMPLETED` tiles on restart (§8). At plantation scale
   (hundreds of tiles) this is acceptable on a single GPU/CPU.
 - **Database queries** — summaries aggregate per tree; indexes on `tree_id` and
   status keep these fast. The current minimal schema benefits from adding indexes on

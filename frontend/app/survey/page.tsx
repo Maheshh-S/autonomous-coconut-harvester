@@ -7,6 +7,7 @@ import {
   uploadSurveyImages,
   getMissionImages,
   completeMission,
+  getTileStats,
 } from "@/lib/api/detection"
 
 type Mission = {
@@ -21,6 +22,15 @@ type UploadedImage = {
   mission_id: number
   original_filename: string
   url: string
+}
+
+type TileStats = {
+  mission_id: number
+  total: number
+  pending: number
+  processing: number
+  completed: number
+  failed: number
 }
 
 const API_BASE_URL =
@@ -38,6 +48,7 @@ export default function SurveyPage() {
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [tileStats, setTileStats] = useState<TileStats | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
 
   const selectedMission = missions.find((m) => m.id === selectedMissionId) ?? null
@@ -69,6 +80,15 @@ export default function SurveyPage() {
     }
   }
 
+  async function loadTileStats(missionId: number) {
+    try {
+      const data = await getTileStats(missionId)
+      setTileStats(data as TileStats)
+    } catch (err) {
+      console.error("Failed to load tile statistics", err)
+    }
+  }
+
   useEffect(() => {
     loadMissions()
   }, [])
@@ -76,12 +96,20 @@ export default function SurveyPage() {
   useEffect(() => {
     if (selectedMissionId === null) {
       setImages([])
+      setTileStats(null)
       return
     }
     // Don't clobber images that are being appended during an active upload.
     if (uploading) return
     loadImages(selectedMissionId)
   }, [selectedMissionId, uploading])
+
+  // Tile statistics are independent of the image-upload loop, so they load on
+  // every mission switch regardless of upload state.
+  useEffect(() => {
+    if (selectedMissionId === null) return
+    loadTileStats(selectedMissionId)
+  }, [selectedMissionId])
 
   // Reset completion state only when the selected mission changes (not on every
   // upload toggle), so a finished upload keeps its "completed" indicator.
@@ -304,6 +332,41 @@ export default function SurveyPage() {
           <p className="text-gray-500 text-sm">No images uploaded yet.</p>
         )}
       </section>
+
+      {/* Survey Tiles (read-only, Feature 3) */}
+      {selectedMissionId !== null && (
+        <section className="mt-6 border rounded p-4">
+          <h2 className="text-xl font-semibold mb-3">Survey Tiles</h2>
+          {tileStats === null ? (
+            <p className="text-gray-500 text-sm">Loading tile statistics…</p>
+          ) : tileStats.total === 0 ? (
+            <p className="text-gray-500">No survey tiles have been generated yet.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileStats.total}</div>
+                <div className="text-xs text-gray-600">Total Survey Tiles</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileStats.pending}</div>
+                <div className="text-xs text-gray-600">Pending</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileStats.processing}</div>
+                <div className="text-xs text-gray-600">Processing</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileStats.completed}</div>
+                <div className="text-xs text-gray-600">Completed</div>
+              </div>
+              <div className="border rounded p-3 text-center">
+                <div className="text-2xl font-bold">{tileStats.failed}</div>
+                <div className="text-xs text-gray-600">Failed</div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
     </main>
   )
 }
