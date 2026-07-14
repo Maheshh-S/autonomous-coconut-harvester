@@ -1,0 +1,23 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - link "Home" [ref=f1e3] [cursor=pointer]:
+      - /url: /
+    - link "Dashboard" [ref=f1e4] [cursor=pointer]:
+      - /url: /trees
+    - link "Map" [ref=f1e5] [cursor=pointer]:
+      - /url: /map
+    - link "Robot" [ref=f1e6] [cursor=pointer]:
+      - /url: /robot
+  - main [ref=f1e8]:
+    - heading "Autonomous Coconut Harvesting System" [level=1] [ref=f1e9]
+    - paragraph [ref=f1e10]: Drone Tree Detection and Coconut Ripeness Analysis
+    - generic [ref=f1e11]:
+      - heading "Upload Drone Image" [level=2] [ref=f1e12]
+      - button "Choose File" [active] [ref=f1e13]
+      - button "Detect Trees" [ref=f1e14]
+      - generic [ref=f1e25]:
+        - paragraph [ref=f1e26]: Preview
+        - img [ref=f1e27]
+  - button "Open Next.js Dev Tools" [ref=f1e20] [cursor=pointer]:
+    - img [ref=f1e21]
+  - alert [ref=f1e24]

@@ -1,0 +1,214 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - link "Home" [ref=f1e3] [cursor=pointer]:
+      - /url: /
+    - link "Dashboard" [ref=f1e4] [cursor=pointer]:
+      - /url: /trees
+    - link "Map" [ref=f1e5] [cursor=pointer]:
+      - /url: /map
+    - link "Robot" [ref=f1e6] [cursor=pointer]:
+      - /url: /robot
+  - generic [ref=f1e67]:
+    - heading "Farm Dashboard" [level=1] [ref=f1e68]
+    - table [ref=f1e69]:
+      - rowgroup [ref=f1e70]:
+        - row "ID Lat Lon Coconuts Tasks Open" [ref=f1e71]:
+          - columnheader "ID" [ref=f1e72]
+          - columnheader "Lat" [ref=f1e73]
+          - columnheader "Lon" [ref=f1e74]
+          - columnheader "Coconuts" [ref=f1e75]
+          - columnheader "Tasks" [ref=f1e76]
+          - columnheader "Open" [ref=f1e77]
+      - rowgroup [ref=f1e78]:
+        - row "1 12.971560091097297 77.59417542733651 80 20 Open" [ref=f1e79]:
+          - cell "1" [ref=f1e80]
+          - cell "12.971560091097297" [ref=f1e81]
+          - cell "77.59417542733651" [ref=f1e82]
+          - cell "80" [ref=f1e83]
+          - cell "20" [ref=f1e84]
+          - cell "Open" [ref=f1e85]:
+            - link "Open" [ref=f1e86] [cursor=pointer]:
+              - /url: /trees/1
+        - row "2 12.971540172385286 77.59412244625656 32 2 Open" [ref=f1e87]:
+          - cell "2" [ref=f1e88]
+          - cell "12.971540172385286" [ref=f1e89]
+          - cell "77.59412244625656" [ref=f1e90]
+          - cell "32" [ref=f1e91]
+          - cell "2" [ref=f1e92]
+          - cell "Open" [ref=f1e93]:
+            - link "Open" [ref=f1e94] [cursor=pointer]:
+              - /url: /trees/2
+        - row "3 12.971510603679798 77.59421742848394 46 3 Open" [ref=f1e95]:
+          - cell "3" [ref=f1e96]
+          - cell "12.971510603679798" [ref=f1e97]
+          - cell "77.59421742848394" [ref=f1e98]
+          - cell "46" [ref=f1e99]
+          - cell "3" [ref=f1e100]
+          - cell "Open" [ref=f1e101]:
+            - link "Open" [ref=f1e102] [cursor=pointer]:
+              - /url: /trees/3
+        - row "4 12.971478876240967 77.59429884896907 64 3 Open" [ref=f1e103]:
+          - cell "4" [ref=f1e104]
+          - cell "12.971478876240967" [ref=f1e105]
+          - cell "77.59429884896907" [ref=f1e106]
+          - cell "64" [ref=f1e107]
+          - cell "3" [ref=f1e108]
+          - cell "Open" [ref=f1e109]:
+            - link "Open" [ref=f1e110] [cursor=pointer]:
+              - /url: /trees/4
+        - row "5 12.97160527350694 77.59432667483978 8 2 Open" [ref=f1e111]:
+          - cell "5" [ref=f1e112]
+          - cell "12.97160527350694" [ref=f1e113]
+          - cell "77.59432667483978" [ref=f1e114]
+          - cell "8" [ref=f1e115]
+          - cell "2" [ref=f1e116]
+          - cell "Open" [ref=f1e117]:
+            - link "Open" [ref=f1e118] [cursor=pointer]:
+              - /url: /trees/5
+        - row "6 12.9715730427184 77.59428038521328 7 1 Open" [ref=f1e119]:
+          - cell "6" [ref=f1e120]
+          - cell "12.9715730427184" [ref=f1e121]
+          - cell "77.59428038521328" [ref=f1e122]
+          - cell "7" [ref=f1e123]
+          - cell "1" [ref=f1e124]
+          - cell "Open" [ref=f1e125]:
+            - link "Open" [ref=f1e126] [cursor=pointer]:
+              - /url: /trees/6
+        - row "7 12.97160979516707 77.59411546411845 9 3 Open" [ref=f1e127]:
+          - cell "7" [ref=f1e128]
+          - cell "12.97160979516707" [ref=f1e129]
+          - cell "77.59411546411845" [ref=f1e130]
+          - cell "9" [ref=f1e131]
+          - cell "3" [ref=f1e132]
+          - cell "Open" [ref=f1e133]:
+            - link "Open" [ref=f1e134] [cursor=pointer]:
+              - /url: /trees/7
+        - row "8 12.971677114575861 77.59407824170732 2 2 Open" [ref=f1e135]:
+          - cell "8" [ref=f1e136]
+          - cell "12.971677114575861" [ref=f1e137]
+          - cell "77.59407824170732" [ref=f1e138]
+          - cell "2" [ref=f1e139]
+          - cell "2" [ref=f1e140]
+          - cell "Open" [ref=f1e141]:
+            - link "Open" [ref=f1e142] [cursor=pointer]:
+              - /url: /trees/8
+        - row "9 12.971710084624897 77.59412380607938 15 1 Open" [ref=f1e143]:
+          - cell "9" [ref=f1e144]
+          - cell "12.971710084624897" [ref=f1e145]
+          - cell "77.59412380607938" [ref=f1e146]
+          - cell "15" [ref=f1e147]
+          - cell "1" [ref=f1e148]
+          - cell "Open" [ref=f1e149]:
+            - link "Open" [ref=f1e150] [cursor=pointer]:
+              - /url: /trees/9
+        - row "10 12.97170360141357 77.59429647899272 15 3 Open" [ref=f1e151]:
+          - cell "10" [ref=f1e152]
+          - cell "12.97170360141357" [ref=f1e153]
+          - cell "77.59429647899272" [ref=f1e154]
+          - cell "15" [ref=f1e155]
+          - cell "3" [ref=f1e156]
+          - cell "Open" [ref=f1e157]:
+            - link "Open" [ref=f1e158] [cursor=pointer]:
+              - /url: /trees/10
+        - row "11 12.971481275242988 77.59408068870094 14 0 Open" [ref=f1e159]:
+          - cell "11" [ref=f1e160]
+          - cell "12.971481275242988" [ref=f1e161]
+          - cell "77.59408068870094" [ref=f1e162]
+          - cell "14" [ref=f1e163]
+          - cell "0" [ref=f1e164]
+          - cell "Open" [ref=f1e165]:
+            - link "Open" [ref=f1e166] [cursor=pointer]:
+              - /url: /trees/11
+        - row "12 12.971479309886641 77.59419888178212 107 0 Open" [ref=f1e167]:
+          - cell "12" [ref=f1e168]
+          - cell "12.971479309886641" [ref=f1e169]
+          - cell "77.59419888178212" [ref=f1e170]
+          - cell "107" [ref=f1e171]
+          - cell "0" [ref=f1e172]
+          - cell "Open" [ref=f1e173]:
+            - link "Open" [ref=f1e174] [cursor=pointer]:
+              - /url: /trees/12
+        - row "13 12.971514825729134 77.59429558470443 42 0 Open" [ref=f1e175]:
+          - cell "13" [ref=f1e176]
+          - cell "12.971514825729134" [ref=f1e177]
+          - cell "77.59429558470443" [ref=f1e178]
+          - cell "42" [ref=f1e179]
+          - cell "0" [ref=f1e180]
+          - cell "Open" [ref=f1e181]:
+            - link "Open" [ref=f1e182] [cursor=pointer]:
+              - /url: /trees/13
+        - row "14 12.971621414955772 77.5940753843541 6 0 Open" [ref=f1e183]:
+          - cell "14" [ref=f1e184]
+          - cell "12.971621414955772" [ref=f1e185]
+          - cell "77.5940753843541" [ref=f1e186]
+          - cell "6" [ref=f1e187]
+          - cell "0" [ref=f1e188]
+          - cell "Open" [ref=f1e189]:
+            - link "Open" [ref=f1e190] [cursor=pointer]:
+              - /url: /trees/14
+        - row "15 12.97168856011137 77.59421424892118 14 0 Open" [ref=f1e191]:
+          - cell "15" [ref=f1e192]
+          - cell "12.97168856011137" [ref=f1e193]
+          - cell "77.59421424892118" [ref=f1e194]
+          - cell "14" [ref=f1e195]
+          - cell "0" [ref=f1e196]
+          - cell "Open" [ref=f1e197]:
+            - link "Open" [ref=f1e198] [cursor=pointer]:
+              - /url: /trees/15
+        - row "16 12.9716 77.5946 0 0 Open" [ref=f1e199]:
+          - cell "16" [ref=f1e200]
+          - cell "12.9716" [ref=f1e201]
+          - cell "77.5946" [ref=f1e202]
+          - cell "0" [ref=f1e203]
+          - cell "0" [ref=f1e204]
+          - cell "Open" [ref=f1e205]:
+            - link "Open" [ref=f1e206] [cursor=pointer]:
+              - /url: /trees/16
+        - row "17 12.972076000000001 77.595019 84 37 Open" [ref=f1e207]:
+          - cell "17" [ref=f1e208]
+          - cell "12.972076000000001" [ref=f1e209]
+          - cell "77.595019" [ref=f1e210]
+          - cell "84" [ref=f1e211]
+          - cell "37" [ref=f1e212]
+          - cell "Open" [ref=f1e213]:
+            - link "Open" [ref=f1e214] [cursor=pointer]:
+              - /url: /trees/17
+        - row "18 12.971897 77.59499 0 0 Open" [ref=f1e215]:
+          - cell "18" [ref=f1e216]
+          - cell "12.971897" [ref=f1e217]
+          - cell "77.59499" [ref=f1e218]
+          - cell "0" [ref=f1e219]
+          - cell "0" [ref=f1e220]
+          - cell "Open" [ref=f1e221]:
+            - link "Open" [ref=f1e222] [cursor=pointer]:
+              - /url: /trees/18
+        - row "19 12.971884000000001 77.594822 20 10 Open" [ref=f1e223]:
+          - cell "19" [ref=f1e224]
+          - cell "12.971884000000001" [ref=f1e225]
+          - cell "77.594822" [ref=f1e226]
+          - cell "20" [ref=f1e227]
+          - cell "10" [ref=f1e228]
+          - cell "Open" [ref=f1e229]:
+            - link "Open" [ref=f1e230] [cursor=pointer]:
+              - /url: /trees/19
+        - row "20 12.971656000000001 77.59461 7 0 Open" [ref=f1e231]:
+          - cell "20" [ref=f1e232]
+          - cell "12.971656000000001" [ref=f1e233]
+          - cell "77.59461" [ref=f1e234]
+          - cell "7" [ref=f1e235]
+          - cell "0" [ref=f1e236]
+          - cell "Open" [ref=f1e237]:
+            - link "Open" [ref=f1e238] [cursor=pointer]:
+              - /url: /trees/20
+  - generic [ref=f1e19] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=f1e20]:
+      - img [ref=f1e21]
+    - generic [ref=f1e58]:
+      - button "Open issues overlay" [ref=f1e59]:
+        - generic [ref=f1e60]:
+          - generic [ref=f1e61]: "0"
+          - generic [ref=f1e62]: "1"
+        - generic [ref=f1e63]: Issue
+      - button "Collapse issues badge" [ref=f1e64]:
+        - img [ref=f1e65]
+  - alert [ref=f1e24]
