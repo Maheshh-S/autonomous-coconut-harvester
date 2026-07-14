@@ -191,3 +191,63 @@ export async function getPermanentTrees(missionId: number) {
   if (!res.ok) throw new Error("Failed to load permanent trees")
   return res.json()
 }
+
+// ---------------------------------------------------------------------------
+// Tree Inspection Sessions (Feature 7)
+// ---------------------------------------------------------------------------
+
+export type InspectionStatus =
+  | "CREATED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "FAILED"
+
+export interface Inspection {
+  id: number
+  inspection_code: string
+  tree_id: number
+  tree_code: string | null
+  created_at: string | null
+  completed_at: string | null
+  status: InspectionStatus
+  inspection_image_count: number
+  notes: string | null
+}
+
+export async function createInspection(treeId: number, notes?: string) {
+  const res = await fetch(getApiUrl("/inspection/create"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tree_id: treeId, notes }),
+  })
+  if (!res.ok) throw new Error("Failed to create inspection")
+  return res.json() as Promise<Inspection>
+}
+
+export async function startInspection(id: number) {
+  const res = await fetch(getApiUrl(`/inspection/${id}/start`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  })
+  if (!res.ok) throw new Error("Failed to start inspection")
+  return res.json() as Promise<Inspection>
+}
+
+export async function completeInspection(id: number, imageCount: number) {
+  const res = await fetch(getApiUrl(`/inspection/${id}/complete`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inspection_image_count: imageCount }),
+  })
+  if (!res.ok) throw new Error("Failed to complete inspection")
+  return res.json() as Promise<Inspection>
+}
+
+export async function getTreeInspections(treeId: number) {
+  const res = await fetch(getApiUrl(`/tree/${treeId}/inspections`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load tree inspections")
+  return res.json() as Promise<{ tree_id: number; tree_code: string | null; inspections: Inspection[] }>
+}

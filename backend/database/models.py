@@ -1,8 +1,8 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, UniqueConstraint
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -65,6 +65,59 @@ class Tree(Base):
     # geometry comparison in Tree Matching; refreshed on each observation.
     last_box_w = Column(Integer, nullable=True)
     last_box_h = Column(Integer, nullable=True)
+
+
+class InspectionStatus(str, Enum):
+    """Lifecycle states for a Tree Inspection Session (Feature 7).
+
+    One session is one climbing-robot visit to one permanent tree
+    (PROJECT_SPECIFICATION.md §20, Phase 5). The lifecycle is deterministic:
+
+        CREATED → IN_PROGRESS → COMPLETED → FAILED
+
+    ``CREATED`` is set on creation; the robot (or UI) moves it to ``IN_PROGRESS``
+    on arrival, then to ``COMPLETED`` (or ``FAILED``) when the visit ends.
+    """
+
+    CREATED = "CREATED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class Inspection(Base):
+    """A Tree Inspection Session: one climbing-robot visit to one permanent Tree.
+
+    Introduced in Feature 7 (Tree Inspection Session Foundation). This is the
+    first building block of the robot's on-tree work; it deliberately records
+    only the session/lifecycle metadata and the inspection history. Coconut
+    inventory and ripeness are out of scope here and are not stored.
+
+    ``inspection_code`` is the immutable public identifier (INSP-0001,
+    INSP-0002, …), written once from the row id (PROJECT_SPECIFICATION.md §11.2).
+
+    ``tree_id`` has no cascade delete so that deleting a tree can never delete
+    its inspection history (PROJECT_SPECIFICATION.md §18): the FK restricts
+    deletion of a tree that still has inspections.
+    """
+
+    __tablename__ = "inspections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    inspection_code = Column(String, unique=True, nullable=True, index=True)
+    tree_id = Column(
+        Integer,
+        ForeignKey("trees.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(String, default=InspectionStatus.CREATED.value, nullable=False)
+    inspection_image_count = Column(Integer, default=0, nullable=False)
+    notes = Column(Text, nullable=True)
+
+    tree = relationship("Tree")
 
 
 class SurveyMission(Base):

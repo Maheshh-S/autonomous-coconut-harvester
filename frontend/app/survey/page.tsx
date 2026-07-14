@@ -10,6 +10,11 @@ import {
   getTileStats,
   getTileGeneration,
   getPermanentTrees,
+  createInspection,
+  startInspection,
+  completeInspection,
+  getTreeInspections,
+  type Inspection,
 } from "@/lib/api/detection"
 
 type Mission = {
@@ -92,6 +97,10 @@ export default function SurveyPage() {
   const [tileStats, setTileStats] = useState<TileStats | null>(null)
   const [tileGen, setTileGen] = useState<TileGeneration | null>(null)
   const [permTrees, setPermTrees] = useState<PermanentTrees | null>(null)
+  const [expandedTree, setExpandedTree] = useState<number | null>(null)
+  const [treeInspections, setTreeInspections] = useState<Record<number, Inspection[]>>({})
+  const [inspLoading, setInspLoading] = useState(false)
+  const [completeCount, setCompleteCount] = useState<Record<number, number>>({})
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const loadSeq = useRef(0)
 
@@ -236,6 +245,48 @@ export default function SurveyPage() {
     } finally {
       setProcessing(false)
     }
+  }
+
+  async function loadTreeInspections(treeId: number) {
+    try {
+      const data = await getTreeInspections(treeId)
+      setTreeInspections((prev) => ({ ...prev, [treeId]: data.inspections }))
+    } catch (err) {
+      setError("Failed to load inspections: " + (err as Error).message)
+    }
+  }
+
+  async function handleStartInspection(treeId: number) {
+    setInspLoading(true)
+    setError(null)
+    try {
+      const created = await createInspection(treeId)
+      await startInspection(created.id)
+      await loadTreeInspections(treeId)
+    } catch (err) {
+      setError("Failed to start inspection: " + (err as Error).message)
+    } finally {
+      setInspLoading(false)
+    }
+  }
+
+  async function handleCompleteInspection(treeId: number, inspId: number) {
+    setInspLoading(true)
+    setError(null)
+    try {
+      const count = completeCount[inspId] ?? 1
+      await completeInspection(inspId, count)
+      await loadTreeInspections(treeId)
+    } catch (err) {
+      setError("Failed to complete inspection: " + (err as Error).message)
+    } finally {
+      setInspLoading(false)
+    }
+  }
+
+  function toggleTree(treeId: number) {
+    setExpandedTree((prev) => (prev === treeId ? null : treeId))
+    if (expandedTree !== treeId) loadTreeInspections(treeId)
   }
 
   async function handleCreateMission() {
@@ -540,42 +591,116 @@ export default function SurveyPage() {
                 </div>
               </div>
 
-              <details className="mt-4">
-                <summary className="cursor-pointer text-sm text-gray-700">
-                  Show {permTrees.trees.length} permanent tree
-                  {permTrees.trees.length === 1 ? "" : "s"}
-                </summary>
-                <div className="mt-2 overflow-x-auto">
-                  <table className="w-full text-sm border">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border px-2 py-1 text-left">Tree ID</th>
-                        <th className="border px-2 py-1 text-left">Times Seen</th>
-                        <th className="border px-2 py-1 text-left">
-                          Match Confidence
-                        </th>
-                        <th className="border px-2 py-1 text-left">GPS (lat, lon)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {permTrees.trees.map((t) => (
-                        <tr key={t.id}>
-                          <td className="border px-2 py-1">{t.tree_code}</td>
-                          <td className="border px-2 py-1">{t.times_seen}</td>
-                          <td className="border px-2 py-1">
+              <div className="mt-4 space-y-3">
+                {permTrees.trees.map((t) => {
+                  const insps = treeInspections[t.id] || []
+                  const isOpen = expandedTree === t.id
+                  return (
+                    <div key={t.id} className="border rounded p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className="font-semibold">{t.tree_code}</div>
+                          <div className="text-xs text-gray-600">
+                            Seen {t.times_seen}× · Match{" "}
                             {t.last_matching_confidence !== null
                               ? t.last_matching_confidence.toFixed(3)
-                              : "new"}
-                          </td>
-                          <td className="border px-2 py-1">
-                            {t.gps_lat.toFixed(6)}, {t.gps_lon.toFixed(6)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
+                              : "new"}{" "}
+                            · {t.gps_lat.toFixed(6)}, {t.gps_lon.toFixed(6)}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleTree(t.id)}
+                            className="px-3 py-1.5 text-sm border rounded bg-white hover:bg-gray-50"
+                          >
+                            {isOpen ? "Hide History" : "Inspection History"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStartInspection(t.id)}
+                            disabled={inspLoading}
+                            className="px-3 py-1.5 text-sm border rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            Start Inspection
+                          </button>
+                        </div>
+                      </div>
+
+                      {isOpen && (
+                        <div className="mt-3">
+                          <h4 className="text-sm font-semibold mb-2">
+                            Inspection History
+                          </h4>
+                          {insps.length === 0 ? (
+                            <p className="text-sm text-gray-500">
+                              No inspections yet for this tree.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {insps.map((insp) => (
+                                <div
+                                  key={insp.id}
+                                  className="border rounded p-2 text-sm"
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                      <span className="font-mono">
+                                        {insp.inspection_code}
+                                      </span>{" "}
+                                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">
+                                        {insp.status}
+                                      </span>
+                                    </div>
+                                    <span className="text-xs text-gray-500">
+                                      {insp.created_at
+                                        ? new Date(insp.created_at).toLocaleString()
+                                        : ""}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    Images: {insp.inspection_image_count}
+                                    {insp.completed_at
+                                      ? ` · Completed ${new Date(insp.completed_at).toLocaleString()}`
+                                      : ""}
+                                    {insp.notes ? ` · ${insp.notes}` : ""}
+                                  </div>
+                                  {insp.status === "IN_PROGRESS" && (
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={completeCount[insp.id] ?? 1}
+                                        onChange={(e) =>
+                                          setCompleteCount((prev) => ({
+                                            ...prev,
+                                            [insp.id]: Number(e.target.value),
+                                          }))
+                                        }
+                                        className="w-20 border rounded px-2 py-1 text-sm"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleCompleteInspection(t.id, insp.id)
+                                        }
+                                        disabled={inspLoading}
+                                        className="px-3 py-1 text-sm border rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                                      >
+                                        Complete
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </>
           )}
         </section>
