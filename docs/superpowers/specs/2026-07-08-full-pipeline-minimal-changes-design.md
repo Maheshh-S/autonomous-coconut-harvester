@@ -1,174 +1,106 @@
-# Design Specification – Full Pipeline Integration (Minimal Code Changes)
+# Design Specification – Full Pipeline Integration
 
-**Date:** 2026-07-08
+**Date:** 2026-07-08 (last updated 2026-07-14 to reflect the implemented pipeline)
 
 ---
 
 ## 1. Overview
 
-We need to integrate the complete end‑to‑end flow (drone image → tree detection → coconut detection → task generation → robot execution) while touching as few existing files as possible. The chosen approach (Approach B) adds a **post‑detect webhook** that decouples detection latency from planning.
+This document records the design of the end‑to‑end harvest pipeline as it is
+**actually implemented** in the repository:
 
----
-
-## 2. New API Endpoint – `POST /plan/from‑trees`
-
-**File:** `backend/api/plan_from_trees.py`
-
-```python
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field, validator
-from typing import List
-
-from .harvest_planner import generate_tasks_for_tree  # existing planner logic
-from ..security import get_current_user  # reuse existing auth dependency
-
-router = APIRouter()
-
-class TreeBox(BaseModel):
-    id: int = Field(..., description="Tree index returned by detection")
-    x1: int
-    y1: int
-    x2: int
-    y2: int
-    confidence: float
-
-    @validator("confidence")
-    def confidence_range(cls, v):
-        if not 0.0 <= v <= 1.0:
-            raise ValueError("confidence must be between 0 and 1")
-        return v
-
-class PlanRequest(BaseModel):
-    trees: List[TreeBox]
-
-class TaskInfo(BaseModel):
-    task_id: int
-    tree_id: int
-    status: str
-
-class PlanResponse(BaseModel):
-    tasks_created: int
-    tasks: List[TaskInfo]
-
-@router.post("/plan/from-trees", response_model=PlanResponse, status_code=201)
-async def plan_from_trees(request: PlanRequest, user=Depends(get_current_user)):
-    # Filter low‑confidence detections (same threshold as detection endpoint)
-    filtered = [t for t in request.trees if t.confidence >= 0.4]
-    if not filtered:
-        raise HTTPException(status_code=422, detail="No trees meet confidence threshold")
-
-    created = []
-    for tb in filtered:
-        # The existing planner expects a dict with at least the coordinates.
-        # It internally handles duplicate‑task avoidance.
-        task = generate_tasks_for_tree({
-            "id": tb.id,
-            "x1": tb.x1,
-            "y1": tb.y1,
-            "x2": tb.x2,
-            "y2": tb.y2,
-            "confidence": tb.confidence,
-        })
-        if task:
-            created.append(task)
-
-    return PlanResponse(
-        tasks_created=len(created),
-        tasks=[TaskInfo(task_id=t.id, tree_id=t.tree_id, status=t.status) for t in created],
-    )
+```
+drone imagery ─▶ ML inference (YOLO) ─▶ backend APIs ─▶ PostgreSQL (Neon) ─▶ UI / robot
 ```
 
-*Key points*
-- Re‑uses the existing `generate_tasks_for_tree` function from `backend/api/harvest_planner.py`.
-- Validates payload via Pydantic; returns a 422 error if nothing passes the confidence filter.
-- Keeps authentication identical to other `/drone/*` routes.
+The pipeline is intentionally additive and low‑risk: detection, planning, and
+robot execution are separate FastAPI routers that share a single de‑duplication
+rule (`create_task_if_needed`) so the same tree/coconut never produces two
+`Task` rows.
 
 ---
 
-## 3. Front‑end Changes – `DroneUploader.tsx`
+## 2. Components
 
-**File:** `frontend/components/DroneUploader.tsx`
+### 2.1 Perception (`perception/`)
+- `perception/drone_scan.py` – orchestrates a coverage flight. For each captured
+  image it runs tree detection, `POST`s each detected tree to
+  `http://127.0.0.1:8000/drone/tree_detected`, then runs coconut detection and
+  `POST`s each coconut to `http://127.0.0.1:8000/drone/detection`.
+- `perception/detect_coconut.py` – standalone script that runs the coconut model
+  on a single image and posts detections to `/drone/detection`.
 
-```tsx
-// Existing import statements …
+### 2.2 Backend routers (`backend/api/`)
+| Router | Key endpoints | Responsibility |
+|--------|--------------|---------------|
+| `tree_api` | `POST /detect/trees`, `GET /trees/summary` | YOLO tree detection; tree list/summary |
+| `drone_api` | `POST/GET /drone/tree_detected` | Register a tree from a GPS box, de‑duped within 4 m |
+| `coconut_api` | `POST /detect/coconuts` | YOLO coconut‑ripeness detection |
+| `detection_api` | `POST /drone/detection` | Store a `Detection` (ripeness lowercased, `harvest_type` persisted) and create a `Task` if needed |
+| `planner_api` | `POST /planner/generate_tasks` | Bulk‑generate tasks from mature detections (idempotent) |
+| `harvest_planner` | `GET /planner/harvest_order` | Ordered harvest plan grouped by ripeness |
+| `robot_api` | `GET /robot/next_task`, `POST /robot/complete_task` | Robot task polling/completion with stale‑task reclamation |
+| `map_api` | `GET /plantation/map` | Geo data for the map view |
 
-// After handling the detection response:
-const handleDetection = async (file: File) => {
-  const detectionResult = await uploadAndDetect(file);
-  setDetectionResult(detectionResult);
+### 2.3 Shared task de‑duplication (`backend/database/tasks.py`)
+`create_task_if_needed(db, tree_id, coconut_id)` returns a new `Task` id only if
+no `Task` for that `(tree_id, coconut_id)` exists, else `None`. It is the single
+source of the de‑duplication rule, called by both `detection_api` and
+`planner_api`.
 
-  // ---- NEW: planning webhook ----
-  try {
-    const planResp = await fetch('/plan/from-trees', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trees: detectionResult.trees }),
-    });
-    if (!planResp.ok) {
-      throw new Error(`Planning failed: ${planResp.status}`);
-    }
-    const planData = await planResp.json();
-    toast.success(`${planData.tasks_created} harvesting task(s) created`);
-  } catch (e) {
-    console.error(e);
-    toast.error('Failed to generate harvesting tasks');
-  }
-};
-```
+### 2.4 Schema (`backend/database/`)
+- `models.py`: `Tree` (gps + `detected_time`), `Detection` (`tree_id`,
+  `coconut_id`, `ripeness`, `confidence`, `harvest_type`), `Task`
+  (`tree_id`, `coconut_id`, `status`, `priority`, `created_at`, `claimed_at`).
+- `init_db.py`: idempotent `create_all` + `ALTER … IF NOT EXISTS`, run at backend
+  startup (`backend/main.py`). **No Alembic.**
 
-- The UI shows a temporary toast (or any existing notification component) indicating how many tasks were created.
-- No layout changes; the new code lives within the existing `handleDetection` flow.
-
----
-
-## 4. Backend Planner Integration
-
-The planner (`backend/api/harvest_planner.py`) already:
-- Receives a tree object.
-- Persists a `Task` linked to the tree.
-- Checks for existing pending tasks to stay idempotent.
-
-Our wrapper simply converts the detection JSON into the dict shape expected by the planner and calls it synchronously. No additional database migrations are required.
+### 2.5 Simulation (`simulation/robot_simulator.py`)
+Polls `GET /robot/next_task` and reports completion via
+`POST /robot/complete_task` to exercise the robot flow without hardware.
 
 ---
 
-## 5. Validation & Error Handling
+## 3. End‑to‑end flow
 
-- **Payload validation** – enforced by Pydantic models (`PlanRequest`).
-- **Confidence filter** – mirrors the detection endpoint’s `conf >= 0.4` threshold.
-- **Idempotency** – the planner’s internal check prevents duplicate tasks on repeated calls.
-- **Logging** – `logger.info("Planning tasks for X trees", extra={"tree_count": len(filtered)})` (add to the router).
-- **Error responses** – 400 for malformed JSON, 422 if no valid trees, 500 for unexpected failures.
-
----
-
-## 6. Testing Strategy
-
-| Layer | Test | Goal |
-|------|------|------|
-| **Unit** | Test `PlanRequest` validation and confidence filter. | Ensure bad payloads are rejected. |
-| **Unit** | Mock `generate_tasks_for_tree` and verify the router returns the correct `tasks_created` count. | Isolate router logic. |
-| **Integration** | Spin up a temporary FastAPI test client, POST a realistic detection payload, then query the SQLite DB to confirm `Task` rows exist. | End‑to‑end verification of planner wiring. |
-| **Frontend** | Jest test that `fetch('/plan/from-trees')` is called after successful detection and that a toast appears with the correct number. | UI feedback works. |
-| **Manual** | Run the dev server (`npm run dev`), upload a sample drone image, watch the detection UI, and confirm a toast shows the created tasks. | Real‑world validation. |
+1. Drone image uploaded via UI → `tree_api` runs YOLO → bounding boxes returned.
+2. User (or `drone_scan.py`) selects a box → `drone_api` registers GPS
+   (de‑duped within 4 m) → creates/reuses a `Tree`.
+3. Coconut image uploaded → `coconut_api` → `detection_api` stores a `Detection`
+   (ripeness lowercased) and may create a `Task` via `create_task_if_needed`
+   based on `harvest_type`.
+4. `planner_api` / `harvest_planner` can bulk‑generate tasks from mature
+   detections (`POST /planner/generate_tasks`) and return an ordered plan
+   (`GET /planner/harvest_order`).
+5. Robot UI / `robot_simulator` polls `robot/next_task` (claims `in_progress` +
+   `claimed_at`, reclaims tasks stuck >5 min) → executes → `complete_task`.
 
 ---
 
-## 7. Deployment & Migration Notes
+## 4. Key invariants / gotchas
 
-- **No DB migrations** – the schema already supports `Task` rows.
-- **Feature flag** (optional) – wrap the second fetch behind `process.env.NEXT_PUBLIC_ENABLE_PLANNING`. This allows us to turn the feature on/off without redeploying code.
-- **Rolling deploy** – because the new endpoint is additive and the frontend only calls it after detection succeeds, we can roll out the backend first, then enable the frontend flag.
-
----
-
-## 8. Open Questions / Decisions
-
-- **Rate limiting** – Do we need a per‑user/per‑IP rate limit on `/plan/from‑trees`? (If the system will be public‑facing.)
-- **Task priority** – The planner currently creates tasks with default priority. Should we expose a priority field in the request? (Out of scope for minimal change.)
-
-*If there are any adjustments needed, let me know and we’ll update the spec.*
+- **Ripeness normalisation** – the model returns capitalised labels
+  (`Mature`/`Premature`/`Potential`); these are stored lowercased and queries use
+  `func.lower(...)`.
+- **`harvest_type`** – accepted by `detection_api` and persisted on `Detection`;
+  it drives whether a `Task` is created (`mature`/`tender`/`both`).
+- **Idempotency** – both the per‑detection path and the bulk planner use
+  `create_task_if_needed`, so repeated calls never create duplicate tasks.
+- **Stale reclamation** – `GET /robot/next_task` reclaims `in_progress` tasks
+  older than 5 minutes (`STUCK_TASK_THRESHOLD`).
 
 ---
 
-*Spec written by Claude Code – ready for review and commit.*
+## 5. Notes
+
+- This spec supersedes the earlier `/plan/from‑trees` design (which proposed a
+  separate `plan_from_trees` router and an auth dependency that were never built).
+  The same goal — turning detections into de‑duplicated tasks — is achieved by the
+  shared `create_task_if_needed` helper used across the existing routers.
+- Database is **PostgreSQL (Neon)** via `DATABASE_URL`; model weights (`*.pt`) and
+  `.env` are gitignored and local‑only.
+
+---
+
+*Source of truth: the repository. If code and this document diverge, update the
+document.*

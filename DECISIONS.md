@@ -4,7 +4,7 @@
 
 - **Backend framework**: FastAPI was selected for its async support and easy integration with Python ML code.
 - **Frontend framework**: Next.js (React) provides server‑side rendering, routing, and a familiar UI stack.
-- **Data storage**: SQLite via SQLAlchemy for rapid prototyping; migrations will be manual.
+- **Data storage**: PostgreSQL (Neon) via SQLAlchemy, accessed through `DATABASE_URL` in `.env`; there is no migration framework, so schema is evolved manually and ensured at startup by `backend/database/init_db.py` (idempotent `create_all` + `ALTER … IF NOT EXISTS`).
 - **ML inference**: YOLO models stored under `models/` are used for tree and coconut detection.
 - **Simulation**: A software robot simulator (`simulation/robot_simulator.py`) is used instead of physical hardware for early development and testing.
 - **API design**: Separate routers for each domain (tree, coconut, robot, planning) to keep responsibilities isolated.

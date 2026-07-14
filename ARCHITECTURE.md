@@ -11,8 +11,7 @@ persisted in **PostgreSQL** (Neon).
   (`/`), tree dashboard (`/trees`), tree detail (`/trees/[treeId]`), map
   (`/map`), robot control (`/robot`).
 - Talks to the backend through the thin wrapper in `frontend/lib/api/detection.ts`.
-- Navigation is rendered inline in `frontend/app/layout.tsx` (`Navbar.tsx` is
-  currently unused).
+- Navigation is rendered inline in `frontend/app/layout.tsx`.
 
 ## Backend
 - FastAPI routers in `backend/api/` expose endpoints for tree detection, coconut

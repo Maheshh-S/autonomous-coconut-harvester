@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend — Autonomous Coconut Harvester
 
-## Getting Started
+React/Next.js UI for the Autonomous Coconut Harvester. It is **presentation
+only**: every business rule (detection, planning, task de‑duplication, robot
+flow) lives in the FastAPI backend. This app renders data and sends requests.
 
-First, run the development server:
+## Stack
+- **Next.js 16** (App Router) + **React 19** + **Tailwind 4**
+- **Leaflet** (via `react-leaflet` + `leaflet`) for the plantation map
+- **Playwright** for end‑to‑end tests
 
+## Scripts
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install      # install dependencies
+npm run dev      # dev server on http://localhost:3000
+npm run build    # production build
+npm run lint     # ESLint (0 errors expected; dynamic blob <img> previews may warn)
+npm run test:e2e # Playwright end-to-end tests
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Talking to the backend
+All API calls go through the thin wrapper `lib/api/detection.ts`, which targets
+the backend at `http://localhost:8000` (see `API_BASE_URL` in that file). The
+backend must be running for the pages to load live data.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages (`app/`)
+| Route | File | Purpose |
+|-------|------|---------|
+| `/` | `app/page.tsx` | Upload a drone/tree image and run detection |
+| `/trees` | `app/trees/page.tsx` | Tree dashboard (summary from `GET /trees/summary`) |
+| `/trees/[treeId]` | `app/trees/[treeId]/page.tsx` | Single‑tree detail + coconut upload |
+| `/map` | `app/map/page.tsx` | Plantation map (`GET /plantation/map`) |
+| `/robot` | `app/robot/page.tsx` | Robot task polling/completion (`/robot/next_task`, `/robot/complete_task`) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Components (`components/`)
+- `DroneUploader.tsx` – upload + tree detection, draws detected boxes.
+- `CoconutUploader.tsx` – upload a coconut photo, shows detected coconuts.
+- `MapView.tsx` / `MapWrapper.tsx` – Leaflet map (client‑only via `dynamic`).
+- `leafletFix.ts` – fixes default Leaflet marker icon paths under bundlers.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+- Upload previews use native `<img>` with `blob:` URLs (dynamic, not static
+  assets), so `next/image` is intentionally not used there.
+- Navigation is rendered inline in `app/layout.tsx` (no separate navbar
+  component).

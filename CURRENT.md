@@ -18,4 +18,4 @@
   - Database is **PostgreSQL (Neon)**, not SQLite (documentation previously said SQLite).
   - `requirements.txt` is a placeholder and incomplete.
   - Model weights (`*.pt`) and `.env` are gitignored; they are local‑only.
-  - `Navbar.tsx` is unused (navigation lives in `layout.tsx`).
+  - Navigation is rendered inline in `layout.tsx` (the old `Navbar.tsx` component was removed).
