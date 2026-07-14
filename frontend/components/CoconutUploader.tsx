@@ -133,6 +133,7 @@ export default function CoconutUploader({
           <img
             src={preview}
             width={400}
+            alt="Preview of the uploaded coconut photo"
           />
 
         </div>
@@ -153,6 +154,7 @@ export default function CoconutUploader({
           <img
             src={result}
             width={400}
+            alt="Coconuts detected in the uploaded photo"
           />
 
         </div>

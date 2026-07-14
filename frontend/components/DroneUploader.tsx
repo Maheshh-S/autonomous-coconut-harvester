@@ -59,8 +59,22 @@ export default function DroneUploader() {
 
     try {
 
-      const gps_lat = 12.9716 + tree.x1 / 1000000
-      const gps_lon = 77.5946 + tree.y1 / 1000000
+      // per‑tree GPS offset based on bounding‑box centre (x and y)
+      const IMG_WIDTH = 600 // rendered image width (px)
+      const IMG_HEIGHT = 600 // rendered image height (px)
+
+      // use separate steps for latitude (x) and longitude (y)
+      const GPS_STEP_LAT = 0.001 // degrees lat per full‑width offset
+      const GPS_STEP_LON = 0.001 // degrees lon per full‑height offset
+
+      const boxCx = (tree.x1 + tree.x2) / 2
+      const boxCy = (tree.y1 + tree.y2) / 2
+
+      const offsetLat = (boxCx / IMG_WIDTH) * GPS_STEP_LAT
+      const offsetLon = (boxCy / IMG_HEIGHT) * GPS_STEP_LON
+
+      const gps_lat = 12.9716 + offsetLat
+      const gps_lon = 77.5946 + offsetLon
 
       const params = new URLSearchParams({
         gps_lat: gps_lat.toString(),
@@ -119,6 +133,7 @@ export default function DroneUploader() {
           <img
             src={preview}
             className="w-[600px] rounded shadow"
+            alt="Preview of the uploaded drone scan image"
           />
 
         </div>
@@ -137,6 +152,7 @@ export default function DroneUploader() {
             <img
               src={result}
               className="rounded shadow"
+              alt="Trees detected in the drone scan"
             />
 
             {trees.map((tree) => (
