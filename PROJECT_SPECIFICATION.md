@@ -2358,6 +2358,19 @@ flowchart LR
     Q --> M[Harvest Mission]
 ```
 
+*[Feature 10 note: implemented as the Harvest Planner & Mission Builder in
+`backend/api/harvest_mission_api.py`. The planner reads the latest Inventory
+Snapshots (Feature 9), filters eligible trees (§40), orders them by
+Nearest-Neighbour (§41), and writes one `HarvestMission` plus one
+`HarvestMissionItem` per tree — the "Robot Queue" of §42 is realised as the
+mission's ordered items, not a separate `Task` table. Endpoints:
+`POST /harvest/missions` (`{harvest_type, notes?}` → new mission + items),
+`GET /harvest/missions` (headers, newest first),
+`GET /harvest/missions/{id}` (mission + items),
+`GET /harvest/missions/{id}/items` (ordered items). Scope for this feature is
+plan-building only: it does not execute the robot, modify inventory, or mutate any
+existing mission (§38.2).]*
+
 ---
 
 # 39. Harvest Request Workflow
@@ -2447,6 +2460,18 @@ trip (climb + descend for nothing). Excluding empties protects robot time and ke
 the queue meaningful. This is also why inventory *replacement* (§17) matters: the
 planner always sees the true latest count, never a stale non-zero.
 
+*[Feature 10 note: `_eligible_trees()` applies these eligibility rules against each
+tree's latest Inventory Snapshot: (1) `current_inventory_id` set, (2)
+`availability == ACTIVE`, (3) requested-type count > 0. Two clarifications for this
+slice: the `lifecycle == READY_FOR_HARVEST` gate is **not** enforced yet — the
+current pipeline does not advance lifecycle to that state, so eligibility rests on
+availability + inventory presence; and one extra guard is added — a tree already
+assigned to an active (`CREATED`/`RUNNING`/`PAUSED`) Harvest Mission is excluded so
+it can never appear in two live plans at once. Harvest types map to Feature 9
+snapshot columns: `mature`→`mature_count`, `potential`→`potential_count`,
+`premature`→`premature_count`, `all`→`total_coconuts` (§24). (§40.2 lists
+mature/premature/all; `potential` is included to cover all three ripeness classes.)]*
+
 ---
 
 # 41. Route Planning Strategy
@@ -2517,6 +2542,15 @@ flowchart TD
     N3 --> E[Tour complete]
 ```
 
+*[Feature 10 note: `nearest_neighbour_order()` implements NN deterministically. The
+start (depot) is the active Survey Mission's `base_gps_lat/lon`; if unavailable, the
+tour starts from the lowest-id eligible tree. Distance is squared Euclidean over
+(lat, lon) — monotonic, so it gives the same ordering as true distance without a
+sqrt. The candidate list is processed in ascending tree-id order and ties use a
+strict `<`, so equal distances always keep the lower-id tree, making the route fully
+reproducible. Each item's `visit_order` (1..n) records the resulting sequence. No
+TSP/A*/Dijkstra (§41.4).]*
+
 ---
 
 # 42. Robot Queue
@@ -2574,6 +2608,14 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
+*[Feature 10 note: the Robot Queue is realised as `HarvestMissionItem` rows owned by
+a `HarvestMission` (FK `mission_id`, CASCADE on mission delete; FK `tree_id`,
+RESTRICT; `UNIQUE(mission_id, tree_id)`). Each item carries `visit_order`,
+`expected_coconuts` (frozen from the snapshot at plan time), and `status`
+(`PENDING`/`IN_PROGRESS`/`COMPLETED`/`CANCELLED`). Items and their counts are
+immutable once written. This feature only creates items in `PENDING`; robot
+claiming/completion and stale reclamation (§44) are out of scope for Feature 10.]*
+
 ---
 
 # 43. Harvest Mission
@@ -2625,6 +2667,36 @@ stateDiagram-v2
   `COMPLETED`.
 - **Cancellation / pausing / resuming:** see §46.
 
+*[Feature 10 & 11 note: `HarvestMission` (`backend/database/models.py`) has `id`,
+`mission_code` (write-once, `HM-0001`…, derived from the row id per §11.2),
+`created_at`, `completed_at`, `status` (`HarvestMissionStatus`:
+`CREATED`/`RUNNING`/`PAUSED`/`COMPLETED`/`CANCELLED`), `harvest_type`, `total_trees`,
+`total_expected_coconuts`, `notes`, and an `items` relationship. `HarvestMissionItem`
+has `expected_coconuts`, `harvested` (coconuts actually harvested on completion;
+equals `expected_coconuts` for the current v1 slice, reserved for future
+field-verified yields), and `status` (`HarvestMissionItemStatus`:
+`PENDING`/`IN_PROGRESS`/`COMPLETED`/`FAILED`/`CANCELLED`).
+
+Feature 10 (Mission-Builder) creates missions in `CREATED`; the queue is immutable
+after creation. Feature 11 (Robot Mission Execution) implements the state machine of
+§43/§46 through `backend/api/harvest_mission_api.py`: `POST …/start`
+(`CREATED→RUNNING`, claims first `PENDING`→`IN_PROGRESS`), `…/pause`,
+`…/resume`, `…/cancel` (`CANCELLED`, completed items preserved, remaining
+`PENDING`/`IN_PROGRESS`→`CANCELLED`), `…/advance` (completes the current
+`IN_PROGRESS` item — writing a new post-harvest Inventory Snapshot per §25/§44.5 and
+repointing `Tree.current_inventory_id` — then claims the next `PENDING`→`IN_PROGRESS`;
+auto-`COMPLETED` when the queue is exhausted), and `GET …/status` (coarse
+`robot_state` per §45.1: `IDLE`/`HARVESTING`/`PAUSED`/`COMPLETED`/`CANCELLED`).
+
+`ACTIVE_HARVEST_MISSION_STATUSES` = (`CREATED`, `RUNNING`, `PAUSED`) is the
+"non-terminal" set used by the planner's duplicate-assignment guard (§40 note) and by
+the execution guard that enforces exactly one running mission at a time (§43.1). The
+start endpoint rejects if another active mission exists (409). Exactly one item is
+`IN_PROGRESS` at a time. Missions/items are immutable in *route*; only the `status`
+(and `harvested` on completion) is advanced. Legacy `robot_api.py` / `planner_api.py`
+Task-based stubs are NOT used — Feature 11 executes the `HarvestMission` planned by
+Feature 10.]*
+
 ---
 
 # 44. Robot Task Execution
@@ -2675,6 +2747,19 @@ computes completion — it observes the backend's authoritative state.
   (§27, §42).
 - **Comms loss:** same safety net — no double harvest, no stuck task.
 
+*[Feature 11 implementation note: v1 does **not** simulate the `Moving`/`Climbing`/
+`Scanning` robot micro-states or GPS animation of §45.1 — the dashboard drives
+execution through the backend endpoints of §43.5. On each completed tree the backend
+performs step 5 ("Update Inventory") exactly as specified: it writes a **new**
+post-harvest `InventorySnapshot` (decrementing only the harvested category via the
+§40.2 type→column map; `all`→`total_coconuts`, `mature`→`mature_count`,
+`potential`→`potential_count`, `premature`→`premature_count`), leaves the historical
+snapshot untouched, and repoints `Tree.current_inventory_id` (§17, §18, §44.5).
+`inspection_id` on post-harvest snapshots is `NULL` (they originate from a harvest,
+not an inspection), which required making that column nullable via the
+`init_db.py` migration. The dashboard observes authoritative backend state
+(§44.2) via the `GET …/status` poll.]*
+
 ---
 
 # 45. Robot Operational States
@@ -2721,6 +2806,15 @@ where the robot is but what it is doing, which is what makes remote supervision
 trustworthy. The palette is chosen for high contrast and intuitive mapping
 (green=working, red=fault).
 
+*[Feature 11 implementation note: v1 collapses the seven fine-grained robot states
+of §45.1 into a coarse `robot_state` returned by `GET …/status`
+(`backend/api/harvest_mission_api.py` → `_robot_state`): `CREATED→IDLE`,
+`RUNNING`+current tree→`HARVESTING`, `RUNNING`+no current tree→`IDLE`,
+`PAUSED→PAUSED`, `COMPLETED→COMPLETED`, `CANCELLED→CANCELLED`. The full
+`Moving`/`Climbing`/`Scanning`/`Harvesting`/`Returning`/`Error` palette is deferred;
+the dashboard's execution panel (survey page, Harvest section) shows this coarse
+state plus current/next tree, completed/remaining counts, and harvested total.]*
+
 ---
 
 # 46. Pause / Resume / Cancel
@@ -2756,6 +2850,16 @@ trustworthy. The palette is chosen for high contrast and intuitive mapping
   from the real state rather than guessing.
 - **Marking (not deleting) cancelled tasks** keeps foreign keys valid and the
   mission reconstructable.
+
+*[Feature 11 implementation note: the endpoints of §43.5 implement §46 exactly.
+Pause (`/pause`) leaves the current `IN_PROGRESS` item untouched (it finishes on the
+next `/advance`); Resume (`/resume`) returns to `RUNNING` and continues from the next
+`PENDING` tree (no re-harvest of `COMPLETED` items); Cancel (`/cancel`) sets the
+mission `CANCELLED`, preserves `COMPLETED` items, and marks remaining `PENDING`/
+`IN_PROGRESS` items `CANCELLED` (never deleted), satisfying the audit/history
+invariants (§18, §7.11). All three are guarded: start requires `CREATED`, pause
+requires `RUNNING`, resume requires `PAUSED`, cancel requires a non-terminal status
+(409 otherwise), and a terminal mission cannot be restarted/cancelled.]*
 
 ---
 
@@ -3350,6 +3454,241 @@ sequenceDiagram
     HM->>H: mission retained (read-only)
     D-->>F: Harvest Completed - Dashboard Updated - History Recorded
 ```
+
+---
+
+# V2. Digital Twin Farm Viewer (Version 2 Architecture Amendment)
+
+> **Status: FROZEN (v2.0).** The direction was adopted and the four decisions
+> formerly open in §V2.12 are now resolved and locked (§V2.12). This is a
+> *versioned amendment* per the Architecture Freeze rule ("future architectural
+> changes should be introduced through versioned revisions rather than by editing
+> or retracting the historical decisions"). **Version 1 (sections 1–62) remains
+> frozen and unchanged.** Nothing below removes V1 *data or business logic*; where
+> V2 changes how a V1 concept is *realised* (notably the `/map` visualisation), it
+> says so explicitly and V1 remains the historical record. Freezing this section
+> authorises implementation to begin; **no code is written by this document
+> itself.**
+
+## V2.1 What Version 2 changes
+
+Version 2 replaces the **Leaflet / OpenStreetMap marker map**
+(`frontend/components/MapView.tsx`, `/map`) — which V1 §12.2 already labelled a
+*placeholder* — with a purpose-built **Digital Twin Farm Viewer**: the drone
+survey tiles arranged into one continuous plantation canvas, with the YOLO
+tree bounding boxes themselves as the interactive layer. This is the concrete
+realisation of the Farm Digital Twin that V1 §12 and §31 already specified in
+principle; it is a *fulfilment* of the frozen intent, not a reversal of it.
+
+| Concern | V1 (frozen) | V2 (this amendment) |
+|---|---|---|
+| Primary visualisation | Leaflet map + OSM raster tiles + pin markers | Tile-mosaic canvas built from survey imagery |
+| Coordinate system for the view | GPS (lat/lon) | Farm-pixel space (§V2.4); GPS demoted to backend metadata |
+| Interactive element | Pin/CircleMarker at a GPS point | The tree's YOLO bounding box on its tile |
+| Tile boundaries | Drawn as an overlay showing coverage/overlap (§12.4, §31.1) | De-emphasised / near-invisible (§V2.6) |
+| Base imagery | OSM (rejected already in §12.2) | Drone tiles laid out by grid row/column, not stitched/warped |
+
+## V2.2 Adopted principles
+
+1. The Digital Twin becomes the **primary** plantation visualisation.
+2. **GPS remains backend metadata only** — routing, planning, robot navigation.
+   It is no longer the coordinate system the operator sees (§V2.9).
+3. The view is built **entirely from the survey tiles** captured by the drone.
+4. Images are **not stitched and not warped** (consistent with the §337
+   orthomosaic exclusion, which stays in force).
+5. Tiles are arranged by **tile row and tile column** into one continuous layout.
+6. Tile boundaries are made **visually de-emphasised / near-invisible** (§V2.6).
+7. Every permanent Tree permanently resolves to: **Tile ID, pixel position,
+   bounding box, and GPS** — via a persisted observation record (§V2.5).
+8. **Bounding boxes are the interactive UI** instead of map pins.
+9. Clicking a detected tree opens the **existing Tree Details workflow** (§32) —
+   reused, not rebuilt.
+10. **Zooming reveals information progressively** (level-of-detail, §V2.8).
+11. The viewer should feel like a **scanned digital copy** of the plantation,
+    not a GIS map.
+
+## V2.3 Why this is a realisation, not a redesign
+
+Two frozen V1 statements already anticipate V2 and were simply never built:
+
+- **§12 (Farm Digital Twin)** already declares the drone-captured plantation
+  image the base layer and explicitly **rejects OpenStreetMap** (§12.2). V2 only
+  changes the *construction* of that base layer (tile mosaic instead of a single
+  stitched image) and the *hit-target* (bounding box instead of pin).
+- **§14 (Tree Data Model)** already lists `plantation_position` (grid row/col,
+  owned by Tile Processing) as a logical Tree column "supports spatial queries
+  and the twin." It was never implemented. V2 makes it real and extends it.
+
+## V2.4 The Farm coordinate system (farm-pixel space)
+
+V2 introduces a second, canonical coordinate system **alongside** GPS:
+
+- **Local tile pixels** — a detection's bounding box `(x1,y1,x2,y2)` in its own
+  tile image (already stored today in `survey_tile_detections`).
+- **Farm-pixel space** — a global 2D pixel plane for the whole plantation:
+  `farm_x = tile_col * tile_display_width  + local_x`,
+  `farm_y = tile_row * tile_display_height + local_y`.
+  Origin is the top-left tile `(row=0, col=0)`; `row`/`y` increase downward,
+  `col`/`x` increase rightward. This transform must be **frozen** so the twin,
+  Tree Details "locate", and any overlay all agree on one geometry.
+
+GPS remains derivable from tile+pixel via the existing `gps_projection.py`
+(§10); the two spaces are two views of the same observation, not competitors.
+
+## V2.5 Required persisted metadata (data-model delta)
+
+**This is the central finding of the review: the data V2 needs is currently
+computed and then discarded.** Specifically, today:
+
+- `SurveyTile.grid_row` / `grid_col` **columns exist but are never written**
+  (they stay NULL). The layout grid is recomputed on the fly in
+  `survey_api._tile_grid_positions()` as a throwaway `ceil(sqrt(n))` grid keyed
+  by upload order, used only for GPS projection.
+- `Tree` stores GPS and representative box **dimensions** (`last_box_w/h`) but
+  **not** its tile, its pixel position, or its bounding box.
+- `TileDetection` holds the bounding box but has **no `tree_id` back-reference**
+  and is defined as "raw, transient". The Tree ↔ tile ↔ pixel ↔ bbox chain the
+  viewer depends on therefore does not exist in persisted form.
+
+V2 requires this chain to be **persisted and permanent**. Recommended model
+(additive, idempotent `ALTER TABLE … ADD COLUMN IF NOT EXISTS`, consistent with
+`init_db.py`):
+
+- **Populate `SurveyTile.grid_row` / `grid_col`** at tile generation from the
+  real coverage-path order (§8.3), replacing the throwaway in-memory grid.
+- **Persist tile display geometry**: `SurveyTile.image_width` / `image_height`
+  (and the effective display rect after seam handling, §V2.6) so the frontend
+  lays out the canvas without decoding every image.
+- **Introduce a `TreeObservation` child table** — one row per (tree, mission,
+  tile, detection): `tree_id`, `mission_id`, `survey_tile_id`, `local_px_x/y`,
+  `bbox (x1,y1,x2,y2)`, `confidence`. `Tree` gains a
+  `current_observation_id` pointer to its representative observation for the
+  **active** mission.
+
+**Why a child table, not columns on `Tree`:** a single permanent Tree is
+observed in *multiple overlapping tiles* (§8.2) and across *multiple missions*,
+and missions are *immutable* (§7.11). Writing tile/pixel/bbox directly onto the
+`Tree` row would (a) lose the one-tree-many-observations reality, (b) break
+mission immutability on re-survey, and (c) destroy history. The observation
+table + current pointer mirrors the **exact pattern already used for
+`InventorySnapshot`** (immutable history + `Tree.current_inventory_id`), so it
+is architecturally consistent rather than novel.
+
+## V2.6 Tile layout and seam handling (reconciling "no stitch" with "invisible boundaries")
+
+The proposal's goals *"not stitched or warped"* and *"tile boundaries visually
+invisible"* are in **direct tension** for real drone imagery, and this must be
+acknowledged:
+
+- V1 §8.2 states adjacent tiles **deliberately overlap 10–15%**. Laying raw
+  frames edge-to-edge by grid cell will (a) show the same trees twice in overlap
+  zones and (b) reveal seams from parallax, exposure, scale, and yaw differences.
+- True seam invisibility requires **orthorectification/stitching**, which §337
+  **excludes** and V2 keeps excluded.
+
+**Frozen decision (Decision 1):** the term "invisible boundaries" is **replaced**
+by a **seam-de-emphasised continuous farm mosaic**. **No orthomosaic generation
+and no image stitching** are performed (the §337 exclusion stays in force). Each
+tile is **cropped to its non-overlap footprint** (using the known overlap margin)
+before placement, and edges **may be feathered** — cropping/feathering is not
+warping and not stitching. The result is a *visual approximation* that reads as
+one continuous farm at normal zoom while remaining a grid of un-warped frames
+underneath. Seams are de-emphasised, never claimed georeferenced-seamless.
+
+## V2.7 Representative-observation policy
+
+Because one Tree has many observations (§V2.6 overlap, plus re-surveys), the twin
+must pick **one** canonical tile+bbox per tree deterministically. **Frozen
+decision (Decision 3)** — selection order:
+
+1. **Highest detection confidence.**
+2. **Closest to the tile centre** (smallest distance from the box centroid to the
+   tile-image centre).
+3. **Newest mission** (final tie-break — the most recent survey wins).
+
+This rule is applied when the twin is (re)built for a mission and determines
+`Tree.current_observation_id`.
+
+## V2.8 Interaction and level-of-detail
+
+- **Click a bounding box** → open the existing **Tree Details Panel (§32)**;
+  select the tree on the twin. (Reuse `/trees/[treeId]` + the detail API.)
+- **Hover** → lightweight popup (`tree_code`, counts, lifecycle) per §31.2.
+- **Zoom LOD:** far out → tiles + tree dots/heat; mid → bounding boxes; close →
+  boxes + labels + status colour. This satisfies "zoom reveals more" and is also
+  the **performance strategy** (§V2.10).
+
+## V2.9 GPS role clarification
+
+GPS moves from "the coordinate system of the view" to "**backend metadata**"
+used by routing, harvest planning, and robot navigation. Two honest caveats,
+both **pre-existing V1 conditions**, not introduced by V2:
+
+- Generated GPS is **synthetic** (§10): derived from a base coordinate + tile
+  grid + pixel offset. Demoting it from the visual layer is an improvement
+  (the twin no longer inherits GPS error), but routing/navigation still rest on
+  synthetic coordinates until real geotagging exists (a V1 known issue).
+- Because V2 persists tile+pixel per tree (§V2.5) and GPS is derivable from it,
+  farm-pixel space becomes the **primary** spatial truth and GPS a derived view.
+
+## V2.10 Rendering and performance
+
+The plantation already has ~300 trees and will grow. Rendering thousands of DOM
+hit-targets over a large canvas is a real risk (cf. the `/plantation/map` N+1
+that had to be fixed). Frozen-candidate requirements:
+
+- A **single bulk endpoint** returns, for the active mission, the tile layout +
+  all tree overlays in one response (no per-tile/per-tree round-trips).
+- **Viewport culling + LOD** (§V2.8); consider canvas/WebGL rather than one SVG
+  node per box if box counts exceed a threshold.
+
+## V2.11 Single viewer — the twin replaces `/map`
+
+**Frozen decision (Decision 5):** the Digital Twin Farm Viewer **replaces** the
+existing Leaflet/OSM `/map` implementation. The project does **not** maintain two
+parallel viewers. The Leaflet map, `MapView.tsx`/`MapWrapper.tsx`, and the OSM
+raster dependency are retired as the `/map` implementation is reworked into the
+twin.
+
+- **Exception:** coexistence is permitted **only** if a concrete technical
+  constraint discovered during implementation makes replacement infeasible; such
+  a constraint must be recorded in `DECISIONS.md` before any parallel viewer is
+  kept. Absent that, there is one viewer.
+- The **data-serving** side of V1 is preserved and reused: `Tree`,
+  `InventorySnapshot`, missions, and all V1 endpoints are **unchanged**; V2 adds a
+  new table, new columns, and a new bulk viewer endpoint. `/plantation/map` may be
+  superseded by the new bulk endpoint but no V1 *business logic* is altered.
+- The Tree Details, inventory, harvest, and robot workflows are **reused as-is**.
+
+## V2.12 Resolved decisions (locked at freeze)
+
+All four decisions are **resolved and frozen**:
+
+1. **Seam handling (Decision 1)** — "invisible boundaries" is replaced by a
+   *seam-de-emphasised continuous farm mosaic*; **no orthomosaic, no stitching**
+   (§V2.6). §337 stays in force.
+2. **Metadata home (Decision 2)** — tile/pixel/bounding-box metadata is stored in
+   a mission-scoped, historical **`TreeObservation`** model, **not** on `Tree`.
+   `Tree` stays permanent and carries only `current_observation_id` (§V2.5).
+3. **Representative-observation rule (Decision 3)** — highest confidence →
+   closest to tile centre → newest mission (§V2.7).
+4. **Grid & tile geometry (Decision 4)** — `SurveyTile.grid_row`, `grid_col`,
+   `image_width`, and `image_height` are **persisted during survey processing**,
+   not recomputed at read time (§V2.5). Sourced from the real coverage-path order
+   (§8.3).
+
+Additionally, **Decision 5 (§V2.11)**: the twin **replaces** `/map`; no parallel
+viewers unless a technical constraint (recorded in `DECISIONS.md`) forces it.
+
+## V2.13 Version 2 status
+
+| Field | Value |
+|---|---|
+| **Amendment** | v2.0 — Digital Twin Farm Viewer |
+| **Status** | **FROZEN** — direction adopted, all decisions (§V2.12) locked |
+| **Supersedes** | The Leaflet/OSM `/map` implementation (§12.2, `MapView`/`MapWrapper`); the "visible tile-boundary" overlay of §12.4 / §31.1; the throwaway grid in `_tile_grid_positions()` |
+| **Preserves** | All Version 1 *data & business logic* (§1–§62); §337 orthomosaic exclusion; §32 Tree Details; §10 GPS generation; inventory/harvest/robot workflows |
+| **Changes** | Replaces `/map` with the twin (single viewer, Decision 5); adds `TreeObservation` + `Tree.current_observation_id`; persists `SurveyTile.grid_row/col/image_width/image_height`; adds a bulk viewer endpoint |
 
 ---
 

@@ -46,6 +46,17 @@ persisted in **PostgreSQL** (Neon).
 4. `planner_api` / `harvest_planner` can bulk-generate tasks from mature detections.
 5. Robot UI / `robot_simulator` polls `robot/next_task` → executes → `complete_task`.
 
+## Version 2 (FROZEN v2.0 — not yet implemented)
+- The **Digital Twin Farm Viewer** amendment (v2.0) is frozen: survey tiles
+  arranged into one continuous **seam-de-emphasised mosaic** by grid row/column
+  (no orthomosaic, no stitching), with YOLO bounding boxes as the interactive
+  layer. It **replaces** the V1 Leaflet/OSM `/map` (single viewer). GPS becomes
+  backend-only metadata; per-tree tile/pixel/bbox is persisted in a new
+  mission-scoped `TreeObservation` model (`Tree.current_observation_id` pointer),
+  and `SurveyTile.grid_row/col/image_width/image_height` are persisted during
+  survey processing. See `PROJECT_SPECIFICATION.md §V2`. **No code changes yet**;
+  the V1 architecture above stays in force until implementation begins.
+
 ## Major Modules
 - **frontend/** – pages, components, API wrapper.
 - **backend/** – FastAPI routers, DB session/models, shared task logic.
