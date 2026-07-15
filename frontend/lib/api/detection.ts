@@ -1,6 +1,22 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
 
+// Persisted representative tree observation for the Digital Twin overlay (§V2.4).
+// All coordinates are in the tile's own pixel space (§V2.5); `survey_tile_id`
+// links the tree to its mosaic tile so the overlay can align in farm-pixel space.
+export type TreeOverlay = {
+  tree_id: number
+  tree_code: string | null
+  survey_tile_id: number
+  local_pixel_x: number
+  local_pixel_y: number
+  bbox_x1: number
+  bbox_y1: number
+  bbox_x2: number
+  bbox_y2: number
+  confidence: number
+}
+
 function getApiUrl(path: string) {
   return `${API_BASE_URL}${path}`
 }
@@ -166,6 +182,17 @@ export async function getMissionTiles(missionId: number) {
   })
   if (!res.ok) throw new Error("Failed to load survey tiles")
   return res.json()
+}
+
+// Bulk tree-overlay data for the Digital Twin (§V2.4, §V2.10). Returns the
+// persisted representative observation of every tree shown in the mission's
+// mosaic — one call, no per-tree round-trips.
+export async function getMissionTreeOverlays(missionId: number) {
+  const res = await fetch(getApiUrl(`/mission/${missionId}/trees`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load tree overlays")
+  return res.json() as Promise<{ mission_id: number; trees: TreeOverlay[]; count: number }>
 }
 
 export async function getTileStats(missionId: number) {

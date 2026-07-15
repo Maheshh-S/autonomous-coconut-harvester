@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import FarmMosaic, { MosaicTile } from "@/components/FarmMosaic"
+import OverlayLayer from "@/components/OverlayLayer"
+import type { TreeOverlay } from "@/lib/api/detection"
 
-// V2.3 — Digital Twin Viewer (PROJECT_SPECIFICATION.md §V2.8 navigation only).
-// Wraps the existing FarmMosaic (§V2.2) in a transform-based viewport that adds
-// zoom / pan without touching the mosaic rendering or introducing any overlay.
-// Zoom/pan are pure CSS transforms on a wrapper stage, so the mosaic is never
-// re-rendered during navigation and the future overlay layer can later share the
-// same stage coordinate space. No map libraries; browser APIs only.
+// V2.3 / V2.4 — Digital Twin Viewer (PROJECT_SPECIFICATION.md §V2.8 navigation
+// only; overlay added in §V2.4). Wraps the existing FarmMosaic (§V2.2) in a
+// transform-based viewport that adds zoom / pan without touching the mosaic
+// rendering. Zoom/pan are pure CSS transforms on a wrapper stage, so the mosaic
+// is never re-rendered during navigation and the overlay layer shares the same
+// stage coordinate space (single transform, no duplication). No map libraries;
+// browser APIs only.
 //
 // Input uses Pointer Events so a single code path serves mouse, touch, and
 // stylus: one pointer pans, two pointers pinch-zoom. `touch-action: none` stops
@@ -45,6 +48,7 @@ export default function FarmViewer({
   height = "80vh",
   minHeight = 420,
   expandHref,
+  trees,
 }: {
   tiles: MosaicTile[]
   gap?: number
@@ -55,6 +59,9 @@ export default function FarmViewer({
   // (used by the smaller dashboard card → the full /map experience). Omitted on
   // /map itself, where the viewer is already the full view.
   expandHref?: string
+  // Optional persisted tree overlays (V2.4). When supplied the viewer renders
+  // the interactive bounding-box overlay on top of the mosaic.
+  trees?: TreeOverlay[]
 }) {
   const router = useRouter()
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -64,6 +71,12 @@ export default function FarmViewer({
   viewRef.current = view
   const [smooth, setSmooth] = useState(false)
   const [dragging, setDragging] = useState(false)
+  // V2.4 — currently selected tree (selection only; no details panel yet).
+  const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null)
+  // Reset selection when the mission/tiles change.
+  useEffect(() => {
+    setSelectedTreeId(null)
+  }, [tiles])
 
   // Active pointers (id -> last position) for unified pan / pinch handling.
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())
@@ -264,6 +277,16 @@ export default function FarmViewer({
         }}
       >
         <FarmMosaic tiles={tiles} gap={gap} apiBaseUrl={apiBaseUrl} />
+        {trees && trees.length > 0 && (
+          <OverlayLayer
+            trees={trees}
+            tiles={tiles}
+            gap={gap}
+            scale={view.scale}
+            selectedTreeId={selectedTreeId}
+            onSelectTree={setSelectedTreeId}
+          />
+        )}
       </div>
 
       {/* Controls overlay — stop propagation so taps don't start a pan/pinch. */}

@@ -940,6 +940,65 @@ def list_survey_tiles(mission_id: int):
         db.close()
 
 
+@router.get("/mission/{mission_id}/trees")
+def list_mission_tree_overlays(mission_id: int):
+    """Bulk tree-overlay data for the Digital Twin (PROJECT_SPECIFICATION.md §V2.4,
+    §V2.10). Returns, for the requested mission, the persisted representative
+    observation of every Permanent Tree whose representative tile belongs to this
+    mission — i.e. the trees that actually appear in the mosaic. Uses only
+    persisted data: `Tree.current_observation_id` already points at the §V2.7
+    representative, so nothing is recomputed or re-derived from YOLO here. One
+    bulk call, no per-tree round-trips."""
+    db = SessionLocal()
+    try:
+        mission = (
+            db.query(SurveyMission)
+            .filter(SurveyMission.id == mission_id)
+            .first()
+        )
+        if mission is None:
+            raise HTTPException(status_code=404, detail="Survey mission not found")
+
+        tile_ids = [
+            tid
+            for (tid,) in db.query(SurveyTile.id)
+            .filter(SurveyTile.mission_id == mission_id)
+            .all()
+        ]
+        if not tile_ids:
+            return {"mission_id": mission_id, "trees": [], "count": 0}
+
+        # Single bulk join (§V2.10: no per-tree round-trips). Select the tree
+        # code in the same query instead of lazy-loading `o.tree` per row — the
+        # latter is an N+1 that exhausts the connection pool.
+        obs_rows = (
+            db.query(TreeObservation, Tree.tree_code)
+            .join(Tree, Tree.id == TreeObservation.tree_id)
+            .filter(TreeObservation.id == Tree.current_observation_id)
+            .filter(TreeObservation.survey_tile_id.in_(tile_ids))
+            .all()
+        )
+
+        trees = [
+            {
+                "tree_id": o.tree_id,
+                "tree_code": tree_code,
+                "survey_tile_id": o.survey_tile_id,
+                "local_pixel_x": o.local_pixel_x,
+                "local_pixel_y": o.local_pixel_y,
+                "bbox_x1": o.bbox_x1,
+                "bbox_y1": o.bbox_y1,
+                "bbox_x2": o.bbox_x2,
+                "bbox_y2": o.bbox_y2,
+                "confidence": o.confidence,
+            }
+            for o, tree_code in obs_rows
+        ]
+        return {"mission_id": mission_id, "trees": trees, "count": len(trees)}
+    finally:
+        db.close()
+
+
 @router.get("/mission/{mission_id}/tiles/stats")
 def survey_tile_stats(mission_id: int):
     db = SessionLocal()

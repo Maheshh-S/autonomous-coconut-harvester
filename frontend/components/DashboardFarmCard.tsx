@@ -1,7 +1,13 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { API_BASE_URL, getMissions, getMissionTiles } from "@/lib/api/detection"
+import {
+  API_BASE_URL,
+  getMissions,
+  getMissionTiles,
+  getMissionTreeOverlays,
+} from "@/lib/api/detection"
+import type { TreeOverlay } from "@/lib/api/detection"
 import FarmViewer from "@/components/FarmViewer"
 import { MosaicTile } from "@/components/FarmMosaic"
 
@@ -20,6 +26,7 @@ export default function DashboardFarmCard() {
   const [missions, setMissions] = useState<{ id: number; name?: string }[]>([])
   const [missionId, setMissionId] = useState<number | null>(null)
   const [tiles, setTiles] = useState<MosaicTile[]>([])
+  const [trees, setTrees] = useState<TreeOverlay[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,6 +44,7 @@ export default function DashboardFarmCard() {
     if (missionId == null) return
     setLoading(true)
     setError(null)
+    setTrees([])
     getMissionTiles(missionId)
       .then((d) =>
         setTiles(
@@ -53,6 +61,11 @@ export default function DashboardFarmCard() {
       )
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false))
+
+    // V2.4 — persisted representative tree overlays for this mission.
+    getMissionTreeOverlays(missionId)
+      .then((d) => setTrees(d.trees ?? []))
+      .catch(() => setTrees([]))
   }, [missionId])
 
   const v2Tiles = useMemo(
@@ -109,6 +122,7 @@ export default function DashboardFarmCard() {
           height={360}
           minHeight={280}
           expandHref="/map"
+          trees={trees}
         />
       )}
     </div>

@@ -141,6 +141,69 @@
       console errors.
     - *(VERSION 2.3 code is implemented and verified; awaiting commit approval — do NOT
        commit yet.)*
+  - **VERSION 2.4 — Interactive Tree Overlay (completed; awaiting commit approval):**
+    Renders the detected Permanent Trees on top of the existing Farm Mosaic using the
+    persisted representative `TreeObservation` (§V2.5/§V2.7). Scope is overlay rendering +
+    tree **selection only** — no Tree Details, inventory, inspection, harvest, or side
+    panels (interaction rules enforced; those are V2.5).
+    - **Architecture (separated responsibilities, §V2.4):** `FarmMosaic` ↓ `OverlayLayer`
+      ↓ `InteractionLayer` (future V2.5). `OverlayLayer` is presentational only — it renders
+      given data and emits `onSelectTree`; it never recomputes observations or derives boxes
+      from YOLO, and carries no business logic. `FarmViewer` owns the selection state and
+      renders `OverlayLayer` inside the **same transformed stage** as `FarmMosaic`, so the
+      overlay inherits zoom/pan/fit for free (no duplicated transform).
+    - **Shared coordinate system:** extracted `computeMosaicLayout(tiles, gap)` into
+      `lib/mosaicLayout.ts` (single source of the farm-pixel transform, §V2.4). `FarmMosaic`
+      and `OverlayLayer` both use it, so boxes align exactly with their tiles. `FarmMosaic`
+      behaviour is byte-identical (only the layout math was relocated). Tiles draw 1:1 at
+      persisted `image_width/height`, so `farm = tile.(x,y) + local_pixel/bbox` aligns.
+    - **Backend (`api/survey_api.py`):** new bulk `GET /mission/{id}/trees` returns, for the
+      mission, the persisted representative observation of every tree whose representative
+      tile is in the mission's mosaic (`Tree.current_observation_id` already points at the
+      §V2.7 representative — no recompute, no YOLO). **One bulk join selects `tree_code`
+      alongside** the observation (a lazy `o.tree.tree_code` N+1 was replaced — it exhausted
+      the SQLAlchemy pool and hung; the bulk join is the §V2.10 "no per-tree round-trips"
+      requirement).
+    - **Rendering / visual design (§V2.8):** each tree is a YOLO bounding box (from persisted
+      `bbox_*`) with a centroid marker (persisted `local_pixel_*`) and a `TREE-xxxx` label.
+      States: Normal / Hover / Selected (amber, persistent until another tree is picked).
+      Border thickness + label font are **counter-scaled by `1/scale`** so they stay a
+      constant screen size while the box geometry tracks the canvas (Google-Maps-like,
+      readable while zooming). Labels hide below a screen-size threshold (LOD is future).
+    - **Rendering approach — RECORDED for the V2.6 optimization strategy (no code change):**
+      the overlay is **plain absolutely-positioned HTML `<div>` elements, NOT SVG and NOT
+      Canvas** (see `OverlayLayer.tsx`). One outer container `<div>` (`pointerEvents:none`)
+      holds **one `<div>` per tree** (`data-tree-id`, `pointerEvents:auto`), each containing
+      a centroid marker `<div>` and an optional `<span>` label. So N trees ≈ up to 3·N DOM
+      nodes (~900 at 302 trees). Zoom/pan is a free CSS `transform: scale/translate` on the
+      stage; the counter-scaling (`borderW = 1/scale`, `fontPx = 12/scale`, `radius = 2/scale`)
+      is applied as **inline styles that are recomputed on every `scale` change**, so all
+      boxes re-render on each zoom/pan frame (= DOM style/layout/paint cost per frame).
+      Selection/hover use native per-box DOM events (the boxes already carry `data-tree-id`,
+      so a future single delegated listener on the container is a trivial swap).
+      **V2.6 implications (per §V2.8):** this DOM approach is fine at ~300 trees and keeps
+      native hit-testing/events, but does not scale to thousands — the two levers are
+      (1) **viewport culling** in *farm-pixel* space (compute which boxes intersect the
+      inverse-transformed viewport rect, since boxes live inside the scaled stage; an
+      overflow-clipped wrapper or an offscreen check avoids rendering off-screen nodes), and
+      (2) **LOD** (already partially present: labels hidden below a screen-size threshold;
+      extend to drop centroids / simplify boxes / render tree *dots* when far out). If counts
+      still exceed a threshold, the spec (§V2.8 line 3642) sanctions replacing the DOM layer
+      with **Canvas/WebGL** — which would relocate hit-testing to manual picking (the
+      persisted `bbox_*` + `computeMosaicLayout` give exact farm-pixel rects for that). Current
+      approach deliberately keeps selection trivial; the V2.6 renderer swap must preserve the
+      `onSelectTree` / `selectedTreeId` contract.
+    - **Reused everywhere:** `FarmViewer` is unchanged for callers; `/map` and the
+      `DashboardFarmCard` both pass `trees` from the new endpoint, so the viewer is
+      interactive (overlay + selection) on both pages. `FarmMosaic` rendering engine was not
+      modified (only its layout helper was relocated to the shared module).
+    - **Verification:** backend import + `tsc --noEmit` + `next build` pass; Playwright
+      (desktop) confirms 302 overlay boxes render on `/map` and the dashboard card, **302/302
+      boxes align within their tile images**, click selects exactly one (amber), selecting
+      another keeps exactly one selected, `Fit` restores the entire-farm view (≤100%) and the
+      overlay persists — zero console errors.
+    - *(VERSION 2.4 code is implemented and verified; awaiting commit approval — do NOT
+       commit yet.)*
   - **Performance TODO (V2.1 write path, not a blocker):** the bulk-write path is now
     structurally correct (O(1) batched statements, no per-row ORM round-trips), but we
     have **not yet proven** the remaining ~80 s / 302-row runtime on the remote Neon DB is
@@ -149,16 +212,21 @@
     profile a clean run later with SQLAlchemy `echo=True` query logging and/or PostgreSQL
     `EXPLAIN ANALYZE` on the batched `UPDATE`/`INSERT` to confirm whether any per-row work
     remains. Do this before claiming the optimization is fully realised.
-- **Next:**
-  - Build the interactive twin layer on top of the V2.3 viewer: tree bounding-box overlays,
-    representative-observation selection (§V2.7), hover/click → Tree Details (§V2.8), LOD +
-    viewport culling (§V2.10). The viewer + mosaic engine already exist; overlays render in
-    the same stage coordinate space, so these are additive.
-  - Commit Features 9–12, VERSION 2.1, VERSION 2.2, and VERSION 2.3 (pending approval).
-  - Add backend unit tests for task‑generation/ripeness logic
-  - Real geotagging of drone images (currently GPS is derived from the box position)
-  - Model versioning / distribution strategy (weights are gitignored)
-- **Known Issues / Decisions:**
+  - **Next:**
+    - V2.5 InteractionLayer: clicking a selected tree opens the Tree Details panel (§V2.8),
+      reusing `/trees/[treeId]` + the detail API; wire inventory / inspection / harvest from
+      there. The overlay is already selection-only today.
+    - LOD + viewport culling (§V2.8/§V2.10) for the overlay — current rendering approach and
+      the two optimization levers are recorded under VERSION 2.4 ("Rendering approach").
+      Consider Canvas/WebGL (§V2.8 line 3642) only if box counts exceed the DOM threshold;
+      preserve the `onSelectTree` / `selectedTreeId` contract. Overlay currently renders all
+      boxes (fine at ~300 trees).
+    - Commit Features 9–12, VERSION 2.1, VERSION 2.2, VERSION 2.3, and VERSION 2.4
+      (pending approval).
+    - Add backend unit tests for task‑generation/ripeness logic
+    - Real geotagging of drone images (currently GPS is derived from the box position)
+    - Model versioning / distribution strategy (weights are gitignored)
+  - **Known Issues / Decisions:**
   - Database is **PostgreSQL (Neon)**, not SQLite (documentation previously said SQLite).
   - `requirements.txt` is a placeholder and incomplete.
   - Model weights (`*.pt`) and `.env` are gitignored; they are local‑only.

@@ -5,7 +5,9 @@ import {
   API_BASE_URL,
   getMissions,
   getMissionTiles,
+  getMissionTreeOverlays,
 } from "@/lib/api/detection"
+import type { TreeOverlay } from "@/lib/api/detection"
 import FarmViewer from "@/components/FarmViewer"
 import { MosaicTile } from "@/components/FarmMosaic"
 
@@ -25,6 +27,7 @@ export default function FarmPage() {
   const [missions, setMissions] = useState<MissionSummary[]>([])
   const [missionId, setMissionId] = useState<number | null>(null)
   const [tiles, setTiles] = useState<MosaicTile[]>([])
+  const [trees, setTrees] = useState<TreeOverlay[]>([])
   const [gap, setGap] = useState(2)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +46,7 @@ export default function FarmPage() {
     if (missionId == null) return
     setLoading(true)
     setError(null)
+    setTrees([])
     getMissionTiles(missionId)
       .then((d) => {
         setTiles(
@@ -59,6 +63,12 @@ export default function FarmPage() {
       })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false))
+
+    // V2.4 — persisted representative tree overlays for this mission (one bulk
+    // call; no per-tree round-trips, §V2.10).
+    getMissionTreeOverlays(missionId)
+      .then((d) => setTrees(d.trees ?? []))
+      .catch(() => setTrees([]))
   }, [missionId])
 
   // Version 2 freezes layout persistence: the mosaic requires every tile to carry
@@ -158,6 +168,7 @@ export default function FarmPage() {
             tiles={v2Tiles}
             gap={gap}
             apiBaseUrl={API_BASE_URL}
+            trees={trees}
           />
         </>
       )}
