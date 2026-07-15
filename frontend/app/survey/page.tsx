@@ -18,9 +18,21 @@ import {
   processInspectionImages,
   getInspectionImages,
   getTreeInventoryHistory,
+  createHarvestMission,
+  getHarvestMissions,
+  getHarvestMission,
+  startHarvestMission,
+  pauseHarvestMission,
+  resumeHarvestMission,
+  cancelHarvestMission,
+  advanceHarvestMission,
+  getRobotStatus,
   type Inspection,
   type InspectionImage,
   type InventorySnapshot,
+  type HarvestMission,
+  type HarvestType,
+  type RobotStatus,
 } from "@/lib/api/detection"
 
 type Mission = {
@@ -112,6 +124,15 @@ export default function SurveyPage() {
   const [inspLoading, setInspLoading] = useState(false)
   const [inspUploading, setInspUploading] = useState<Record<number, boolean>>({})
   const [completeCount, setCompleteCount] = useState<Record<number, number>>({})
+  // Harvest Planner (Feature 10)
+  const [harvestType, setHarvestType] = useState<HarvestType>("mature")
+  const [harvestMissions, setHarvestMissions] = useState<HarvestMission[]>([])
+  const [selectedHarvest, setSelectedHarvest] = useState<HarvestMission | null>(
+    null
+  )
+  const [harvestGenerating, setHarvestGenerating] = useState(false)
+  const [robotStatus, setRobotStatus] = useState<RobotStatus | null>(null)
+  const [harvestExecuting, setHarvestExecuting] = useState(false)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const loadSeq = useRef(0)
 
@@ -194,6 +215,7 @@ export default function SurveyPage() {
 
   useEffect(() => {
     loadMissions()
+    loadHarvestMissions()
   }, [])
 
   useEffect(() => {
@@ -312,6 +334,97 @@ export default function SurveyPage() {
       }))
     } catch (err) {
       setError("Failed to load inventory: " + (err as Error).message)
+    }
+  }
+
+  async function loadHarvestMissions() {
+    try {
+      const data = await getHarvestMissions()
+      setHarvestMissions(data.missions)
+      // Keep the detailed view in sync with the newest mission if none picked yet.
+      if (selectedHarvest === null && data.missions.length > 0) {
+        const full = await getHarvestMission(data.missions[0].id)
+        setSelectedHarvest(full)
+        // Also load the robot status so the dashboard reflects a mission that is
+        // already running/paused/completed after a page reload (§45).
+        await refreshRobotStatus(full.id)
+      }
+    } catch (err) {
+      setError("Failed to load harvest missions: " + (err as Error).message)
+    }
+  }
+
+  async function handleGenerateHarvestMission() {
+    setHarvestGenerating(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      // The planner reads the latest Inventory Snapshots, filters eligible trees,
+      // and builds one immutable mission with an ordered (nearest-neighbour) queue.
+      const mission = await createHarvestMission(harvestType)
+      setSelectedHarvest(mission)
+      setSuccess(
+        `✅ ${mission.mission_code} created — ${mission.total_trees} tree(s), ${mission.total_expected_coconuts} expected coconuts.`
+      )
+      await loadHarvestMissions()
+    } catch (err) {
+      setError("Failed to generate harvest mission: " + (err as Error).message)
+    } finally {
+      setHarvestGenerating(false)
+    }
+  }
+
+  async function handleSelectHarvestMission(missionId: number) {
+    try {
+      const full = await getHarvestMission(missionId)
+      setSelectedHarvest(full)
+      await refreshRobotStatus(missionId)
+    } catch (err) {
+      setError("Failed to load harvest mission: " + (err as Error).message)
+    }
+  }
+
+  // Robot Mission Execution (Feature 11): one-shared-state helpers keep the
+  // mission detail, queue, and robot status in sync after each action.
+  async function refreshRobotStatus(missionId: number) {
+    try {
+      const status = await getRobotStatus(missionId)
+      setRobotStatus(status)
+    } catch (err) {
+      setError("Failed to load robot status: " + (err as Error).message)
+    }
+  }
+
+  async function runHarvestAction(
+    action:
+      | "start"
+      | "pause"
+      | "resume"
+      | "cancel"
+      | "advance",
+    missionId: number
+  ) {
+    setHarvestExecuting(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const mission =
+        action === "start"
+          ? await startHarvestMission(missionId)
+          : action === "pause"
+            ? await pauseHarvestMission(missionId)
+            : action === "resume"
+              ? await resumeHarvestMission(missionId)
+              : action === "cancel"
+                ? await cancelHarvestMission(missionId)
+                : await advanceHarvestMission(missionId)
+      setSelectedHarvest(mission)
+      await loadHarvestMissions()
+      await refreshRobotStatus(missionId)
+    } catch (err) {
+      setError("Failed to " + action + " mission: " + (err as Error).message)
+    } finally {
+      setHarvestExecuting(false)
     }
   }
 
@@ -999,6 +1112,254 @@ export default function SurveyPage() {
           )}
         </section>
       )}
+
+      {/* Harvest Planner & Mission Builder (Feature 10) */}
+      <section className="mt-6 border rounded p-4" data-testid="harvest-planner">
+        <h2 className="text-xl font-semibold mb-3">Harvest Planner</h2>
+        <p className="text-sm text-gray-600 mb-3">
+          Generate a Harvest Mission from the latest Inventory Snapshots. Eligible
+          trees are ordered by a Nearest-Neighbour route. Execute it below to drive
+          the robot through the queue and update Inventory History.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm font-medium" htmlFor="harvest-type">
+            Harvest type
+          </label>
+          <select
+            id="harvest-type"
+            className="border rounded px-2 py-1"
+            value={harvestType}
+            onChange={(e) => setHarvestType(e.target.value as HarvestType)}
+          >
+            <option value="mature">Mature</option>
+            <option value="potential">Potential</option>
+            <option value="premature">Premature</option>
+            <option value="all">All</option>
+          </select>
+          <button
+            type="button"
+            onClick={handleGenerateHarvestMission}
+            disabled={harvestGenerating}
+            className="bg-emerald-700 text-white px-4 py-1.5 rounded disabled:opacity-50"
+          >
+            {harvestGenerating ? "Generating…" : "Generate Harvest Mission"}
+          </button>
+        </div>
+
+        {selectedHarvest && (
+          <div
+            className="mt-4 rounded border border-emerald-300 bg-emerald-50 p-3"
+            data-testid="harvest-mission"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-lg font-semibold text-emerald-900 font-mono">
+                {selectedHarvest.mission_code}
+              </span>
+              <span className="rounded bg-emerald-600 px-2 py-0.5 text-xs text-white">
+                {selectedHarvest.status}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-sm">
+              <span className="rounded bg-white px-2 py-0.5">
+                Harvest type: <strong>{selectedHarvest.harvest_type}</strong>
+              </span>
+              <span className="rounded bg-white px-2 py-0.5">
+                Total trees: <strong>{selectedHarvest.total_trees}</strong>
+              </span>
+              <span className="rounded bg-white px-2 py-0.5">
+                Expected coconuts:{" "}
+                <strong>{selectedHarvest.total_expected_coconuts}</strong>
+              </span>
+            </div>
+
+            <h3 className="mt-3 text-sm font-semibold">Ordered Tree Queue</h3>
+            {selectedHarvest.items && selectedHarvest.items.length > 0 ? (
+              <ol className="mt-1 space-y-1" data-testid="harvest-queue">
+                {selectedHarvest.items.map((item) => (
+                  <li
+                    key={item.id}
+                    className={
+                      "flex items-center gap-3 rounded border px-2 py-1 text-sm " +
+                      (item.status === "COMPLETED"
+                        ? "border-emerald-200 bg-emerald-100"
+                        : item.status === "IN_PROGRESS"
+                          ? "border-emerald-500 bg-emerald-200"
+                          : item.status === "CANCELLED"
+                            ? "border-gray-200 bg-gray-100 opacity-60"
+                            : "border-emerald-200 bg-white")
+                    }
+                  >
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-xs font-semibold text-white">
+                      {item.visit_order}
+                    </span>
+                    <span className="font-mono">{item.tree_code}</span>
+                    <span className="text-gray-600">
+                      Expected: {item.expected_coconuts}
+                    </span>
+                    {item.harvested !== null && item.harvested !== undefined && (
+                      <span className="text-gray-600">
+                        Harvested: {item.harvested}
+                      </span>
+                    )}
+                    <span className="ml-auto rounded bg-gray-100 px-1.5 py-0.5 text-xs">
+                      {item.status}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-sm text-gray-500">No trees in this mission.</p>
+            )}
+
+            {/* Robot Mission Execution (Feature 11) */}
+            <div className="mt-3 rounded border border-emerald-200 bg-white p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">Robot Status</h3>
+                {robotStatus && robotStatus.mission_id === selectedHarvest.id && (
+                  <span
+                    className="rounded bg-emerald-700 px-2 py-0.5 text-xs text-white font-mono"
+                    data-testid="robot-state"
+                  >
+                    {robotStatus.robot_state}
+                  </span>
+                )}
+              </div>
+              {robotStatus && robotStatus.mission_id === selectedHarvest.id ? (
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded bg-emerald-50 px-2 py-1">
+                    Mission:{" "}
+                    <strong>{robotStatus.mission_status}</strong>
+                  </div>
+                  <div className="rounded bg-emerald-50 px-2 py-1">
+                    Current tree:{" "}
+                    <strong>
+                      {robotStatus.current_item
+                        ? robotStatus.current_item.tree_code
+                        : "—"}
+                    </strong>
+                  </div>
+                  <div className="rounded bg-emerald-50 px-2 py-1">
+                    Completed: <strong>{robotStatus.completed_count}</strong>
+                  </div>
+                  <div className="rounded bg-emerald-50 px-2 py-1">
+                    Remaining: <strong>{robotStatus.remaining_count}</strong>
+                  </div>
+                  <div className="rounded bg-emerald-50 px-2 py-1">
+                    Harvested:{" "}
+                    <strong>{robotStatus.harvested_coconuts}</strong>
+                  </div>
+                  <div className="rounded bg-emerald-50 px-2 py-1">
+                    Next tree:{" "}
+                    <strong>
+                      {robotStatus.next_item
+                        ? robotStatus.next_item.tree_code
+                        : "—"}
+                    </strong>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-gray-500">
+                  Start the mission to see robot status.
+                </p>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedHarvest.status === "CREATED" && (
+                  <button
+                    type="button"
+                    data-testid="harvest-start"
+                    onClick={() => runHarvestAction("start", selectedHarvest.id)}
+                    disabled={harvestExecuting}
+                    className="bg-emerald-700 text-white px-3 py-1.5 rounded disabled:opacity-50"
+                  >
+                    Start Mission
+                  </button>
+                )}
+                {selectedHarvest.status === "RUNNING" && (
+                  <>
+                    <button
+                      type="button"
+                      data-testid="harvest-advance"
+                      onClick={() =>
+                        runHarvestAction("advance", selectedHarvest.id)
+                      }
+                      disabled={harvestExecuting}
+                      className="bg-emerald-700 text-white px-3 py-1.5 rounded disabled:opacity-50"
+                    >
+                      Advance to Next Tree
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="harvest-pause"
+                      onClick={() =>
+                        runHarvestAction("pause", selectedHarvest.id)
+                      }
+                      disabled={harvestExecuting}
+                      className="bg-amber-600 text-white px-3 py-1.5 rounded disabled:opacity-50"
+                    >
+                      Pause
+                    </button>
+                  </>
+                )}
+                {selectedHarvest.status === "PAUSED" && (
+                  <button
+                    type="button"
+                    data-testid="harvest-resume"
+                    onClick={() => runHarvestAction("resume", selectedHarvest.id)}
+                    disabled={harvestExecuting}
+                    className="bg-emerald-700 text-white px-3 py-1.5 rounded disabled:opacity-50"
+                  >
+                    Resume
+                  </button>
+                )}
+                {selectedHarvest.status !== "COMPLETED" &&
+                  selectedHarvest.status !== "CANCELLED" && (
+                    <button
+                      type="button"
+                      data-testid="harvest-cancel"
+                      onClick={() =>
+                        runHarvestAction("cancel", selectedHarvest.id)
+                      }
+                      disabled={harvestExecuting}
+                      className="bg-red-600 text-white px-3 py-1.5 rounded disabled:opacity-50"
+                    >
+                      Cancel Mission
+                    </button>
+                  )}
+              </div>
+              {harvestExecuting && (
+                <p className="mt-2 text-sm text-gray-500">Working…</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {harvestMissions.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold mb-1">Harvest Missions</h3>
+            <div className="space-y-1">
+              {harvestMissions.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleSelectHarvestMission(m.id)}
+                  className={
+                    "block w-full rounded border px-2 py-1 text-left text-xs " +
+                    (selectedHarvest?.id === m.id
+                      ? "border-emerald-300 bg-emerald-50"
+                      : "border-gray-200 hover:bg-gray-50")
+                  }
+                >
+                  <span className="font-mono">{m.mission_code}</span> ·{" "}
+                  {m.harvest_type} · {m.status} · {m.total_trees} tree(s) ·{" "}
+                  {m.total_expected_coconuts} expected ·{" "}
+                  {m.created_at ? new Date(m.created_at).toLocaleString() : ""}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Survey Tile Generation (Feature 4) */}
       {selectedMissionId !== null && (

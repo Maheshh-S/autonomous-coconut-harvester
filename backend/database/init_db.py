@@ -107,6 +107,25 @@ def init_db():
             )
         )
 
+        # InventorySnapshot (Feature 11 — Robot Mission Execution). Post-harvest
+        # snapshots are written with no originating Inspection, so inspection_id
+        # must be nullable. The UNIQUE(inspection_id) constraint still allows many
+        # NULL rows (Postgres treats NULLs as distinct).
+        conn.execute(
+            text(
+                "ALTER TABLE inventory_snapshots ALTER COLUMN inspection_id DROP NOT NULL"
+            )
+        )
+
+        # HarvestMissionItem (Feature 11 — Robot Mission Execution). Records the
+        # coconuts actually harvested from each tree when its item completes.
+        conn.execute(
+            text(
+                "ALTER TABLE harvest_mission_items ADD COLUMN IF NOT EXISTS "
+                "harvested INTEGER"
+            )
+        )
+
     # Backfill the immutable public `tree_code` for any legacy/Feature-6 trees that
     # were created before the column existed, so every permanent tree has one.
     # Using the row id keeps codes unique, monotonic, and stable across reboots.

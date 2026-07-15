@@ -222,9 +222,13 @@ class InventorySnapshot(Base):
 
     ``snapshot_code`` is the immutable public identifier (INV-0001, INV-0002, …),
     written once from the row id (§11.2). ``inspection_id`` is UNIQUE so a single
-    inspection can own only one snapshot (idempotent rebuilds create no duplicate).
-    ``tree_id`` uses ``ondelete="RESTRICT"`` so inventory history survives — a tree
-    with snapshots cannot be silently deleted (§18).
+    inspection can own only one snapshot (idempotent rebuilds create no duplicate);
+    it is nullable so that a *post-harvest* snapshot written by Robot Mission
+    Execution (Feature 11) can carry no originating inspection. The UNIQUE
+    constraint permits multiple NULL ``inspection_id`` rows (Postgres treats NULLs
+    as distinct), so many harvest snapshots may coexist per tree. ``tree_id`` uses
+    ``ondelete="RESTRICT"`` so inventory history survives — a tree with snapshots
+    cannot be silently deleted (§18).
     """
 
     __tablename__ = "inventory_snapshots"
@@ -243,7 +247,7 @@ class InventorySnapshot(Base):
     inspection_id = Column(
         Integer,
         ForeignKey("inspections.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -254,6 +258,147 @@ class InventorySnapshot(Base):
 
     tree = relationship("Tree")
     inspection = relationship("Inspection")
+
+
+class HarvestMissionStatus(str, Enum):
+    """Lifecycle states for a Harvest Mission (PROJECT_SPECIFICATION.md §43.2).
+
+    Feature 10 (Harvest Planner & Mission Builder) only *builds* missions; it does
+    not execute the robot. A freshly generated mission is therefore ``CREATED``.
+    The remaining states (``RUNNING`` / ``PAUSED`` / ``COMPLETED`` / ``CANCELLED``)
+    are defined here to match the frozen state machine, but execution/transitions
+    are out of scope for this feature.
+
+    ``CREATED`` / ``RUNNING`` / ``PAUSED`` are the *active* (non-terminal) states:
+    a tree assigned to a mission in any of these cannot be assigned to a new one
+    (no duplicate assignment — §38, §40).
+    """
+
+    CREATED = "CREATED"
+    RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+# Active (non-terminal) mission states. A tree already belonging to a mission in
+# one of these states is excluded from new missions (no duplicate assignment).
+ACTIVE_HARVEST_MISSION_STATUSES = (
+    HarvestMissionStatus.CREATED.value,
+    HarvestMissionStatus.RUNNING.value,
+    HarvestMissionStatus.PAUSED.value,
+)
+
+
+class HarvestMissionItemStatus(str, Enum):
+    """Lifecycle states for a single Harvest Mission Item (PROJECT_SPECIFICATION.md §42.3, §43).
+
+    One item = one tree to visit. The lifecycle is driven by Robot Mission
+    Execution (Feature 11):
+
+        PENDING → IN_PROGRESS → COMPLETED   (or FAILED)
+
+    Only one item may be ``IN_PROGRESS`` at any moment. ``COMPLETED`` is reached
+    when the robot finishes harvesting the tree (which also writes a post-harvest
+    Inventory Snapshot); ``FAILED`` is reserved for a robot fault report (§47) and
+    is not produced by the manual execution controls. ``CANCELLED`` is set when
+    the mission is cancelled (§46.3) or when an item is invalid/skipped.
+    """
+
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class HarvestMission(Base):
+    """An immutable Harvest Mission produced by the Harvest Planner (Feature 10).
+
+    The planner reads each eligible tree's *latest* Inventory Snapshot, orders the
+    trees with the frozen Nearest-Neighbour heuristic (§41), and emits one mission
+    with one ``HarvestMissionItem`` per tree (§38, §43). The mission never stores a
+    tree list inline — the ordered trees live only as child items (§42), so the
+    mission row stays a compact, immutable header.
+
+    ``mission_code`` is the write-once public identifier (HM-0001, HM-0002, …),
+    derived from the row id (§11.2). A generated mission is ``CREATED``; this
+    feature does not execute or mutate it. Repeated generation always creates an
+    independent new mission (no reuse, no mutation).
+
+    ``harvest_type`` is one of ``mature`` / ``potential`` / ``premature`` / ``all``
+    (the ripeness classes frozen in Feature 9 plus the all-inventory option, §24).
+    """
+
+    __tablename__ = "harvest_missions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mission_code = Column(String, unique=True, nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(
+        String, default=HarvestMissionStatus.CREATED.value, nullable=False
+    )
+    harvest_type = Column(String, nullable=False)
+    total_trees = Column(Integer, default=0, nullable=False)
+    total_expected_coconuts = Column(Integer, default=0, nullable=False)
+    notes = Column(Text, nullable=True)
+
+    items = relationship(
+        "HarvestMissionItem",
+        back_populates="mission",
+        order_by="HarvestMissionItem.visit_order",
+    )
+
+
+class HarvestMissionItem(Base):
+    """One ordered stop in a Harvest Mission: exactly one tree to visit (Feature 10).
+
+    Each item belongs to one ``HarvestMission`` and references one permanent Tree.
+    ``visit_order`` is the 1-based position in the Nearest-Neighbour route (§41);
+    ``expected_coconuts`` is how many of the requested harvest type the tree's
+    latest Inventory Snapshot reports. There is exactly one row per tree per
+    mission (a tree never appears twice in one mission).
+
+    After creation the *route* (``visit_order`` + ``tree_id``) is immutable, but
+    the ``status`` is advanced by Robot Mission Execution (Feature 11): progress
+    flows PENDING → IN_PROGRESS → COMPLETED, never reordering the queue. Exactly
+    one item is IN_PROGRESS at a time. ``tree_id`` uses ``ondelete="RESTRICT"``
+    so a tree referenced by a mission cannot be silently deleted (audit/history
+    preservation, §18).
+    """
+
+    __tablename__ = "harvest_mission_items"
+    __table_args__ = (
+        # One row per (mission, tree): a tree can never appear twice in a mission.
+        UniqueConstraint("mission_id", "tree_id", name="uq_harvest_item_mission_tree"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    mission_id = Column(
+        Integer,
+        ForeignKey("harvest_missions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    tree_id = Column(
+        Integer,
+        ForeignKey("trees.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    visit_order = Column(Integer, nullable=False)
+    expected_coconuts = Column(Integer, default=0, nullable=False)
+    # Coconuts actually harvested from this tree at completion time (Feature 11).
+    # Equals ``expected_coconuts`` for the current F11 slice; reserved for future
+    # field-verified yields. Written once when the item reaches COMPLETED.
+    harvested = Column(Integer, nullable=True)
+    status = Column(
+        String, default=HarvestMissionItemStatus.PENDING.value, nullable=False
+    )
+
+    mission = relationship("HarvestMission", back_populates="items")
+    tree = relationship("Tree")
 
 
 class SurveyMission(Base):

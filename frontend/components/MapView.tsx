@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 
 type Tree = {
   tree_id: number
+  tree_code?: string | null
   gps_lat: number
   gps_lon: number
   coconuts_detected: number
@@ -54,7 +55,7 @@ export default function MapView({
 
     <Popup>
 
-      Tree {t.tree_id} <br />
+      {t.tree_code ?? `Tree ${t.tree_id}`} <br />
 
       Coconuts: {t.coconuts_detected} <br />
 

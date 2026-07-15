@@ -1,0 +1,19 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - link "Home" [ref=f1e3] [cursor=pointer]:
+      - /url: /
+    - link "Dashboard" [ref=f1e4] [cursor=pointer]:
+      - /url: /dashboard
+    - link "Trees" [ref=f1e5] [cursor=pointer]:
+      - /url: /trees
+    - link "Map" [ref=f1e6] [cursor=pointer]:
+      - /url: /map
+    - link "Survey" [ref=f1e7] [cursor=pointer]:
+      - /url: /survey
+    - link "Robot" [ref=f1e8] [cursor=pointer]:
+      - /url: /robot
+  - main [ref=f1e10]:
+    - heading "System Dashboard" [level=1] [ref=f1e11]
+    - paragraph [ref=f1e12]: Loading…
+  - button "Open Next.js Dev Tools" [ref=f1e18] [cursor=pointer]
+  - alert [ref=f1e22]

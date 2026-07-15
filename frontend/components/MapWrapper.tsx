@@ -9,6 +9,7 @@ const MapView = dynamic(
 
 type Tree = {
   tree_id: number
+  tree_code?: string | null
   gps_lat: number
   gps_lon: number
   coconuts_detected: number

@@ -357,3 +357,255 @@ export async function getTreeInventoryHistory(treeId: number) {
     snapshots: InventorySnapshot[]
   }>
 }
+
+// ---------------------------------------------------------------------------
+// Harvest Planner & Mission Builder (Feature 10)
+// ---------------------------------------------------------------------------
+
+export type HarvestType = "mature" | "potential" | "premature" | "all"
+
+export type HarvestMissionStatus =
+  | "CREATED"
+  | "RUNNING"
+  | "PAUSED"
+  | "COMPLETED"
+  | "CANCELLED"
+
+export interface HarvestMissionItem {
+  id: number
+  mission_id: number
+  tree_id: number
+  tree_code: string | null
+  gps_lat: number | null
+  gps_lon: number | null
+  visit_order: number
+  expected_coconuts: number
+  harvested: number | null
+  status: string
+}
+
+export type RobotState =
+  | "IDLE"
+  | "HARVESTING"
+  | "PAUSED"
+  | "COMPLETED"
+  | "CANCELLED"
+
+export interface RobotStatus {
+  mission_id: number
+  mission_code: string | null
+  mission_status: HarvestMissionStatus
+  robot_state: RobotState
+  current_item: HarvestMissionItem | null
+  next_item: HarvestMissionItem | null
+  completed_count: number
+  remaining_count: number
+  total_trees: number
+  total_expected_coconuts: number
+  harvested_coconuts: number
+}
+
+export interface HarvestMission {
+  id: number
+  mission_code: string | null
+  created_at: string | null
+  completed_at: string | null
+  status: HarvestMissionStatus
+  harvest_type: HarvestType
+  total_trees: number
+  total_expected_coconuts: number
+  notes: string | null
+  items?: HarvestMissionItem[]
+}
+
+export async function createHarvestMission(
+  harvestType: HarvestType,
+  notes?: string
+) {
+  const res = await fetch(getApiUrl("/harvest/missions"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ harvest_type: harvestType, notes }),
+  })
+  if (!res.ok) {
+    let detail = "Failed to generate harvest mission"
+    try {
+      const body = await res.json()
+      if (body?.detail) detail = body.detail
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(detail)
+  }
+  return res.json() as Promise<HarvestMission>
+}
+
+export async function getHarvestMissions(limit = 50) {
+  const res = await fetch(getApiUrl(`/harvest/missions?limit=${limit}`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load harvest missions")
+  return res.json() as Promise<{ missions: HarvestMission[] }>
+}
+
+export async function getHarvestMission(missionId: number) {
+  const res = await fetch(getApiUrl(`/harvest/missions/${missionId}`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load harvest mission")
+  return res.json() as Promise<HarvestMission>
+}
+
+export async function getHarvestMissionItems(missionId: number) {
+  const res = await fetch(getApiUrl(`/harvest/missions/${missionId}/items`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load harvest mission items")
+  return res.json() as Promise<{
+    mission_id: number
+    mission_code: string | null
+    items: HarvestMissionItem[]
+  }>
+}
+
+async function postHarvestMissionAction(
+  missionId: number,
+  action: "start" | "pause" | "resume" | "cancel" | "advance"
+): Promise<HarvestMission> {
+  const res = await fetch(
+    getApiUrl(`/harvest/missions/${missionId}/${action}`),
+    { method: "POST" }
+  )
+  if (!res.ok) {
+    let detail = `Failed to ${action} harvest mission`
+    try {
+      const body = await res.json()
+      if (body?.detail) detail = body.detail
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(detail)
+  }
+  return res.json() as Promise<HarvestMission>
+}
+
+export function startHarvestMission(missionId: number) {
+  return postHarvestMissionAction(missionId, "start")
+}
+
+export function pauseHarvestMission(missionId: number) {
+  return postHarvestMissionAction(missionId, "pause")
+}
+
+export function resumeHarvestMission(missionId: number) {
+  return postHarvestMissionAction(missionId, "resume")
+}
+
+export function cancelHarvestMission(missionId: number) {
+  return postHarvestMissionAction(missionId, "cancel")
+}
+
+export function advanceHarvestMission(missionId: number) {
+  return postHarvestMissionAction(missionId, "advance")
+}
+
+export async function getRobotStatus(missionId: number) {
+  const res = await fetch(
+    getApiUrl(`/harvest/missions/${missionId}/status`),
+    { cache: "no-store" }
+  )
+  if (!res.ok) throw new Error("Failed to load robot status")
+  return res.json() as Promise<RobotStatus>
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard overview (Feature 12) — read-only descriptive aggregates.
+// ---------------------------------------------------------------------------
+
+export interface DashboardSurveyMission {
+  id: number
+  status: string
+  is_active: boolean
+  source_folder: string
+  created_at: string | null
+  completed_at: string | null
+  tile_count: number
+  processed_count: number
+}
+
+export interface DashboardHarvestMission {
+  id: number
+  mission_code: string | null
+  status: HarvestMissionStatus
+  harvest_type: HarvestType
+  total_trees: number
+  total_expected_coconuts: number
+  created_at: string | null
+  completed_at: string | null
+}
+
+export type ActivityType =
+  | "SURVEY_COMPLETED"
+  | "INSPECTION_CREATED"
+  | "INSPECTION_COMPLETED"
+  | "INVENTORY_CREATED"
+  | "HARVEST_MISSION_CREATED"
+  | "HARVEST_MISSION_COMPLETED"
+
+export interface ActivityEvent {
+  type: ActivityType
+  label: string
+  ts: string | null
+  ref: string
+}
+
+export interface DashboardOverview {
+  overview: {
+    survey_missions: number
+    permanent_trees: number
+    trees_inspected: number
+    inventory_snapshots: number
+    harvest_missions: number
+  }
+  farm_summary: {
+    total_trees: number
+    total_coconuts: number
+    mature: number
+    potential: number
+    premature: number
+    harvested_count: number
+  }
+  survey: {
+    latest_survey: DashboardSurveyMission | null
+    active_survey: DashboardSurveyMission | null
+    last_scan_time: string | null
+  }
+  current_harvest_mission: DashboardHarvestMission | null
+  recent_activity: ActivityEvent[]
+  charts: {
+    ripeness_distribution: {
+      mature: number
+      potential: number
+      premature: number
+    }
+    inspection_coverage: { inspected: number; total: number }
+    harvest_progress: { completed: number; total: number }
+  }
+}
+
+export async function getDashboardOverview() {
+  const res = await fetch(getApiUrl("/dashboard/overview"), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load dashboard overview")
+  return res.json() as Promise<DashboardOverview>
+}
+
+export interface MapTree {
+  tree_id: number
+  tree_code: string | null
+  gps_lat: number
+  gps_lon: number
+  coconuts_detected: number
+  tasks_remaining: number
+}

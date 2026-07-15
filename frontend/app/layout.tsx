@@ -34,8 +34,12 @@ export default function RootLayout({
             Home
           </Link>
 
-          <Link href="/trees">
+          <Link href="/dashboard">
             Dashboard
+          </Link>
+
+          <Link href="/trees">
+            Trees
           </Link>
 
           <Link href="/map">
