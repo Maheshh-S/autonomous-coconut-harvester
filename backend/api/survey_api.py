@@ -87,11 +87,18 @@ def _serialize_image(image: SurveyImage) -> dict:
     }
 
 
-def _serialize_tile(tile: SurveyTile) -> dict:
+def _serialize_tile(tile: SurveyTile, image: "SurveyImage | None" = None) -> dict:
+    # V2.2 (Digital Twin Farm Viewer, §V2.5): the mosaic renderer needs a
+    # directly-loadable image URL per tile so it can reconstruct the farm without
+    # decoding every file. Built from the tile's SurveyImage (same mission_id).
+    image_url = None
+    if image is not None:
+        image_url = f"/survey/uploads/{tile.mission_id}/{image.filename}"
     return {
         "id": tile.id,
         "mission_id": tile.mission_id,
         "image_id": tile.image_id,
+        "image_url": image_url,
         "status": tile.status,
         "grid_row": tile.grid_row,
         "grid_col": tile.grid_col,
@@ -916,9 +923,17 @@ def list_survey_tiles(mission_id: int):
             .order_by(SurveyTile.id)
             .all()
         )
+        images = {
+            img.id: img
+            for img in db.query(SurveyImage)
+            .filter(SurveyImage.mission_id == mission_id)
+            .all()
+        }
         return {
             "mission_id": mission_id,
-            "tiles": [_serialize_tile(tile) for tile in tiles],
+            "tiles": [
+                _serialize_tile(tile, images.get(tile.image_id)) for tile in tiles
+            ],
             "count": len(tiles),
         }
     finally:
@@ -980,7 +995,10 @@ def get_survey_tile(tile_id: int):
         tile = db.query(SurveyTile).filter(SurveyTile.id == tile_id).first()
         if tile is None:
             raise HTTPException(status_code=404, detail="Survey tile not found")
-        return _serialize_tile(tile)
+        image = (
+            db.query(SurveyImage).filter(SurveyImage.id == tile.image_id).first()
+        )
+        return _serialize_tile(tile, image)
     finally:
         db.close()
 

@@ -43,7 +43,7 @@ export default function RootLayout({
           </Link>
 
           <Link href="/map">
-  Map
+  Farm
 </Link>
 
 <Link href="/survey">

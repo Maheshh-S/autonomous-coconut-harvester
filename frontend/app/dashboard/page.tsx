@@ -11,6 +11,7 @@ import {
   type ActivityEvent,
 } from "@/lib/api/detection"
 import MapWrapper from "@/components/MapWrapper"
+import DashboardFarmCard from "@/components/DashboardFarmCard"
 
 const POLL_MS = 5000
 
@@ -396,6 +397,18 @@ export default function DashboardPage() {
             ]}
           />
         </div>
+      </div>
+
+      {/* Digital Twin (small interactive Farm Viewer → /map) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: 12,
+          marginTop: 24,
+        }}
+      >
+        <DashboardFarmCard />
       </div>
 
       {/* Map + Recent Activity */}

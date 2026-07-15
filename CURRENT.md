@@ -70,7 +70,77 @@
       the structural win is removing O(rows) ORM round-trips. Verified correct: 302
       observations, 0 representative mismatches vs §V2.7, all tree codes valid.
     - *(VERSION 2.1 code is implemented and verified; awaiting commit approval — do NOT
-      commit yet.)*
+       commit yet.)*
+  - **VERSION 2.2 — Continuous Farm Mosaic Engine (completed; awaiting commit approval):**
+    Scope = the *rendering foundation* of the Digital Twin Farm Viewer. Reconstructs the
+    surveyed plantation from persisted `SurveyTile` metadata — **no** overlays, bounding
+    boxes, tree interaction, inventory, inspection, zoom, pan, fullscreen, or twin controls.
+    - **Decision 5 (§V2.11) applied:** the V1 Leaflet/OSM `/map` is reworked into the twin.
+      `app/map/page.tsx` now loads the latest mission via `GET /missions` and its tiles via
+      `GET /mission/{id}/tiles`, then renders the mosaic. The V1 `MapWrapper`/`MapView`/
+      `leafletFix` are **retained only because `/dashboard` still uses the Leaflet GPS map**;
+      they are not part of the twin and remain out of V2.2 scope.
+    - **Backend (`api/survey_api.py`):** `_serialize_tile` now emits `image_url`
+      (`/survey/uploads/{mission_id}/{filename}`, built from the tile's `SurveyImage`),
+      eager-loaded in `list_survey_tiles` and `get_survey_tile` (two grouped queries, no
+      N+1). This is the single bulk per-mission endpoint the mosaic consumes (§V2.10).
+    - **Frontend (`components/FarmMosaic.tsx`):** new client component. Lays tiles out by
+      persisted `(grid_row, grid_col)` in a grid-aligned, absolutely-positioned canvas —
+      each column takes the widest tile and each row the tallest, so **mixed image sizes**
+      sit adjacent with **no overlap**. A **small configurable seam gap** (default 2px,
+      slider 0–24) de-emphasises boundaries (Decision 1, §V2.6). No stitching/orthomosaic/
+      GIS. The renderer **never recomputes or synthesizes a layout**: the `/map` page gates
+      on Version 2 metadata and, when a mission lacks `grid_row`/`grid_col`, shows a clear
+      "Digital Twin not available (pre-Version 2)" message instead of a synthetic grid.
+      (The legacy sqrt-grid fallback was removed per review — Version 2 supersedes old
+      layout logic.)
+    - **Verification:** backend import + `tsc --noEmit` + `next build` pass; live endpoint
+      returns `image_url`; Playwright E2E confirms `/map` renders the mosaic with tile images
+      loading (mission 78: 10 gridded tiles) and zero console errors.
+    - *(VERSION 2.2 code is implemented and verified; awaiting commit approval — do NOT
+       commit yet.)*
+  - **VERSION 2.3 — Digital Twin Viewer (navigation only; completed; awaiting commit
+    approval):** transforms the V2.2 mosaic into a proper viewer. Scope is navigation
+    and viewing **only** — no tree overlays, bounding boxes, clicks, selection,
+    inspection, inventory, harvest, or context menus (interaction rules enforced).
+    - **New `components/FarmViewer.tsx`** wraps `FarmMosaic` (V2.2) in a
+      transform-based viewport: a stage `<div>` gets `transform:
+      translate(tx,ty) scale(s)`; the mosaic is never re-rendered during navigation.
+      Browser APIs only — **no map libraries** added.
+    - **Controls:** `+` / `–` / `Fit` buttons plus a zoom-% readout (and an
+      expand control on the dashboard card only). `Fit` always restores the
+      default "entire farm visible" view (never upscaled past 100%, centred);
+      there is no separate "100% / origin" Reset action.
+      **Input uses Pointer Events** (one code path for mouse, touch, and stylus):
+      wheel zoom (cursor-centred, native non-passive `wheel` listener that
+      `preventDefault`s page scroll), single-pointer drag to pan, **two-pointer
+      pinch to zoom**, double-click → Fit. Zoom keeps the point under the cursor /
+      pinch midpoint fixed. *(Amended per clarification: browser Fullscreen API
+      removed — the viewer is interactive everywhere and navigation to the full
+      view is done via the expand control below, Google-Maps-like.)*
+    - **Fit** never upscales past 100% and centres the whole farm; the initial view
+      auto-fits so the complete farm is always visible first. Resize / navigation
+      deliberately do **not** refit (current zoom is preserved).
+    - **Performance:** `FarmMosaic` is memoised; during pan/pinch the transform is
+      written straight to the DOM via a ref (no React re-render per frame) and committed
+      to state only at gesture end. The stage's transform space is shared, so the future
+      overlay layer can render in the same farm-pixel coordinates (§V2.4).
+    - **Dashboard embedding (`components/DashboardFarmCard.tsx`):** a small interactive
+      Farm Viewer lives on `/dashboard` showing the most recent Version-2 mission's
+      persisted tile-grid. It is passed `expandHref="/map"` so an **expand control**
+      (`⤢`, title "Open full Digital Twin") appears and **navigates to `/map`** — the
+      dedicated full Digital Twin page. On `/map` itself the viewer is rendered without
+      `expandHref`, so no expand control is shown there. The viewer stays interactive in
+      both places; `touch-action: none` + Pointer Events make it work on desktop and
+      mobile. No other parts of the dashboard were redesigned.
+    - **Verification:** `tsc --noEmit` + `next build` pass; Playwright (desktop + a
+      `hasTouch/isMobile` context) covers: `/map` has no expand button; `+` zoom changes
+      scale %; single-pointer pan changes the stage transform; the dashboard card shows
+      the expand button and `+` zoom works; clicking expand navigates to `/map`; and a
+      two-finger pinch (dispatched Pointer Events) changes the scale % on mobile — zero
+      console errors.
+    - *(VERSION 2.3 code is implemented and verified; awaiting commit approval — do NOT
+       commit yet.)*
   - **Performance TODO (V2.1 write path, not a blocker):** the bulk-write path is now
     structurally correct (O(1) batched statements, no per-row ORM round-trips), but we
     have **not yet proven** the remaining ~80 s / 302-row runtime on the remote Neon DB is
@@ -80,9 +150,11 @@
     `EXPLAIN ANALYZE` on the batched `UPDATE`/`INSERT` to confirm whether any per-row work
     remains. Do this before claiming the optimization is fully realised.
 - **Next:**
-  - Implement the V2 Digital Twin Viewer (bulk tile/viewer endpoint, replace `/map` with the
-    twin) — out of scope for 2.1, authorised by the freeze.
-  - Commit Features 9–12 and VERSION 2.1 (pending approval).
+  - Build the interactive twin layer on top of the V2.3 viewer: tree bounding-box overlays,
+    representative-observation selection (§V2.7), hover/click → Tree Details (§V2.8), LOD +
+    viewport culling (§V2.10). The viewer + mosaic engine already exist; overlays render in
+    the same stage coordinate space, so these are additive.
+  - Commit Features 9–12, VERSION 2.1, VERSION 2.2, and VERSION 2.3 (pending approval).
   - Add backend unit tests for task‑generation/ripeness logic
   - Real geotagging of drone images (currently GPS is derived from the box position)
   - Model versioning / distribution strategy (weights are gitignored)
