@@ -1,9 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import FarmMosaic, { MosaicTile } from "@/components/FarmMosaic"
 import OverlayLayer from "@/components/OverlayLayer"
+import TreeDetailsPanel from "@/components/TreeDetailsPanel"
 import type { TreeOverlay } from "@/lib/api/detection"
 
 // V2.3 / V2.4 — Digital Twin Viewer (PROJECT_SPECIFICATION.md §V2.8 navigation
@@ -49,6 +50,10 @@ export default function FarmViewer({
   minHeight = 420,
   expandHref,
   trees,
+  // V2.5 — when true, selecting a tree opens the read-only Tree Details panel
+  // (§32) inside the viewer. Off on the small dashboard card, where selection
+  // only highlights the box.
+  enableDetailsPanel,
 }: {
   tiles: MosaicTile[]
   gap?: number
@@ -62,6 +67,8 @@ export default function FarmViewer({
   // Optional persisted tree overlays (V2.4). When supplied the viewer renders
   // the interactive bounding-box overlay on top of the mosaic.
   trees?: TreeOverlay[]
+  // V2.5 — enable the Tree Details panel on selection.
+  enableDetailsPanel?: boolean
 }) {
   const router = useRouter()
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -77,6 +84,14 @@ export default function FarmViewer({
   useEffect(() => {
     setSelectedTreeId(null)
   }, [tiles])
+
+  // V2.5 — the overlay metadata for the currently selected tree, so the Tree
+  // Details panel can read tree_code / gps / times_seen without a refetch
+  // (those fields already arrived in the bulk overlay response).
+  const selectedOverlay = useMemo(
+    () => trees?.find((t) => t.tree_id === selectedTreeId) ?? null,
+    [trees, selectedTreeId]
+  )
 
   // Active pointers (id -> last position) for unified pan / pinch handling.
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())
@@ -284,7 +299,18 @@ export default function FarmViewer({
             gap={gap}
             scale={view.scale}
             selectedTreeId={selectedTreeId}
-            onSelectTree={setSelectedTreeId}
+            onTreeSelect={setSelectedTreeId}
+          />
+        )}
+
+        {/* V2.5 — Tree Details panel. Mounted as a sibling of the stage so the
+            viewer (mosaic + overlay) is never recreated; selecting another tree
+            only swaps the panel's content. Closing clears the selection. */}
+        {enableDetailsPanel && selectedTreeId != null && selectedOverlay && (
+          <TreeDetailsPanel
+            tree={selectedOverlay}
+            apiBaseUrl={apiBaseUrl}
+            onClose={() => setSelectedTreeId(null)}
           />
         )}
       </div>

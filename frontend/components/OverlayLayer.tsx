@@ -28,14 +28,16 @@ export default function OverlayLayer({
   gap = 2,
   scale = 1,
   selectedTreeId,
-  onSelectTree,
+  onTreeSelect,
 }: {
   trees: TreeOverlay[]
   tiles: MosaicTile[]
   gap?: number
   scale?: number
   selectedTreeId?: number | null
-  onSelectTree?: (treeId: number) => void
+  // The overlay is presentation-only: it emits only this selection callback
+  // (PROJECT_SPECIFICATION.md §V2.8). It never fetches, mutates, or owns state.
+  onTreeSelect?: (treeId: number) => void
 }) {
   const [hoveredId, setHoveredId] = useState<number | null>(null)
 
@@ -82,7 +84,7 @@ export default function OverlayLayer({
           : hovered
           ? "rgba(180,255,180,0.12)"
           : "rgba(120,220,140,0.05)"
-        const cursor = onSelectTree ? "pointer" : "default"
+        const cursor = onTreeSelect ? "pointer" : "default"
 
         // Hide the label when the box is too small on screen (LOD is a future
         // concern, §V2.8); keeps the far-out view clean.
@@ -95,7 +97,7 @@ export default function OverlayLayer({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation()
-              onSelectTree?.(t.tree_id)
+              onTreeSelect?.(t.tree_id)
             }}
             onMouseEnter={() => setHoveredId(t.tree_id)}
             onMouseLeave={() => setHoveredId((id) => (id === t.tree_id ? null : id))}

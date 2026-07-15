@@ -169,6 +169,7 @@ export default function FarmPage() {
             gap={gap}
             apiBaseUrl={API_BASE_URL}
             trees={trees}
+            enableDetailsPanel
           />
         </>
       )}

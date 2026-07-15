@@ -204,6 +204,54 @@
       overlay persists — zero console errors.
     - *(VERSION 2.4 code is implemented and verified; awaiting commit approval — do NOT
        commit yet.)*
+  - **VERSION 2.5 — Tree Details Integration (completed; awaiting commit approval):**
+    Transforms the Digital Twin into the primary interaction interface: a tree selected
+    in V2.4 now opens a **read-only Tree Details panel** (§32 / §33) reusing the existing
+    Feature 6–11 data. No new backend business logic; no mutations; architecture unchanged.
+    - **Architecture (§V2.8, reused — not redesigned):** `FarmViewer` still owns
+      `selectedTreeId`; `OverlayLayer` stays presentation-only and now emits only
+      `onTreeSelect(treeId)` (renamed from `onSelectTree` to match the spec contract).
+      New **`TreeDetailsPanel`** (presentational, read-only) is rendered by `FarmViewer`
+      as a **sibling of the stage**, so the viewer / mosaic / overlay are **never
+      recreated** — selecting another tree only swaps the panel's content (the panel stays
+      mounted and its data is cached). The selected tree stays highlighted (amber) and the
+      panel + overlay stay synchronized through the single `selectedTreeId` source.
+    - **Panel behaviour:** desktop = right-side **collapsible** panel; mobile = **bottom
+      sheet** (CSS via `matchMedia("(max-width: 768px)")`). A **Close** button clears the
+      selection (panel removed, highlight cleared); the viewer remains fully interactive
+      while the panel is open (pan / zoom / Fit all work — verified).
+    - **Data flow / reuse (no duplicate API requests):** `tree_code`, `gps_lat/gps_lon`,
+      and `times_seen` are read straight from the already-loaded `TreeOverlay` — the
+      backend `GET /mission/{id}/trees` was extended (additive) to also return
+      `gps_lat/gps_lon/times_seen` (single bulk query, §V2.10; **no new endpoint**).
+      Current Inventory (`getTreeInventory`), Inventory History
+      (`getTreeInventoryHistory`), and Inspection History (`getTreeInspections`) are
+      fetched per tree and **cached in a Map**, so re-selecting a tree is instant. The
+      latest **completed** inspection's images come from `getInspectionImages`. Harvest
+      status is read from the most recent Harvest Mission's items
+      (`getHarvestMissions(1)` + `getHarvestMissionItems`), loaded **once** and reused
+      across selections. **Harvest eligibility is shown read-only from the current
+      inventory counts** (presentation only — the planner's eligibility rule is never
+      duplicated).
+    - **Scope honoured (read-only):** no editing, no inspection start, no harvest-mission
+      generation, no inventory mutation. The existing sparse `/trees/[treeId]` page is
+      untouched (could be superseded by the panel later, out of scope).
+    - **Files changed:** new `frontend/components/TreeDetailsPanel.tsx`; `FarmViewer.tsx`
+      (`enableDetailsPanel` prop + renders panel on selection, Close clears selection);
+      `app/map/page.tsx` (passes `enableDetailsPanel`); `OverlayLayer.tsx`
+      (`onTreeSelect`); `lib/api/detection.ts` (`TreeOverlay` gains `gps_lat/gps_lon/
+      times_seen`); `backend/api/survey_api.py` (additive overlay fields). The dashboard
+      card keeps `enableDetailsPanel` off (selection highlights only, no panel).
+    - **Verification:** backend import + `tsc --noEmit` + `next build` pass; all dependent
+      APIs smoke-tested (inventory/history/inspections/images/harvest — tree 698 returns
+      inventory 47/0/10/37, 3 inspections, 4 images, and is in harvest mission 20);
+      Playwright (desktop + mobile + dashboard) **15/15, 0 console errors** — overlay
+      renders (302), panel shows all sections, selected box amber, populated inventory
+      (47) for TREE-0698, reselect updates panel without rebuild, close clears selection,
+      viewer interactive after close, mobile bottom sheet, dashboard shows boxes with no
+      panel (highlight-only).
+    - *(VERSION 2.5 code is implemented and verified; awaiting commit approval — do NOT
+       commit yet.)*
   - **Performance TODO (V2.1 write path, not a blocker):** the bulk-write path is now
     structurally correct (O(1) batched statements, no per-row ORM round-trips), but we
     have **not yet proven** the remaining ~80 s / 302-row runtime on the remote Neon DB is
@@ -213,13 +261,13 @@
     `EXPLAIN ANALYZE` on the batched `UPDATE`/`INSERT` to confirm whether any per-row work
     remains. Do this before claiming the optimization is fully realised.
   - **Next:**
-    - V2.5 InteractionLayer: clicking a selected tree opens the Tree Details panel (§V2.8),
-      reusing `/trees/[treeId]` + the detail API; wire inventory / inspection / harvest from
-      there. The overlay is already selection-only today.
+    - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
+      "Locate on twin" pan-to-tree action in the panel (still no mutation); eventually
+      supersede the sparse legacy `/trees/[treeId]` page with the panel.
     - LOD + viewport culling (§V2.8/§V2.10) for the overlay — current rendering approach and
       the two optimization levers are recorded under VERSION 2.4 ("Rendering approach").
       Consider Canvas/WebGL (§V2.8 line 3642) only if box counts exceed the DOM threshold;
-      preserve the `onSelectTree` / `selectedTreeId` contract. Overlay currently renders all
+      preserve the `onTreeSelect` / `selectedTreeId` contract. Overlay currently renders all
       boxes (fine at ~300 trees).
     - Commit Features 9–12, VERSION 2.1, VERSION 2.2, VERSION 2.3, and VERSION 2.4
       (pending approval).

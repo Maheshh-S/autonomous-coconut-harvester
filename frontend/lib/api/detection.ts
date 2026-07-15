@@ -4,9 +4,15 @@ export const API_BASE_URL =
 // Persisted representative tree observation for the Digital Twin overlay (§V2.4).
 // All coordinates are in the tile's own pixel space (§V2.5); `survey_tile_id`
 // links the tree to its mosaic tile so the overlay can align in farm-pixel space.
+// `gps_lat`/`gps_lon` and `times_seen` are carried here (additive, persisted on
+// `Tree`) so the V2.5 Tree Details panel (§32/§33) needs no extra bulk request —
+// it reads them straight from the overlay data the viewer already loaded.
 export type TreeOverlay = {
   tree_id: number
   tree_code: string | null
+  gps_lat: number | null
+  gps_lon: number | null
+  times_seen: number | null
   survey_tile_id: number
   local_pixel_x: number
   local_pixel_y: number

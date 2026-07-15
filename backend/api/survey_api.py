@@ -969,10 +969,19 @@ def list_mission_tree_overlays(mission_id: int):
             return {"mission_id": mission_id, "trees": [], "count": 0}
 
         # Single bulk join (§V2.10: no per-tree round-trips). Select the tree
-        # code in the same query instead of lazy-loading `o.tree` per row — the
-        # latter is an N+1 that exhausts the connection pool.
+        # code + GPS + times_seen in the same query instead of lazy-loading
+        # `o.tree` per row — the latter is an N+1 that exhausts the connection
+        # pool. The extra columns feed the V2.5 Tree Details panel (§32) without
+        # any additional request: tree_code, gps_lat/gps_lon (§32 GPS), and
+        # times_seen (§33 "Times Seen") are all persisted on Tree.
         obs_rows = (
-            db.query(TreeObservation, Tree.tree_code)
+            db.query(
+                TreeObservation,
+                Tree.tree_code,
+                Tree.gps_lat,
+                Tree.gps_lon,
+                Tree.times_seen,
+            )
             .join(Tree, Tree.id == TreeObservation.tree_id)
             .filter(TreeObservation.id == Tree.current_observation_id)
             .filter(TreeObservation.survey_tile_id.in_(tile_ids))
@@ -983,6 +992,9 @@ def list_mission_tree_overlays(mission_id: int):
             {
                 "tree_id": o.tree_id,
                 "tree_code": tree_code,
+                "gps_lat": gps_lat,
+                "gps_lon": gps_lon,
+                "times_seen": times_seen,
                 "survey_tile_id": o.survey_tile_id,
                 "local_pixel_x": o.local_pixel_x,
                 "local_pixel_y": o.local_pixel_y,
@@ -992,7 +1004,7 @@ def list_mission_tree_overlays(mission_id: int):
                 "bbox_y2": o.bbox_y2,
                 "confidence": o.confidence,
             }
-            for o, tree_code in obs_rows
+            for o, tree_code, gps_lat, gps_lon, times_seen in obs_rows
         ]
         return {"mission_id": mission_id, "trees": trees, "count": len(trees)}
     finally:
