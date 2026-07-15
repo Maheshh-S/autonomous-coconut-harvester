@@ -60,6 +60,23 @@ def gps_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return EARTH_RADIUS_M * c
 
 
+def project_tile_center_gps(
+    base_lat: float,
+    base_lon: float,
+    tile_row: int,
+    tile_col: int,
+) -> tuple[float, float]:
+    """Project a tile's *centre* to a generated (lat, lon).
+
+    This is the ``project_detection_gps`` formula evaluated at the image centre,
+    where the intra-tile pixel offset is zero — so it depends only on the mission
+    base coordinate and the tile's grid position. Kept here (single source, §10)
+    so tile metadata persistence and the Digital Twin never re-derive the spacing.
+    """
+
+    return base_lat + (tile_row * SPACING_DEG), base_lon + (tile_col * SPACING_DEG)
+
+
 def project_detection_gps(
     base_lat: float,
     base_lon: float,

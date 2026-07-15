@@ -107,6 +107,44 @@ def init_db():
             )
         )
 
+        # Tree (Version 2 — Digital Twin Farm Viewer, §V2.5). Pointer to the tree's
+        # representative TreeObservation. The `tree_observations` table itself is
+        # created by create_all (new model); only this pointer needs an ALTER.
+        conn.execute(
+            text(
+                "ALTER TABLE trees ADD COLUMN IF NOT EXISTS current_observation_id INTEGER"
+            )
+        )
+
+        # SurveyTile (Version 2 — §V2.5, Decision 4). Persisted tile metadata used
+        # by the Digital Twin: capture order, tile-centre GPS, and image pixel
+        # dimensions. Written during survey processing; nullable for pre-V2 rows.
+        conn.execute(
+            text(
+                "ALTER TABLE survey_tiles ADD COLUMN IF NOT EXISTS capture_order INTEGER"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE survey_tiles ADD COLUMN IF NOT EXISTS center_gps_lat FLOAT"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE survey_tiles ADD COLUMN IF NOT EXISTS center_gps_lon FLOAT"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE survey_tiles ADD COLUMN IF NOT EXISTS image_width INTEGER"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE survey_tiles ADD COLUMN IF NOT EXISTS image_height INTEGER"
+            )
+        )
+
         # InventorySnapshot (Feature 11 — Robot Mission Execution). Post-harvest
         # snapshots are written with no originating Inspection, so inspection_id
         # must be nullable. The UNIQUE(inspection_id) constraint still allows many

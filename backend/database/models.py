@@ -74,6 +74,15 @@ class Tree(Base):
     # foreign key at table-creation time.
     current_inventory_id = Column(Integer, nullable=True)
 
+    # Version 2 (v2.0 — Digital Twin Farm Viewer, PROJECT_SPECIFICATION.md §V2.5).
+    # Pointer to the tree's representative TreeObservation — the single canonical
+    # tile+pixel+bbox chosen by the frozen selection rule (§V2.7). The Tree row
+    # itself stays permanent and stores no tile/pixel/bbox metadata; observations
+    # live in the mission-scoped ``tree_observations`` history and are never
+    # overwritten. Plain Integer (no FK) mirrors ``current_inventory_id`` and
+    # avoids a circular Tree<->TreeObservation foreign key at creation time.
+    current_observation_id = Column(Integer, nullable=True)
+
 
 class InspectionStatus(str, Enum):
     """Lifecycle states for a Tree Inspection Session (Feature 7).
@@ -474,6 +483,22 @@ class SurveyTile(Base):
     status = Column(String, default=SurveyTileStatus.PENDING.value, nullable=False)
     grid_row = Column(Integer, nullable=True)
     grid_col = Column(Integer, nullable=True)
+
+    # Version 2 (v2.0 — Digital Twin Farm Viewer, PROJECT_SPECIFICATION.md §V2.5,
+    # Decision 4). Tile metadata is persisted during survey processing so the twin
+    # can lay out the farm-pixel mosaic without recomputing the grid or decoding
+    # every image at read time. ``capture_order`` is the tile's position in the
+    # capture sequence (from the survey image ordering; NOT the filename after
+    # persistence — the DB is the source of truth, §V2.5). ``center_gps_lat`` /
+    # ``center_gps_lon`` are the tile-centre coordinate (§V2.4). ``image_width`` /
+    # ``image_height`` are the tile image dimensions in pixels. All are nullable so
+    # the additive migration is backward-compatible with pre-V2 tile rows.
+    capture_order = Column(Integer, nullable=True)
+    center_gps_lat = Column(Float, nullable=True)
+    center_gps_lon = Column(Float, nullable=True)
+    image_width = Column(Integer, nullable=True)
+    image_height = Column(Integer, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -510,5 +535,59 @@ class TileDetection(Base):
     y2 = Column(Integer, nullable=False)
     confidence = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class TreeObservation(Base):
+    """One observation of one permanent Tree during one Survey Mission (Feature V2.1).
+
+    Introduced by the Version 2 Digital Twin Farm Viewer amendment
+    (PROJECT_SPECIFICATION.md §V2.5, Decision 2). Each row records where a single
+    permanent Tree was seen in a single survey: the survey tile, the tree's pixel
+    position and bounding box *in that tile's local pixels* (§V2.4), the detection
+    confidence, and the projected GPS. These rows are **mission-scoped and
+    historical** — a re-survey adds new observations and never overwrites older
+    ones, so the twin can always be rebuilt from history. The permanent ``Tree``
+    stays immutable and merely points at its representative observation via
+    ``Tree.current_observation_id`` (chosen by the frozen rule in §V2.7).
+
+    Why a child table rather than columns on ``Tree``: a single Tree is observed
+    in multiple overlapping tiles (§8.2) and across multiple immutable missions
+    (§7.11); storing tile/pixel/bbox on the Tree row would lose that history and
+    break mission immutability. This mirrors the ``InventorySnapshot`` pattern
+    (immutable history + a ``current_*`` pointer on ``Tree``).
+
+    ``tree_id`` uses ``ondelete="RESTRICT"`` so a tree with observation history
+    cannot be silently deleted (§18). ``mission_id`` / ``survey_tile_id`` follow
+    the survey domain's plain-integer relation convention (no FK), matching
+    ``SurveyTile`` / ``SurveyImage``.
+
+    ``local_pixel_x`` / ``local_pixel_y`` are the bounding-box centroid in tile
+    pixels (the tree's pixel position); ``bbox_*`` are the box corners. Both are
+    kept so the twin can render the box and pick the tree's anchor point.
+    """
+
+    __tablename__ = "tree_observations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tree_id = Column(
+        Integer,
+        ForeignKey("trees.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    mission_id = Column(Integer, nullable=False, index=True)
+    survey_tile_id = Column(Integer, nullable=False, index=True)
+    local_pixel_x = Column(Float, nullable=False)
+    local_pixel_y = Column(Float, nullable=False)
+    bbox_x1 = Column(Integer, nullable=False)
+    bbox_y1 = Column(Integer, nullable=False)
+    bbox_x2 = Column(Integer, nullable=False)
+    bbox_y2 = Column(Integer, nullable=False)
+    confidence = Column(Float, nullable=False)
+    gps_lat = Column(Float, nullable=True)
+    gps_lon = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    tree = relationship("Tree")
 
 

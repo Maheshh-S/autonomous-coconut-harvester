@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from database.db import SessionLocal
 from database.models import (
@@ -19,6 +19,7 @@ from database.models import (
     SurveyTileStatus,
     TileDetection,
     Tree,
+    TreeObservation,
 )
 # Reuse the single YOLO tree-detection model already loaded by the tree API
 # (PROJECT_SPECIFICATION.md §9.2). Avoids loading the weights twice.
@@ -27,6 +28,7 @@ from api.tree_api import tree_model
 from api.gps_projection import (
     gps_distance,
     project_detection_gps,
+    project_tile_center_gps,
     DISTANCE_THRESHOLD,
 )
 
@@ -93,6 +95,12 @@ def _serialize_tile(tile: SurveyTile) -> dict:
         "status": tile.status,
         "grid_row": tile.grid_row,
         "grid_col": tile.grid_col,
+        # Version 2 tile metadata (§V2.5) — persisted, source of truth for the twin.
+        "capture_order": tile.capture_order,
+        "center_gps_lat": tile.center_gps_lat,
+        "center_gps_lon": tile.center_gps_lon,
+        "image_width": tile.image_width,
+        "image_height": tile.image_height,
         "created_at": tile.created_at.isoformat() if tile.created_at else None,
         "updated_at": tile.updated_at.isoformat() if tile.updated_at else None,
     }
@@ -316,6 +324,10 @@ def list_survey_images(mission_id: int):
 
 
 def generate_tiles_for_mission(db, mission_id: int) -> int:
+    mission = db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
+    base_lat = mission.base_gps_lat if mission is not None else None
+    base_lon = mission.base_gps_lon if mission is not None else None
+
     images = (
         db.query(SurveyImage)
         .filter(SurveyImage.mission_id == mission_id)
@@ -328,18 +340,53 @@ def generate_tiles_for_mission(db, mission_id: int) -> int:
         .filter(SurveyTile.mission_id == mission_id)
         .all()
     }
+
+    # Version 2 (§V2.5, Decision 4): the deterministic coverage grid is computed
+    # once here (from the survey image ordering) and PERSISTED onto each tile, so
+    # it is never recomputed downstream. Image dimensions are filled later during
+    # tile processing (see ``process_tile``) — the only stage that decodes the file.
+    grid = _tile_grid_positions(db, mission_id)
+
+    def _tile_center(row: int, col: int):
+        if base_lat is None or base_lon is None:
+            return None, None
+        return project_tile_center_gps(base_lat, base_lon, row, col)
+
     created = 0
     for image in images:
         if image.id in existing:
             continue
+        row, col = grid.get(image.id, (0, 0))
+        center_lat, center_lon = _tile_center(row, col)
         db.add(
             SurveyTile(
                 mission_id=mission_id,
                 image_id=image.id,
                 status=SurveyTileStatus.PENDING.value,
+                capture_order=image.upload_order,
+                grid_row=row,
+                grid_col=col,
+                center_gps_lat=center_lat,
+                center_gps_lon=center_lon,
             )
         )
         created += 1
+    db.commit()
+
+    # Backfill metadata for any pre-V2 tiles that predate these columns, so a
+    # re-run heals older rows (image dimensions still require reprocessing).
+    for tile in (
+        db.query(SurveyTile).filter(SurveyTile.mission_id == mission_id).all()
+    ):
+        if tile.grid_row is None or tile.capture_order is None:
+            image = next((im for im in images if im.id == tile.image_id), None)
+            row, col = grid.get(tile.image_id, (0, 0))
+            tile.grid_row = row
+            tile.grid_col = col
+            tile.capture_order = image.upload_order if image is not None else None
+            center_lat, center_lon = _tile_center(row, col)
+            tile.center_gps_lat = center_lat
+            tile.center_gps_lon = center_lon
     db.commit()
 
     # Keep the denormalized mission tile counter in sync with the actual tile rows.
@@ -402,6 +449,66 @@ def _tile_grid_positions(db, mission_id: int) -> dict:
     return {img.id: (idx // cols, idx % cols) for idx, img in enumerate(images)}
 
 
+def _representative_sort_key(obs: TreeObservation, tile_dims: dict) -> tuple:
+    """Frozen representative-observation ordering (PROJECT_SPECIFICATION.md §V2.7).
+
+    Smaller tuple wins under ``min``: (1) highest confidence, (2) closest to the
+    tile centre, (3) newest mission. Distance is unknown when the tile lacks
+    persisted dimensions (pre-V2 rows) — such observations sort last on the
+    tie-break but can still win on confidence alone.
+    """
+
+    w, h = tile_dims.get(obs.survey_tile_id, (None, None))
+    if w and h:
+        dist = math.hypot(obs.local_pixel_x - w / 2.0, obs.local_pixel_y - h / 2.0)
+    else:
+        dist = float("inf")
+    return (-obs.confidence, dist, -obs.mission_id)
+
+
+def _recompute_representative_observations(db, tree_ids) -> None:
+    """Repoint ``Tree.current_observation_id`` at each tree's representative.
+
+    Considers *all* of a tree's observations across *all* missions (a re-survey
+    can promote a newer, better observation), per the frozen rule in §V2.7.
+    """
+
+    tree_ids = [tid for tid in tree_ids if tid is not None]
+    if not tree_ids:
+        return
+
+    observations = (
+        db.query(TreeObservation)
+        .filter(TreeObservation.tree_id.in_(tree_ids))
+        .all()
+    )
+    tile_ids = {o.survey_tile_id for o in observations}
+    tile_dims = {}
+    if tile_ids:
+        for tile in (
+            db.query(SurveyTile).filter(SurveyTile.id.in_(list(tile_ids))).all()
+        ):
+            tile_dims[tile.id] = (tile.image_width, tile.image_height)
+
+    by_tree: dict = {}
+    for obs in observations:
+        by_tree.setdefault(obs.tree_id, []).append(obs)
+
+    # Bulk-load the affected Trees in one query — a per-tree lookup here is an
+    # N+1 that turns into hundreds of round-trips on a real (remote) database.
+    trees = {
+        t.id: t
+        for t in db.query(Tree).filter(Tree.id.in_(list(by_tree.keys()))).all()
+    }
+    for tree_id, obs_list in by_tree.items():
+        representative = min(
+            obs_list, key=lambda o: _representative_sort_key(o, tile_dims)
+        )
+        tree = trees.get(tree_id)
+        if tree is not None:
+            tree.current_observation_id = representative.id
+
+
 def match_trees_for_mission(db, mission_id: int) -> int:
     mission = (
         db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
@@ -415,7 +522,6 @@ def match_trees_for_mission(db, mission_id: int) -> int:
     base_lat = mission.base_gps_lat
     base_lon = mission.base_gps_lon
 
-    grid = _tile_grid_positions(db, mission_id)
     tiles = (
         db.query(SurveyTile)
         .filter(SurveyTile.mission_id == mission_id)
@@ -423,27 +529,64 @@ def match_trees_for_mission(db, mission_id: int) -> int:
         .order_by(SurveyTile.id)
         .all()
     )
-    # Working set of all permanent Trees, kept current as we create new ones so
-    # within-run observations of the same tree converge on one Tree.
-    all_trees = db.query(Tree).all()
+    # Working set of all permanent Trees for GPS matching. Kept as *plain dicts*
+    # (id + match fields only) rather than live ORM objects: holding 302 persistent
+    # ``Tree`` rows in the session makes them dirty, and the implicit autoflush
+    # before each write would re-emit every one as its own UPDATE round-trip over
+    # the remote DB. Newly created Trees are still ORM objects (needed for INSERT).
+    all_trees = [
+        {
+            "id": t.id,
+            "gps_lat": t.gps_lat,
+            "gps_lon": t.gps_lon,
+            "last_box_w": t.last_box_w,
+            "last_box_h": t.last_box_h,
+            "times_seen": t.times_seen,
+        }
+        for t in db.query(Tree).all()
+    ]
 
+    # Version 2 (§V2.5, Decision 2): observations are mission-scoped and rebuilt
+    # idempotently. Clearing only THIS mission's observations preserves every
+    # other mission's history — observations are never overwritten across surveys.
+    db.query(TreeObservation).filter(
+        TreeObservation.mission_id == mission_id
+    ).delete()
+
+    touched_tree_ids: set = set()
     created = 0
+    observation_data: list = []
+    new_trees: list = []
+    # Deferred Tree updates: applied once via a single executemany UPDATE after the
+    # loop, so the ~N existing-tree UPDATEs collapse into one round-trip.
+    tree_updates: dict = {}
     for tile in tiles:
-        image = (
-            db.query(SurveyImage).filter(SurveyImage.id == tile.image_id).first()
-        )
-        if image is None:
-            continue
-        img_path = SURVEY_UPLOAD_ROOT / str(mission_id) / image.filename
-        if not img_path.exists():
-            continue
-        frame = cv2.imdecode(
-            np.frombuffer(img_path.read_bytes(), np.uint8), cv2.IMREAD_COLOR
-        )
-        if frame is None:
-            continue
-        img_h, img_w = frame.shape[:2]
-        row, col = grid.get(image.id, (0, 0))
+        # Grid position and image dimensions come from the persisted tile metadata
+        # (§V2.5); decode the image only as a fallback for pre-V2 tiles that lack
+        # dimensions, so re-processing legacy data still works.
+        row = tile.grid_row if tile.grid_row is not None else 0
+        col = tile.grid_col if tile.grid_col is not None else 0
+        img_w = tile.image_width
+        img_h = tile.image_height
+        if img_w is None or img_h is None:
+            image = (
+                db.query(SurveyImage)
+                .filter(SurveyImage.id == tile.image_id)
+                .first()
+            )
+            if image is None:
+                continue
+            img_path = SURVEY_UPLOAD_ROOT / str(mission_id) / image.filename
+            if not img_path.exists():
+                continue
+            frame = cv2.imdecode(
+                np.frombuffer(img_path.read_bytes(), np.uint8), cv2.IMREAD_COLOR
+            )
+            if frame is None:
+                continue
+            img_h, img_w = frame.shape[:2]
+            tile.image_width = int(img_w)
+            tile.image_height = int(img_h)
 
         detections = (
             db.query(TileDetection)
@@ -464,14 +607,14 @@ def match_trees_for_mission(db, mission_id: int) -> int:
             best = None
             best_conf = -1.0
             for t in all_trees:
-                dist = gps_distance(lat, lon, t.gps_lat, t.gps_lon)
+                dist = gps_distance(lat, lon, t["gps_lat"], t["gps_lon"])
                 if dist > DISTANCE_THRESHOLD:
                     continue
                 geo = 1.0
-                if t.last_box_w and t.last_box_h:
+                if t["last_box_w"] and t["last_box_h"]:
                     geo = (
-                        min(bw, t.last_box_w) / max(bw, t.last_box_w)
-                        * min(bh, t.last_box_h) / max(bh, t.last_box_h)
+                        min(bw, t["last_box_w"]) / max(bw, t["last_box_w"])
+                        * min(bh, t["last_box_h"]) / max(bh, t["last_box_h"])
                     )
                 # Step 3: hybrid matching confidence (0..1).
                 conf = GPS_WEIGHT * max(0.0, 1.0 - dist / DISTANCE_THRESHOLD) + GEO_WEIGHT * geo
@@ -480,15 +623,32 @@ def match_trees_for_mission(db, mission_id: int) -> int:
                     best = t
 
             if best is not None:
-                # Reuse existing permanent Tree (§11.2 invariants).
-                best.last_seen_mission_id = mission_id
-                best.times_seen = (best.times_seen or 0) + 1
-                best.last_matching_confidence = round(best_conf, 4)
-                best.last_box_w = bw
-                best.last_box_h = bh
-                best.availability = "ACTIVE"
+                # Reuse existing permanent Tree (§11.2 invariants). The match set
+                # holds plain dicts, never live ORM objects, so nothing here marks a
+                # persistent Tree dirty. All refreshes are deferred to
+                # ``tree_updates`` and written in one batch (see below).
+                if best["id"] in tree_updates:
+                    upd = tree_updates[best["id"]]
+                    upd["times_seen"] = (upd.get("times_seen") or 0) + 1
+                else:
+                    upd = {
+                        "id": best["id"],
+                        "last_seen_mission_id": mission_id,
+                        "times_seen": (best["times_seen"] or 0) + 1,
+                        "last_matching_confidence": None,
+                        "last_box_w": None,
+                        "last_box_h": None,
+                        "availability": "ACTIVE",
+                    }
+                    tree_updates[best["id"]] = upd
+                upd["last_matching_confidence"] = round(best_conf, 4)
+                upd["last_box_w"] = bw
+                upd["last_box_h"] = bh
+                upd["last_seen_mission_id"] = mission_id
+                # Carry the resolved tree as a lightweight dict for the observation.
+                resolved = best
             else:
-                tree = Tree(
+                resolved_tree = Tree(
                     gps_lat=lat,
                     gps_lon=lon,
                     detected_time=str(datetime.utcnow()),
@@ -501,13 +661,143 @@ def match_trees_for_mission(db, mission_id: int) -> int:
                     last_box_w=bw,
                     last_box_h=bh,
                 )
-                db.add(tree)
-                db.flush()
-                # Immutable public code derived from the row id — unique/stable.
-                tree.tree_code = f"TREE-{tree.id:04d}"
-                all_trees.append(tree)
+                db.add(resolved_tree)
+                new_trees.append(resolved_tree)
+                new_id = None  # assigned by the batched flush after the loop
+                # Mirror the new tree into the match set as a plain dict so later
+                # detections in this run can converge on it.
+                resolved = {
+                    "id": new_id,
+                    "gps_lat": lat,
+                    "gps_lon": lon,
+                    "last_box_w": bw,
+                    "last_box_h": bh,
+                    "times_seen": 1,
+                }
+                all_trees.append(resolved)
+                # Id assigned by the single batched flush after the loop (below),
+                # so the observation's tree_id is populated before the bulk insert.
+                tree_updates[resolved["id"]] = {
+                    "id": None,  # filled after the post-loop flush assigns the id
+                    "last_seen_mission_id": mission_id,
+                    "times_seen": 1,
+                    "last_matching_confidence": None,
+                    "last_box_w": bw,
+                    "last_box_h": bh,
+                    "availability": "ACTIVE",
+                }
                 created += 1
 
+            # Version 2 (§V2.5): record this detection as a permanent, historical
+            # observation of the resolved tree — the tile/pixel/bbox/GPS chain the
+            # Digital Twin renders. The Tree row is never given this metadata.
+            # Rows are assembled after the post-loop flush (when new-tree ids exist)
+            # and written in one batched statement instead of one round-trip each.
+            observation_data.append(
+                {
+                    "tree": resolved,
+                    "mission_id": mission_id,
+                    "survey_tile_id": tile.id,
+                    "local_pixel_x": cx,
+                    "local_pixel_y": cy,
+                    "bbox_x1": d.x1,
+                    "bbox_y1": d.y1,
+                    "bbox_x2": d.x2,
+                    "bbox_y2": d.y2,
+                    "confidence": d.confidence,
+                    "gps_lat": lat,
+                    "gps_lon": lon,
+                    "created_at": datetime.utcnow(),
+                }
+            )
+            touched_tree_ids.add(resolved["id"])
+
+    # One batched flush inserts the new Trees (executemany) and assigns their ids,
+    # which both the observation rows and the deferred tree updates depend on.
+    # ``no_autoflush`` guarantees the only writes are our explicit batched ones —
+    # no per-object UPDATE round-trips for the matched (dict-held) trees.
+    with db.no_autoflush:
+        db.flush()
+        # Map each new ORM Tree back to the lightweight dict used during matching,
+        # so the observation rows assembled below carry the real (assigned) id.
+        new_tree_dicts = [od["tree"] for od in observation_data if od["tree"].get("id") is None]
+        for t, rdict in zip(new_trees, new_tree_dicts):
+            # Immutable public code derived from the row id — unique/stable.
+            t.tree_code = f"TREE-{t.id:04d}"
+            rdict["id"] = t.id
+            tree_updates[t.id] = {
+                "id": t.id,
+                "last_seen_mission_id": mission_id,
+                "times_seen": 1,
+                "last_matching_confidence": None,
+                "last_box_w": t.last_box_w,
+                "last_box_h": t.last_box_h,
+                "availability": "ACTIVE",
+            }
+
+    # Batched Tree UPDATEs (§V2.5): every existing-tree metadata refresh collapses
+    # into a single executemany round-trip instead of one UPDATE per tree over the
+    # remote DB. A raw statement is used because SQLAlchemy's bulk_update_mappings
+    # issues a round-trip per row here (79s for 302 rows) — see verification notes.
+    if tree_updates:
+        db.execute(
+            text(
+                "UPDATE trees SET "
+                "last_seen_mission_id = :last_seen_mission_id, "
+                "times_seen = :times_seen, "
+                "last_matching_confidence = :last_matching_confidence, "
+                "last_box_w = :last_box_w, "
+                "last_box_h = :last_box_h, "
+                "availability = :availability "
+                "WHERE id = :id"
+            ),
+            [
+                {
+                    "id": u["id"],
+                    "last_seen_mission_id": u["last_seen_mission_id"],
+                    "times_seen": u["times_seen"],
+                    "last_matching_confidence": u["last_matching_confidence"],
+                    "last_box_w": u["last_box_w"],
+                    "last_box_h": u["last_box_h"],
+                    "availability": u["availability"],
+                }
+                for u in tree_updates.values()
+                if u.get("id") is not None
+            ],
+        )
+
+    # Assemble the observation rows now that every tree id (including freshly
+    # inserted ones) is known, then write them in a single batched INSERT — this
+    # collapses ~N detection round-trips into one query against the remote DB.
+    observation_rows = [
+        {
+            "tree_id": od["tree"]["id"],
+            "mission_id": od["mission_id"],
+            "survey_tile_id": od["survey_tile_id"],
+            "local_pixel_x": od["local_pixel_x"],
+            "local_pixel_y": od["local_pixel_y"],
+            "bbox_x1": od["bbox_x1"],
+            "bbox_y1": od["bbox_y1"],
+            "bbox_x2": od["bbox_x2"],
+            "bbox_y2": od["bbox_y2"],
+            "confidence": od["confidence"],
+            "gps_lat": od["gps_lat"],
+            "gps_lon": od["gps_lon"],
+            "created_at": od["created_at"],
+        }
+        for od in observation_data
+    ]
+    if observation_rows:
+        db.bulk_insert_mappings(
+            TreeObservation, observation_rows
+        )
+
+    db.commit()
+
+    # Choose each touched tree's representative observation (§V2.7) and repoint
+    # ``Tree.current_observation_id``. Done after commit so all observation ids
+    # exist and the selection sees the full, current observation history.
+    _recompute_representative_observations(db, touched_tree_ids)
     db.commit()
     return created
 
@@ -544,6 +834,12 @@ def process_tile(db, tile: SurveyTile) -> int:
         frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
         if frame is None:
             raise ValueError("could not decode image bytes")
+
+        # Version 2 (§V2.5): persist the tile image dimensions here — this is the
+        # single stage that already decodes the file, so the twin never re-decodes.
+        img_h, img_w = frame.shape[:2]
+        tile.image_width = int(img_w)
+        tile.image_height = int(img_h)
 
         results = tree_model(frame, conf=0.4)
 
