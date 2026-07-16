@@ -1,6 +1,6 @@
 # CURRENT.md
 
-- **Project Version:** 3.8.5 (Version 3 line; V3.8 Production Hardening in progress)
+- **Project Version:** 3.8.6 (Version 3 line; V3.8 Production Hardening in progress)
 - **Current Status:** Version 3 pipeline complete through V3.7.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics). All V1–V3 work is implemented and verified but **not yet committed** — awaiting explicit approval.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
@@ -1429,6 +1429,41 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
       errors; `next build` success; empty-directory scan clean; orphan-reference scan
       finds no dangling links to removed files; no application behaviour changed.
       **NOT committed** — awaiting approval.
+  - **VERSION 3.8.6 — Database Reset & Fresh Project State (completed; awaiting commit
+    approval):** release-prep hygiene — **no schema change, no migration change, no
+    business-logic change, no redesign.**
+    - **Deterministic reset utility added:** `backend/reset_runtime.py` —
+      `reset_runtime_data()` truncates the 18 runtime tables with
+      `TRUNCATE … RESTART IDENTITY CASCADE` (clears rows AND restarts identity
+      sequences at 1) in a single statement. The 4 singleton/configuration tables
+      (`robots`, `dock_stations`, `robot_batteries`, `robot_configurations`) are
+      deliberately excluded and re-seeded idempotently on startup by
+      `init_db` → `ensure_robot_domain`. Static check confirms all 22 model tables
+      are either runtime (18) or singleton (4): full coverage, no overlap.
+    - **Cleared runtime tables:** `detections`, `tasks`, `trees`, `tree_observations`,
+      `survey_missions`, `survey_images`, `survey_tiles`, `survey_tile_detections`,
+      `inspections`, `inspection_images`, `coconut_detections`, `inventory_snapshots`,
+      `harvest_missions`, `harvest_mission_items`, `robot_state_transitions`,
+      `robot_telemetry`, `robot_events`, `robot_runs`.
+    - **Preserved:** schema, tables, constraints, indexes, relationships, migrations,
+      the Robot singleton + battery + configuration + dock, and all application
+      defaults. `init_db` still runs on every boot and re-creates the singleton rows,
+      so the app boots exactly as before.
+    - **Upload directories cleaned:** `uploads/survey/*` and `uploads/inspection/*`
+      (50 runtime image files) and `runs/*` (5 YOLO outputs) were emptied; directory
+      structure preserved (recreated on demand). `demo_images/` and `models/` weights
+      untouched.
+    - **Safety:** the script NEVER drops tables, NEVER recreates the schema, NEVER
+      touches migrations, and NEVER deletes singleton rows. `TRUNCATE RESTART
+      IDENTITY CASCADE` clears rows + resets sequences only.
+    - **Verification:** `py_compile` (incl. `reset_runtime.py`) OK; table-coverage
+      diff clean (22/22 accounted for); uploads/runs emptied. **Live DB reset +
+      end-to-end verification (fresh startup, first survey/tree/inspection/snapshot/
+      mission/item/run all id=1, empty robot history + analytics) could NOT be
+      executed here** — this environment has no PostgreSQL server and no backend deps
+      (`sqlalchemy`/`fastapi`) installed. The reset is a one-command procedure
+      (`python backend/reset_runtime.py`) to run on a configured machine. **NOT
+      committed** — awaiting approval.
   - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`
