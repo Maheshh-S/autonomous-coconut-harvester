@@ -172,6 +172,16 @@ Three separated concerns (explicit requirement — route ≠ movement ≠ execut
    the depot position, it produces a **trajectory**: a sequence of `(x, y, t)` waypoints
    at constant ground speed (linear interp, optional smooth turn at the tree), plus the
    return-to-dock leg. Reads positions; does not move anything. Pure & unit-testable.
+
+   > **V3.2 status (implemented, not yet committed):** the navigation layer is now
+   > real and deterministic. `backend/navigation/mosaic_layout.py` is a faithful
+   > backend port of `computeMosaicLayout` (single farm-pixel source of truth);
+   > `service.py` holds the planning objects (`NavigationWaypoint` / `NavigationPlan` /
+   > `NavigationResult`) and the pure `RobotNavigator`; `navigation/__init__.py`
+   > (`NavigationService`) resolves targets read-only from `HarvestMission` /
+   > `TreeObservation` / `SurveyTile` / the V3.1 `Robot`+`DockStation`. `GET
+   > /robot/navigation` and `GET /robot/navigation/plan` are read-only. No movement,
+   > no execution, no Robot-state mutation. See `CURRENT.md` V3.2.
 3. **Execution** — `RobotSimulationEngine` + `RobotController`. Consumes `RobotNavigator`
    trajectories and, driven by the Simulation Clock, writes the robot's live
    `position_x/position_y/heading`, advances the state machine, drains battery, and
@@ -241,8 +251,8 @@ Persistence enables playback: a past mission is replayed by streaming its stored
 
 | Milestone | Scope | Key deliverables |
 |---|---|---|
-| **V3.1 Robot Domain** | Persisted entities + adapters | `Robot`, `DockStation`, `RobotBattery`, `RobotTelemetry`, `RobotEvent`; `RobotTask`/`RobotMission` adapters over `HarvestMissionItem`/`HarvestMission`; idempotent migration. |
-| **V3.2 Navigation** | Movement planning only | `RobotNavigator` (pure trajectory generator); unit tests; no live mutation. |
+| **V3.1 Robot Domain** | Persisted entities + adapters | `Robot`, `DockStation`, `RobotBattery`, `RobotTelemetry`, `RobotEvent`; `RobotTask`/`RobotMission` adapters over `HarvestMissionItem`/`HarvestMission`; idempotent migration. **(implemented, not committed)** |
+| **V3.2 Navigation** | Movement planning only | `RobotNavigator` (pure trajectory generator) + `NavigationService`; `backend/navigation/` package; `GET /robot/navigation` + `GET /robot/navigation/plan`; deterministic, read-only, no live mutation. **(implemented, not committed)** |
 | **V3.3 State Machine** | RobotState + transitions | `RobotController` enforcing §3; `DOCKED` battery routing; error/safe-abort; coarse↔fine mapping for V1 compat. |
 | **V3.4 Telemetry** | Event + sample capture | `RobotEvent`/`RobotTelemetry` writers; `GET /robot/state`, `GET /robot/telemetry`. |
 | **V3.5 Visualization** | Frontend robot on twin | `RobotLayer` (marker + path + battery ring), `RobotStatusPanel`, `DashboardRobotCard`; WebSocket client. |

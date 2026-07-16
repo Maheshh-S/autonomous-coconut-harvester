@@ -697,11 +697,61 @@
         initializes to defaults, `recharge` restores 100%, `reset` returns to
         defaults after mutation (status/mission/task/position/speed), `speed` applies
         + clamps + rejects negatives, exactly one Robot/Battery/Config/Dock (singleton
-        invariant). **Live HTTP serve of the new endpoints was not exercised**: the
-        pre-existing running dev server holds DB locks, so a fresh `init_db` hangs;
-        static + service-layer verification is complete and the transport wiring is
-        identical to every other working router. Frontend untouched → `tsc`/`next
-        build`/`verify_v26.js` unaffected (no V2 regression).
+        invariant). **Live HTTP serve verified** after the dev servers were restarted
+        (backend on :8000, frontend on :3000): all 5 endpoints returned correct
+        defaults over HTTP. Frontend untouched → `tsc`/`next build`/`verify_v26.js`
+        unaffected (no V2 regression).
+      - **Implementation report** delivered; **committed as part of the V3 line once
+        approved** — V3.1 was implemented and verified, then the dev servers were
+        restarted for live verification. Not yet committed to git.
+    - **VERSION 3.2 — Robot Navigation Foundation (completed; awaiting approval, NOT
+      committed):** the **navigation layer only** — it computes *where* the robot
+      should move, never moves it, never animates, never executes, never mutates
+      Robot state. Fully deterministic. Version 2 + V3.1 behaviour/endpoints are
+      untouched.
+      - **New package `backend/navigation/`** (the V2.9-prepared empty dir is now
+        populated): `mosaic_layout.py`, `service.py`, `__init__.py`.
+      - **`mosaic_layout.py` — faithful backend port of `computeMosaicLayout`**
+        (`frontend/lib/mosaicLayout.ts`, Decision 6 single source of truth). Same
+        column/row max-width model, same occupied-bounding-box fit, same `gap`
+        handling. Exposes `compute_mosaic_layout`, `tile_placement_map`, and
+        `tree_target_pixel` (tile top-left + `TreeObservation.local_pixel_*`), so the
+        robot target aligns with the twin's tree boxes on one farm-pixel plane. No
+        second coordinate system.
+      - **Planning objects (`service.py`):** `NavigationWaypoint` (dock/tree stop with
+        `leg_distance`), `NavigationPlan` (ordered waypoints + `total_distance` +
+        `next_destination()`/`remaining_destinations()`), `NavigationResult`
+        (robot position, dock, mission, plan, `skipped_item_ids`, `deterministic`),
+        and `RobotNavigator` — a **pure, stateless, deterministic** planner.
+      - **`NavigationService` (`__init__.py`):** the single DB-touching component.
+        Read-only. Resolves the target `HarvestMission` (explicit `mission_id` →
+        robot's `current_mission_id` → active → latest), loads the V3.1 `Robot`
+        position + `DockStation`, places all `SurveyTile`s via the layout port, and
+        resolves each `HarvestMissionItem` tree's farm-pixel target through its
+        representative `TreeObservation`. Calls `RobotNavigator.compute_plan`. **No
+        writes** — navigation never mutates Robot state.
+      - **Planning rules (per Appendix A §A.5):** begins at the Dock, visits harvest
+        trees in the existing `HarvestMissionItem.visit_order` (the Harvest Planner's
+        frozen Nearest-Neighbour order — not re-optimized), returns to the Dock
+        (round trip). No A*, no obstacle avoidance, no route optimization, no change
+        to Harvest Planner behaviour. `leg_distance` is straight-line Euclidean in
+        farm-pixels. Future planners can replace `RobotNavigator` via this clean
+        extension point.
+      - **API (`api/robot_navigation.py`, mounted as `robot_navigation_router`):**
+        `GET /robot/navigation` (next destination, remaining destinations, total
+        travel distance, full plan) and `GET /robot/navigation/plan` (ordered
+        waypoints only). Both read-only, no execution. V3.1 `/robot/*` endpoints and
+        the V1 `robot_api.py` are untouched (no collisions).
+      - **Verification:** `py_compile` + `pyflakes` clean (0 issues); `import main`
+        OK; both routes live-served and returning correct plans (mission 22: dock →
+        Tree 699 → dock, total distance computed); a standalone self-check passed
+        **every** assertion — determinism (3 identical builds), **no Robot-state
+        mutation**, pure `RobotNavigator` (identical inputs → identical plan),
+        plan structure (dock→trees→dock, trees in `visit_order`), correct
+        `total_distance` = sum of legs, and skip-handling of unresolvable targets. No
+        V3.1 regression (`/robot`, `/robot/reset` 200) and no V2 regression
+        (`/dashboard/overview` 200); **frontend untouched** (no frontend files
+        changed).
       - **Implementation report** delivered; **NOT committed** — awaiting approval.
   - **Next:**
     - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only

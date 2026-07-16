@@ -97,6 +97,13 @@ persisted in **PostgreSQL** (Neon).
   (farm-pixel trajectory, no mutation); (3) **execution** = `RobotSimulationEngine`
   (pure `step(dt)`) + `SimulationClock` (sim time = wall × speed_factor) +
   `RobotTicker` driver.
+  - **V3.1 + V3.2 implemented (not yet committed):** the Robot Domain (`Robot`,
+    `DockStation`, `RobotBattery`, `RobotConfiguration`; `GET /robot`,
+    `GET /robot/state`, `POST /robot/reset`, `POST /robot/recharge`,
+    `POST /robot/speed`) and the Navigation layer (`backend/navigation/`: faithful
+    `computeMosaicLayout` port, pure `RobotNavigator`, `NavigationService`;
+    `GET /robot/navigation`, `GET /robot/navigation/plan`) are real and verified.
+    No execution, no Robot-state mutation, fully deterministic. See `CURRENT.md`.
 - **Coordinate system:** robot position is in the **same farm-pixel space** as
   `computeMosaicLayout`/`TreeObservation` — one plane for robot + tree boxes (no SLAM,
   §5).
