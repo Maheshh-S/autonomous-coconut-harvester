@@ -175,6 +175,19 @@ def init_db():
             )
         )
 
+        # Version 3.1 — Robot Domain Foundation. create_all above already created the
+        # `robots` / `dock_stations` / `robot_batteries` / `robot_configurations`
+        # tables; seed the singleton domain rows idempotently so the robot exists on
+        # first boot (init_db runs on every startup).
+        from api.robot_domain import ensure_robot_domain
+        from database.db import SessionLocal
+
+        seed_db = SessionLocal()
+        try:
+            ensure_robot_domain(seed_db)
+        finally:
+            seed_db.close()
+
 
 if __name__ == "__main__":
     init_db()

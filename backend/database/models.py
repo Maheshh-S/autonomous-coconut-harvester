@@ -410,6 +410,149 @@ class HarvestMissionItem(Base):
     tree = relationship("Tree")
 
 
+# ---------------------------------------------------------------------------
+# Version 3 — Robot Domain (V3.1 Robot Domain Foundation).
+#
+# These are the *persisted* robot entities. Per PROJECT_SPECIFICATION.md Appendix A
+# (FROZEN) and ROBOT_ARCHITECTURE.md, the robot is a singleton simulator living in
+# the same farm-pixel coordinate space as the Digital Twin (no SLAM, no GPS
+# localiser). RobotTelemetry / RobotEvent are intentionally NOT created here — they
+# belong to the V3.4 Telemetry milestone (see "Do not add telemetry" in the V3.1
+# scope). RobotTask / RobotMission are adapters over HarvestMissionItem /
+# HarvestMission and are not tables.
+# ---------------------------------------------------------------------------
+
+
+class RobotState(str, Enum):
+    """Authoritative robot lifecycle state (PROJECT_SPECIFICATION.md §A.3 / §26 / §45.1).
+
+    The 7 active states plus ``DOCKED`` (a battery sub-state, not an error). The
+    *transitions* are enforced by ``RobotController`` in the V3.3 State Machine
+    milestone; V3.1 only stores and resets this value. ``IDLE`` is the default.
+    """
+
+    IDLE = "IDLE"
+    MOVING = "MOVING"
+    CLIMBING = "CLIMBING"
+    SCANNING = "SCANNING"
+    HARVESTING = "HARVESTING"
+    RETURNING = "RETURNING"
+    ERROR = "ERROR"
+    DOCKED = "DOCKED"
+
+
+class RobotBatteryStatus(str, Enum):
+    """Charge state of the robot battery (PROJECT_SPECIFICATION.md §A.5.2)."""
+
+    CHARGING = "CHARGING"
+    DISCHARGING = "DISCHARGING"
+    IDLE = "IDLE"
+
+
+# Default farm-pixel position of the home dock. The robot starts docked here.
+DEFAULT_DOCK_X = 0.0
+DEFAULT_DOCK_Y = 0.0
+DEFAULT_ROBOT_SPEED = 1.0
+DEFAULT_ROBOT_MAX_SPEED = 5.0
+DEFAULT_BATTERY_LOW_THRESHOLD = 20.0
+DEFAULT_BATTERY_CRITICAL_THRESHOLD = 5.0
+
+
+class Robot(Base):
+    """The single simulated harvesting robot's identity + live state (singleton).
+
+    Exactly one row exists. ``position_x`` / ``position_y`` are farm-pixel
+    coordinates (reuse of the V2 ``computeMosaicLayout`` space, Decision 6). The
+    robot begins at the dock, ``IDLE``, fully charged, with no mission or task.
+    """
+
+    __tablename__ = "robots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, default="Harvester-01", nullable=False)
+    status = Column(String, default=RobotState.IDLE.value, nullable=False)
+    position_x = Column(Float, default=DEFAULT_DOCK_X, nullable=False)
+    position_y = Column(Float, default=DEFAULT_DOCK_Y, nullable=False)
+    heading_deg = Column(Float, default=0.0, nullable=False)
+    current_mission_id = Column(Integer, nullable=True)
+    current_task_id = Column(Integer, nullable=True)
+    # Current operator-set traversal speed (farm-pixels per sim-second). Clamped to
+    # [0, RobotConfiguration.max_speed] by the ``/robot/speed`` endpoint.
+    speed = Column(Float, default=DEFAULT_ROBOT_SPEED, nullable=False)
+    battery_id = Column(Integer, nullable=True)
+    dock_id = Column(Integer, nullable=True)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+
+class DockStation(Base):
+    """Fixed home / charging point for the robot (singleton)."""
+
+    __tablename__ = "dock_stations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    farm_x = Column(Float, default=DEFAULT_DOCK_X, nullable=False)
+    farm_y = Column(Float, default=DEFAULT_DOCK_Y, nullable=False)
+    label = Column(String, default="Home Dock", nullable=False)
+
+
+class RobotBattery(Base):
+    """Charge state of the robot (one row per robot, one-to-one).
+
+    Drains while active and recharges at the dock (V3.6). V3.1 only seeds it to
+    100% and restores it via ``/robot/recharge``; the drain/recharge model is
+    applied by the Simulation Engine in V3.6.
+    """
+
+    __tablename__ = "robot_batteries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_id = Column(
+        Integer,
+        ForeignKey("robots.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    pct = Column(Float, default=100.0, nullable=False)
+    status = Column(
+        String, default=RobotBatteryStatus.IDLE.value, nullable=False
+    )
+    last_change_ts = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    robot = relationship("Robot")
+
+
+class RobotConfiguration(Base):
+    """Robot-level tuning / limits (singleton, one row per robot).
+
+    Holds the operator-facing knobs the V3.1 endpoints consult: traversal speed
+    limits and the battery thresholds that later drive the DOCKED routing in V3.3.
+    """
+
+    __tablename__ = "robot_configurations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_id = Column(
+        Integer,
+        ForeignKey("robots.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    default_speed = Column(Float, default=DEFAULT_ROBOT_SPEED, nullable=False)
+    max_speed = Column(Float, default=DEFAULT_ROBOT_MAX_SPEED, nullable=False)
+    battery_low_threshold = Column(
+        Float, default=DEFAULT_BATTERY_LOW_THRESHOLD, nullable=False
+    )
+    battery_critical_threshold = Column(
+        Float, default=DEFAULT_BATTERY_CRITICAL_THRESHOLD, nullable=False
+    )
+
+    robot = relationship("Robot")
+
+
 class SurveyMission(Base):
     __tablename__ = "survey_missions"
 

@@ -82,6 +82,13 @@ Genuinely new persisted entities:
 | `RobotTelemetry` | new table (time-series) | `robot_id`, `ts`, `state`, `pos_x`, `pos_y`, `battery_pct`, `current_task_id`, `speed` |
 | `RobotEvent` | new table (append-only) | `robot_id`, `ts`, `type`, `payload_json`, `mission_id`, `task_id` |
 
+> **V3.1 status (implemented, not yet committed):** `Robot`, `DockStation`,
+> `RobotBattery`, and `RobotConfiguration` are now real tables (singletons). The
+> module `api/robot_domain.py` exposes `GET /robot`, `GET /robot/state`,
+> `POST /robot/reset`, `POST /robot/recharge`, `POST /robot/speed`. `RobotTelemetry`
+> and `RobotEvent` are intentionally deferred to V3.4 (no telemetry in V3.1). The
+> robot starts IDLE / 100% / docked / no mission / no task. See `CURRENT.md` V3.1.
+
 Adapters (reuse existing immutable tables — **no duplicate queue**):
 
 | Adapter | Maps to |

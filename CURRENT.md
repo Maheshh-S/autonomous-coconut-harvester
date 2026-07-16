@@ -652,8 +652,57 @@
         0 errors; `next build` succeeds; Playwright `verify_v26.js` **15/15, 0 console
         errors**; no behaviour or UI/backend regressions; repository structure ready for
         Version 3 (empty packages created, no live files disturbed).
-      - *(VERSION 2.9 code is implemented and verified; awaiting commit approval — do NOT
-         commit yet.)*
+      - *(VERSION 2.9 code is implemented and verified; committed as `eab06e9`,
+         tagged `v2.9-project-stabilization`; Version 3.0 frozen as approved baseline
+         at `37d8704`.)*
+    - **VERSION 3.1 — Robot Domain Foundation (completed; awaiting approval, NOT
+      committed):** the backend foundation for the autonomous robot. Robot Domain
+      only — **no simulation, no movement, no navigation, no state machine, no
+      telemetry/events, no WebSockets, no frontend, no mission execution.** Version
+      2 architecture, behaviour, and endpoints are untouched.
+      - **New persisted models (`database/models.py`):** `RobotState` (8-value enum:
+        IDLE/MOVING/CLIMBING/SCANNING/HARVESTING/RETURNING/ERROR/DOCKED),
+        `RobotBatteryStatus` (CHARGING/DISCHARGING/IDLE), and four tables —
+        `Robot` (singleton: status, farm-pixel `position_x/y`, `heading_deg`,
+        `current_mission_id`, `current_task_id`, `speed`, `battery_id`, `dock_id`),
+        `DockStation` (singleton: `farm_x/y`, `label`), `RobotBattery` (one-to-one:
+        `pct`, `status`, `last_change_ts`), `RobotConfiguration` (one-to-one:
+        `default_speed`, `max_speed`, `battery_low_threshold`,
+        `battery_critical_threshold`). All in the **same farm-pixel coordinate space**
+        as the Digital Twin (Decision 6) — no SLAM/GPS localiser. `RobotTelemetry` /
+        `RobotEvent` are deliberately **not** created (they belong to V3.4; the scope
+        says "Do not add telemetry"). `RobotTask`/`RobotMission` remain adapters
+        (V3.3+).
+      - **New module `api/robot_domain.py` (services + router):** deterministic,
+        side-effect-free services — `ensure_robot_domain` (idempotent singleton
+        seed), `_reset_robot_to_default`, `_serialize_robot`/`_serialize_state`. The
+        live V1 `robot_api.py` endpoints (`/robot/next_task`, `/robot/complete_task`)
+        are **untouched**; V3.1 paths do not collide with them.
+      - **Endpoints (all mounted, backend-only):** `GET /robot` (full domain
+        snapshot: robot + dock + battery + config), `GET /robot/state` (status,
+        battery, position, mission/task, speed, `docked` flag), `POST /robot/reset`
+        (returns to IDLE / 100% / docked / no mission-or-task / default speed),
+        `POST /robot/recharge` (battery → 100%, leaves lifecycle state unchanged),
+        `POST /robot/speed` (clamps to `(0, config.max_speed]`; rejects ≤0).
+      - **Singleton seeding:** `init_db()` now idempotently calls `ensure_robot_domain`
+        after the existing ALTERs, so the robot exists on first boot and survives
+        restarts (never overwritten).
+      - **Defaults (factory):** `Robot` IDLE at dock `(0,0)`, `heading_deg=0`,
+        `speed=1.0`, `current_mission_id=None`, `current_task_id=None`;
+        `RobotBattery` `pct=100`, `status=IDLE`. Matches the required "starts in
+        IDLE, Battery 100%, Docked, No Mission, No Task".
+      - **Verification:** `py_compile` + `pyflakes` clean (0 issues) on all 4 changed
+        files; `import main` OK; all 5 routes defined on the router; a standalone
+        functional self-check against the live DB passed **every** assertion —
+        initializes to defaults, `recharge` restores 100%, `reset` returns to
+        defaults after mutation (status/mission/task/position/speed), `speed` applies
+        + clamps + rejects negatives, exactly one Robot/Battery/Config/Dock (singleton
+        invariant). **Live HTTP serve of the new endpoints was not exercised**: the
+        pre-existing running dev server holds DB locks, so a fresh `init_db` hangs;
+        static + service-layer verification is complete and the transport wiring is
+        identical to every other working router. Frontend untouched → `tsc`/`next
+        build`/`verify_v26.js` unaffected (no V2 regression).
+      - **Implementation report** delivered; **NOT committed** — awaiting approval.
   - **Next:**
     - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
       "Locate on twin" pan-to-tree action in the panel (still no mutation); eventually
