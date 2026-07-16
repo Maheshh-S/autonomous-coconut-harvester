@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi import WebSocket
 from api.detection_api import router as detection_router
 from api.planner_api import router as planner_router
 from api.robot_api import router as robot_router
@@ -28,6 +29,10 @@ from api.dashboard_api import router as dashboard_router
 from api.robot_domain import router as robot_domain_router
 from api.robot_navigation import router as robot_navigation_router
 from api.robot_simulation import router as robot_simulation_router
+from api.robot_telemetry import router as robot_telemetry_router
+from simulation.scheduler import scheduler
+from telemetry.event_bus import event_bus
+from telemetry.websocket_gateway import build_websocket_gateway
 
 app = FastAPI()
 
@@ -73,6 +78,26 @@ app.include_router(dashboard_router)
 app.include_router(robot_domain_router)
 app.include_router(robot_navigation_router)
 app.include_router(robot_simulation_router)
+app.include_router(robot_telemetry_router)
+
+
+# Version 3.5 — Robot Telemetry WebSocket. Live streaming of simulation state;
+# observe-only (never mutates the robot / simulation). The gateway is built once
+# with the scheduler's read-only status() so new clients get an immediate snapshot.
+robot_ws_gateway = build_websocket_gateway(event_bus, scheduler.status)
+
+
+@app.websocket("/ws/robot")
+async def ws_robot(websocket: WebSocket):
+    await robot_ws_gateway.connect(websocket)
+    try:
+        # Keep the connection open; the bus drives broadcasts. We simply drain any
+        # inbound messages (clients are not expected to send control frames here).
+        while True:
+            await websocket.receive_text()
+    except Exception:
+        # Client disconnected (or sent something we ignore). Remove from fan-out.
+        await robot_ws_gateway.disconnect(websocket)
 
 
 # Ensure the database schema matches the models on startup. This is idempotent

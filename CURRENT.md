@@ -873,8 +873,137 @@
          live HTTP confirmed `start`→`running`, sim-time advances, `pause` freezes
          sim-time (stable), `resume` continues, `stop` cleanly halts; API smoke test
          shows V3.1/V3.2/V3.3 endpoints unchanged (200) and `frontend/` untouched.
-         **NOT committed** — awaiting approval.
-     - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
+          **NOT committed** — awaiting approval.
+      - **VERSION 3.5 — Robot Telemetry & WebSocket (completed; awaiting approval, NOT
+        committed):** makes the V3.4 simulation **observable** — it transports robot
+        state and simulation events to live clients and persists them, **without
+        modifying robot behaviour, navigation, or the state machine.** The engine
+        stays pure and unchanged; only the scheduler now *publishes* its existing
+        `SimulationEvent` objects onto a new `EventBus` after each tick.
+        - **New dependency:** `websockets` (16.1) added to the backend venv — required
+          by FastAPI/Starlette for the `/ws/robot` endpoint. Installed by extracting
+          the `cp314` wheel into `site-packages` (the project's `pip` is broken by a
+          `libexpat`/`pyexpat` mismatch in the py3.14 system Python; documented as a
+          known environment issue, not a code defect).
+        - **`backend/telemetry/event_bus.py` — `EventBus` (singleton `event_bus`):**
+          a minimal synchronous pub/sub relay. The scheduler (producer) publishes a
+          per-tick payload (`{events, context, robot_id, mission_id}`) on
+          `TOPIC_SIM_EVENTS`; any number of consumers subscribe. **Decoupling
+          guarantee:** the engine and scheduler never import the consumers; a
+          subscriber raising is caught per-subscriber so a bad consumer can never
+          stall the simulation tick; subscribers receive events in the exact order
+          the engine produced them (deterministic ordering).
+        - **`backend/telemetry/service.py` — `TelemetryService` (singleton
+          `telemetry_service`):** a **read-side consumer**. Subscribes to the bus
+          and, per tick, persists one append-only `RobotTelemetry` snapshot (full
+          state at that sim-time) + one `RobotEvent` row per `SimulationEvent`. It
+          **never mutates** `Robot`, `NavigationService`, or `RobotStateMachine` —
+          it only reads the engine's own event objects and writes telemetry history.
+          `start()`/`stop()` scope the subscription to a run; history is retained
+          (append-only) across stops.
+        - **`backend/telemetry/websocket_gateway.py` — `WebSocketGateway` (singleton
+          `robot_ws_gateway`, built in `main.py` with the scheduler's read-only
+          `status()`):** live streaming over `WebSocket /ws/robot`. Subscribes to the
+          same bus topic; broadcasts a compact JSON frame (robot snapshot + the
+          tick's events + run status) to **every** connected client. Multi-client:
+          many browsers/dashboards may connect; each gets the same broadcast and an
+          immediate late-joiner snapshot. **Observe-only:** it never starts/pauses/
+          stops/resumes a run and never mutates state; a dropped client is pruned
+          from the fan-out and never affects the simulation or other clients. Bus
+          callbacks arrive from the scheduler's daemon thread and are marshalled
+          into the asyncio loop via `call_soon_threadsafe`, so streaming is safe.
+        - **New models (`database/models.py`):** `RobotTelemetry` (per-tick snapshot:
+          `sim_time`, `status`, `battery_pct`, `position_x/y`, `heading_deg`,
+          `speed`, `waypoint_index`, `completed_item_count`) and `RobotEvent`
+          (per-event: `event_type`, `sim_time`, `detail` JSON) — both append-only,
+          `(robot_id, …)` indexed. Created by `Base.metadata.create_all` (new tables,
+          no ALTER needed). These are exactly the `RobotTelemetry`/`RobotEvent`
+          tables spec'd in Appendix A §A.6. The V3.1 doc comment that deferred them
+          to "V3.4 Telemetry" was corrected to V3.5.
+        - **`backend/api/robot_telemetry.py` + `main.py`:** new router
+          `GET /robot/telemetry` (latest snapshot(s)), `GET /robot/telemetry/events`
+          (historical events, newest first) for reconnect/history; the live stream
+          is the WebSocket at `/ws/robot` (mounted in `main.py`). All read-only —
+          no mutation of robot/navigation/state-machine/simulation.
+        - **Scheduler wiring (`backend/simulation/scheduler.py`):** after each
+          `engine.step` tick the scheduler now publishes the tick's events + context
+          onto the `EventBus` (the engine is untouched). `start()` begins/ends the
+          `TelemetryService` subscription scoped to the run. **Bug fixed (exposed by
+          V3.5's end-to-end run):** a fresh run now reconciles the *persisted*
+          `robot.status` back to `IDLE` before requesting `MOVING`. Prior runs (or a
+          `stop` mid-run) can leave the robot in any state; the old code only reset
+          the in-memory context to IDLE while the persisted row stayed e.g. `DOCKED`,
+          so the first `MOVING` request hit an illegal edge. `_reset_persisted_to_idle`
+          walks the frozen legal edges (active → RETURNING → DOCKED → IDLE; ERROR →
+          IDLE; DOCKED → IDLE) through `RobotStateMachine` so the start transition is
+          always valid. This is a genuine pre-existing bug, not a V3.5 behaviour
+          change.
+        - **Discipline upheld:** engine/context reference telemetry only in
+          docstrings (no import); `TelemetryService` does not import
+          `RobotStateMachine`/`NavigationService`; the WebSocket gateway never calls
+          any control endpoint. Telemetry adds per-tick DB writes (≈ doubles
+          per-tick cost already present in V3.4), so on the remote Neon DB the live
+          tick rate is modest (~0.4–3 Hz); every tick is still delivered losslessly
+          to both DB and WS (verified 1:1: N telemetry rows == N WS frames for a
+          run). Frontend untouched (no frontend files changed).
+        - **Verification:** `py_compile` clean on all new/changed files; `import main`
+          OK (server boots with WebSocket support). A standalone unit check passed
+          **every** assertion — `EventBus` decouples producer from consumers (a
+          raising subscriber does not break the producer; ordering preserved),
+          `TelemetryService` persists 1 telemetry + 2 event rows from a published
+          tick and leaves the robot's authoritative `status` **untouched**, event
+          ordering is deterministic. **Live HTTP + WebSocket verified:** started a
+          run, connected **two** concurrent WS clients (both received frames),
+          confirmed live `telemetry` frames carry the correct `MOVING` state (not the
+          earlier battery-drained `DOCKED` artifact), multivated telemetry + event
+          rows in the DB; disconnecting a client did **not** stop the run (observe-
+          only); late-joining clients receive an immediate snapshot; V3.1/V3.2/V3.3/
+          V3.4 endpoints all still 200 (no regression); **frontend untouched**.
+           **NOT committed** — awaiting approval.
+     - **VERSION 3.5.1 — Simulation Lifecycle Refinement (completed; awaiting approval,
+       NOT committed):** a very small hardening of the Robot Simulation lifecycle.
+       **No architecture change, no new features, no redesign** — Navigation, the
+       Simulation Engine, the State Machine, Telemetry, and the WebSocket architecture
+       are all untouched. Only `backend/simulation/scheduler.py` changed (two edits):
+       - **(1) Robot state is separate from Simulation status.** `Robot.status`
+         always holds a legal `RobotState` value. The scheduler's run phase
+         (`running` / `paused` / `stopped` / `finished`) lives only in
+         `SimulationScheduler._status` and is **never** written to `robot.status`
+         (it never was — `_persist` only copies `ctx.status`, which is always a
+         `RobotState`). A **defensive guard** was added in `_persist` so any
+         non-`RobotState` value is rejected before reaching `robot.status`. On
+         mission completion the engine settles the robot to `DOCKED` (legal
+         `RobotState`) while the simulation status becomes `finished`. The two are
+         provably independent.
+       - **(2) Completed mission context is preserved.** After a mission completes
+         (and after a `stop`), `mission_id`, `completed_item_ids`, `waypoint_count`,
+         and the final statistics stay queryable via `GET /robot/simulation` until
+         the next `POST /robot/simulation/start` or an explicit `POST /robot/reset`.
+         Previously `stop()` wiped `self._ctx` / `self._mission_id` /
+         `self._robot_id` / `self._events`, discarding the completed run's context
+         prematurely. `stop()` now halts only the driver thread + the transient
+         event ring; the run context is retained (robot state is left exactly as the
+         last tick persisted it).
+       - **(3) Battery lifecycle.** Arriving at the dock (`RETURNING → DOCKED`) does
+         **not** automatically recharge the battery — the percentage is left
+         unchanged. Charging occurs only through `POST /robot/recharge` (or a future
+         charging-simulation milestone). No implicit battery reset exists anywhere.
+       - **Verification:** `py_compile` + `pyflakes` clean (0 issues) on the changed
+         file; `import main` OK. A **live** end-to-end run (mission 22,
+         `speed_factor=50`) verified **all 24 checks**: `start` sets
+         `simulation.status=running` + `Robot.state=MOVING`; on completion
+         `simulation.status=finished` while `Robot.state=DOCKED` (a legal
+         `RobotState`, never the sim status); `mission_id` / `completed_item_ids` /
+         `waypoint_count` / `finished` all preserved after completion **and** after
+         `stop`; battery was **not** auto-recharged at the dock (remained < 100%); an
+         explicit `reset` returns `Robot.state=IDLE` + clears `mission_id`. A
+         **deterministic pure-engine unit check** (no DB) confirmed the harvest path
+         populates `completed_item_ids` and settles `Robot.state=DOCKED` with the
+         battery unchanged (no recharge). V3.1–V3.5 endpoints all still return 200
+         (no regression); **frontend untouched** (no frontend files changed); **no
+         new dependencies**.
+       - **NOT committed** — awaiting approval.
+      - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
       "Locate on twin" pan-to-tree action in the panel (still no mutation); eventually
       supersede the sparse legacy `/trees/[treeId]` page with the panel.
      - **V2.6 (overlay performance) — observations recorded during V2.5.1 (no code change):**

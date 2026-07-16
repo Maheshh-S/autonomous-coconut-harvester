@@ -164,10 +164,27 @@ States: `IDLE`, `MOVING`, `CLIMBING`, `SCANNING`, `HARVESTING`, `RETURNING`, `ER
   > internal only (V3.5 telemetry will consume them). `POST/GET /robot/simulation`
   > control the run. See `CURRENT.md` V3.4.
   >
-  > *Note on milestone numbering:* this task builds the **Simulation Engine** under
-  > the label "V3.4". The frozen `ROBOT_ARCHITECTURE.md` milestone table (§8) had
-  > previously placed Telemetry at V3.4 and the engine at V3.6; this delivery
-  > realises the engine one milestone early. The table below is updated to match.
+   > *Note on milestone numbering:* this task builds the **Simulation Engine** under
+   > the label "V3.4". The frozen `ROBOT_ARCHITECTURE.md` milestone table (§8) had
+   > previously placed Telemetry at V3.4 and the engine at V3.6; this delivery
+   > realises the engine one milestone early. The table below is updated to match.
+   >
+   > **V3.5.1 — Simulation Lifecycle Refinement (implemented, not yet committed):**
+   > a minimal lifecycle hardening; no architecture change, no new features.
+   > Three invariants made explicit (see `CURRENT.md` V3.5.1): (1) **Robot state is
+   > separate from simulation status** — `Robot.status` always holds a legal
+   > `RobotState` value; the scheduler's run phase (`running`/`paused`/`stopped`/
+   > `finished`) lives only in the scheduler and is never written to `robot.status`
+   > (a fail-safe guard in `_persist` rejects any non-`RobotState` value); on
+   > mission completion the engine settles the robot to `DOCKED` while the
+   > simulation status becomes `finished`. (2) **Completed mission context is
+   > preserved** — after completion (and after a `stop`), `mission_id`,
+   > `completed_item_ids`, `waypoint_count`, and final statistics remain queryable
+   > via `GET /robot/simulation` until the next `start` or an explicit `reset`;
+   > `stop()` no longer wipes the run context. (3) **Battery is not auto-recharged
+   > at the dock** — arriving `DOCKED` leaves the battery percentage unchanged;
+   > charging occurs only via `POST /robot/recharge` (or a future charging
+   > milestone). `backend/simulation/scheduler.py` is the only changed file.
 
 ## 4. Mission Lifecycle
 
@@ -254,7 +271,7 @@ Three separated concerns (explicit requirement — route ≠ movement ≠ execut
 |---|---|---|
 | Commands | HTTP (existing) | `start`/`pause`/`resume`/`cancel`/`advance` on `HarvestMission`; new `set_speed`, `recharge`, `reset` on `Robot`. |
 | On-demand state | HTTP GET | `GET /harvest/missions/{id}/status` (kept, coarse-compatible) + new `GET /robot/state`, `GET /robot/telemetry?since=`. |
-| Live telemetry | **WebSocket `/ws/robot`** | `RobotEvent` stream + throttled `RobotTelemetry` samples (position, state, battery, speed, current task). |
+| Live telemetry | **WebSocket `/ws/robot`** | One frame per simulation tick: robot snapshot (position, state, battery, speed, progress) + the tick's `SimulationEvent`s + run status. Observe-only — never starts/pauses/stops the run or mutates state. |
 
 Why WebSocket for live, HTTP for commands: live position/state changes many times per
 second during movement — polling (the V1 §36 approach) wastes requests and lags.
@@ -284,16 +301,25 @@ RobotController (command)  --HTTP-->  backend validates, transitions state
         v
 RobotSimulationEngine.step(dt)  --advances-->  Robot state + battery + position
         |
-        +--> writes RobotEvent (append-only)      --> WebSocket frame to subscribers
-        +--> samples RobotTelemetry (throttled)   --> WebSocket frame + persisted
+        v  (returns SimulationEvent list; engine stays pure, no I/O)
+SimulationScheduler._run_loop  --publishes-->  EventBus  TOPIC_SIM_EVENTS
+        |                                      (payload: {events, context, robot_id, mission_id})
+        +--> TelemetryService (consumer)  --> appends RobotEvent + RobotTelemetry (read-side, no mutation)
+        +--> WebSocketGateway  (consumer) --> broadcasts frame to all /ws/robot subscribers
         |
         v
 Frontend RobotLayer / RobotStatusPanel  --renders-->  backend state only
         (no business logic in the browser)
 ```
 
-Persistence enables playback: a past mission is replayed by streaming its stored
-`RobotTelemetry`/`RobotEvent` through the same components (§8).
+The `EventBus` is the **single decoupling point** (V3.5): the engine and scheduler
+never import the consumers; a subscriber raising is isolated per-subscriber so it
+cannot stall the producer; events are delivered in engine-production order. The
+`WebSocketGateway` is strictly observe-only — it never calls any control endpoint
+and never mutates `Robot`/`Navigation`/`RobotStateMachine`; a dropped client is
+pruned and never affects the run. Persistence enables playback: a past mission is
+replayed by streaming its stored `RobotTelemetry`/`RobotEvent` through the same
+components (§8).
 
 ## 8. Version 3 Milestones
 
@@ -304,7 +330,7 @@ Persistence enables playback: a past mission is replayed by streaming its stored
 | **V3.3 State Machine** | RobotState + transitions | `RobotStateMachine` enforcing §3 (frozen `LEGAL_TRANSITIONS`); append-only `robot_state_transitions` history; `GET /robot/state/history` + `POST /robot/state`; no timing/movement/battery/telemetry. **(implemented, not committed)** |
 | **V3.3.1 State Machine Refinement** | allow faults into ERROR | Every operational state may transition → `ERROR` (operational failure can fault the robot); recovery unchanged (`ERROR`→`{RETURNING,IDLE}` only); `RobotStateMachine` stays the sole `robot.status` mutator. Minimal change to `LEGAL_TRANSITIONS` only. **(implemented, not committed)** |
 | **V3.4 Robot Simulation Engine** | Execute the plan over time | `backend/simulation/`: pure `SimulationClock` + `SimulationEngine` (`step(dt)`, linear movement, battery drain, transitions via `RobotStateMachine`, internal `SimulationEvent`s) + `SimulationScheduler` (thread driver, builds immutable `NavigationPlan`, persists to `Robot`/`RobotBattery`); `POST/GET /robot/simulation`. No WebSocket/telemetry/frontend/charging. **(implemented, not committed)** |
-| **V3.5 Telemetry** | Event + sample capture | `RobotEvent`/`RobotTelemetry` writers (consume the engine's internal `SimulationEvent`s); `GET /robot/state`, `GET /robot/telemetry`. |
+| **V3.5 Telemetry & WebSocket** | Event + sample capture + live stream | `EventBus` (pub/sub decoupling); `TelemetryService` (append-only `RobotEvent`/`RobotTelemetry` writers — read-side, no mutation); `WebSocketGateway` (observe-only `/ws/robot` multi-client broadcast); `GET /robot/telemetry`, `GET /robot/telemetry/events`. Scheduler publishes engine events onto the bus each tick. **(implemented, not committed)** |
 | **V3.6 Visualization** | Frontend robot on twin | `RobotLayer` (marker + path + battery ring), `RobotStatusPanel`, `DashboardRobotCard`; WebSocket client. |
 | **V3.7 Playback** | Replay past missions | Feed stored telemetry through same components in `playback` mode; no second renderer. |
 | **V3.8 Production Hardening** | Critical review + cleanup | Two-agent review; N+1/perf on telemetry; WebSocket reconnect/backpressure; dead-code removal; regression suite; docs sync. |

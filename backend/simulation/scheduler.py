@@ -45,6 +45,8 @@ from simulation.clock import SimulationClock
 from simulation.context import SimulationContext, SimulationEvent
 from simulation.engine import SimulationEngine
 from navigation import build_navigation
+from telemetry.event_bus import event_bus, TOPIC_SIM_EVENTS
+from telemetry.service import telemetry_service
 
 # Fixed real-time tick interval (seconds). One tick = one engine.step of
 # (real_tick * speed_factor) simulation seconds. Smaller = smoother but more DB
@@ -70,6 +72,7 @@ class SimulationScheduler:
         self._status = "stopped"  # stopped | running | paused | finished
         self._last_wall = 0.0
         self._error: Optional[str] = None
+        self._robot_id: Optional[int] = None
 
     # -- public control ----------------------------------------------------
 
@@ -137,6 +140,23 @@ class SimulationScheduler:
                 finished=False,
             )
             self._mission_id = mission_id_resolved
+            self._robot_id = robot.id
+
+            # The previous run (if any) left the *persisted* robot in its final
+            # state (e.g. DOCKED after a completed run, or ERROR after a fault). A
+            # fresh run always begins from a clean IDLE, so reset the persisted
+            # robot to IDLE first. DOCKED -> IDLE and ERROR -> IDLE are both legal
+            # edges; if it is already IDLE this is a no-op. Without this, the first
+            # MOVING request would compare against the stale persisted status and
+            # be rejected (e.g. DOCKED -> MOVING is illegal). The context's status
+            # is already IDLE, so this reconciles the persisted row with it.
+            if robot.status != RobotState.IDLE.value:
+                self._reset_persisted_to_idle()
+
+            # Begin telemetry collection (append-only; never mutates the robot).
+            # The TelemetryService subscribes to the same bus the scheduler
+            # publishes to each tick, so it observes without coupling.
+            telemetry_service.start()
 
             # Kick the robot off the dock into MOVING toward the first waypoint
             # (the engine only advances once it is MOVING). Starts from IDLE, so
@@ -177,9 +197,17 @@ class SimulationScheduler:
             self._stop_event.set()
             self._clock.stop()
             self._status = "stopped"
-            self._ctx = None
-            self._mission_id = None
+            # NOTE (V3.5.1): stopping the run must NOT discard the last run's
+            # context. The completed/last mission context (mission_id,
+            # completed_item_ids, waypoint_count, final statistics) stays
+            # available via ``status()`` until the next ``start`` or an explicit
+            # ``reset``. We only halt the driver thread and clear the transient
+            # event ring — ``self._ctx`` / ``self._mission_id`` / ``self._robot_id``
+            # are deliberately retained. ``Robot.state`` is left exactly as the last
+            # tick persisted it (never overwritten by the simulation status here).
             self._events = []
+            # Stop persisting telemetry (history is retained, append-only).
+            telemetry_service.stop()
             if was_running and self._thread is not None:
                 # Do not join (daemon thread); just mark stopped. Persisted robot
                 # state is left as-is (caller may reset via /robot/reset).
@@ -245,6 +273,43 @@ class SimulationScheduler:
         if new_status != self._ctx.status:
             self._ctx.status = new_status
 
+    def _reset_persisted_to_idle(self) -> None:
+        """Reconcile the persisted robot to IDLE before a fresh run.
+
+        A prior run (or a ``stop`` mid-run) may leave the persisted
+        ``robot.status`` in any state. The state machine is the sole mutator of
+        ``robot.status``, so we walk back to IDLE along the frozen legal edges
+        (each step recorded as a transition): an active state first returns to
+        the dock (MOVING/CLIMBING/SCANNING/HARVESTING -> RETURNING -> DOCKED),
+        DOCKED -> IDLE, and ERROR -> IDLE. IDLE is a no-op. This guarantees the
+        upcoming IDLE -> MOVING start transition is valid regardless of the prior
+        run's final state.
+        """
+        db = SessionLocal()
+        try:
+            robot = db.query(Robot).order_by(Robot.id).first()
+            if robot is None:
+                from api.robot_domain import ensure_robot_domain
+
+                robot = ensure_robot_domain(db)
+            machine = RobotStateMachine(robot)
+            guard = 0
+            while robot.status != RobotState.IDLE.value and guard < 6:
+                guard += 1
+                if robot.status == RobotState.DOCKED.value:
+                    machine.transition(db, RobotState.IDLE.value, reason="new run reset")
+                elif robot.status == RobotState.ERROR.value:
+                    machine.transition(db, RobotState.IDLE.value, reason="new run reset")
+                elif robot.status == RobotState.RETURNING.value:
+                    machine.transition(db, RobotState.DOCKED.value, reason="new run reset")
+                else:  # MOVING / CLIMBING / SCANNING / HARVESTING -> head home first
+                    machine.transition(
+                        db, RobotState.RETURNING.value, reason="new run reset"
+                    )
+                db.commit()
+        finally:
+            db.close()
+
     def _run_loop(self) -> None:
         while not self._stop_event.is_set():
             if self._status != "running" or self._ctx is None or self._ctx.finished:
@@ -252,6 +317,7 @@ class SimulationScheduler:
                     with self._lock:
                         self._status = "finished"
                     self._persist()
+                    telemetry_service.stop()
                     break
                 time.sleep(REAL_TICK_INTERVAL_S)
                 continue
@@ -269,11 +335,25 @@ class SimulationScheduler:
             if len(self._events) > MAX_EVENTS:
                 self._events = self._events[-MAX_EVENTS:]
 
+            # Publish this tick's events to the telemetry bus (V3.5). The bus is a
+            # pure relay: the engine/scheduler never know who consumes these. The
+            # TelemetryService persists them and the WebSocketGateway streams them.
+            event_bus.publish(
+                TOPIC_SIM_EVENTS,
+                {
+                    "events": events,
+                    "context": self._ctx,
+                    "robot_id": self._robot_id,
+                    "mission_id": self._mission_id,
+                },
+            )
+
             self._persist()
 
             if self._ctx.finished:
                 with self._lock:
                     self._status = "finished"
+                telemetry_service.stop()
                 break
 
             time.sleep(REAL_TICK_INTERVAL_S)
@@ -302,7 +382,12 @@ class SimulationScheduler:
             robot.position_y = self._ctx.pos_y
             robot.heading_deg = self._ctx.heading_deg
             robot.speed = self._ctx.speed
-            robot.status = self._ctx.status
+            # Guard (V3.5.1): ``robot.status`` is the authoritative RobotState and
+            # must never hold the *simulation* status (running/paused/stopped/
+            # finished). Only a legal ``RobotState`` value is ever written here.
+            # The engine always carries a valid RobotState, so this is a fail-safe.
+            if self._ctx.status in {s.value for s in RobotState}:
+                robot.status = self._ctx.status
             robot.current_mission_id = self._ctx.mission_id
             robot.current_task_id = self._ctx.current_item_id
             robot.updated_at = _utcnow()

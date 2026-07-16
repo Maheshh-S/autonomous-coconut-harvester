@@ -416,10 +416,10 @@ class HarvestMissionItem(Base):
 # These are the *persisted* robot entities. Per PROJECT_SPECIFICATION.md Appendix A
 # (FROZEN) and ROBOT_ARCHITECTURE.md, the robot is a singleton simulator living in
 # the same farm-pixel coordinate space as the Digital Twin (no SLAM, no GPS
-# localiser). RobotTelemetry / RobotEvent are intentionally NOT created here — they
-# belong to the V3.4 Telemetry milestone (see "Do not add telemetry" in the V3.1
-# scope). RobotTask / RobotMission are adapters over HarvestMissionItem /
-# HarvestMission and are not tables.
+# localiser). RobotTelemetry / RobotEvent (the observable read-side records) are
+# defined further below in the Version 3 Telemetry block (V3.5). RobotTask /
+# RobotMission are adapters over HarvestMissionItem / HarvestMission and are not
+# tables.
 # ---------------------------------------------------------------------------
 
 
@@ -576,6 +576,79 @@ class RobotStateTransition(Base):
     next_state = Column(String, nullable=False)
     reason = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    robot = relationship("Robot")
+
+
+# ---------------------------------------------------------------------------
+# Version 3 — Robot Telemetry (V3.5 Robot Telemetry & WebSocket).
+#
+# These are the *observable* robot records. Telemetry is strictly read-side: the
+# TelemetryService writes these append-only rows from the SimulationEngine's own
+# event objects but NEVER mutates the robot's authoritative state (``Robot``),
+# navigation (``NavigationService``), or the state machine (``RobotStateMachine``).
+# ``RobotTelemetry`` is the per-tick state snapshot; ``RobotEvent`` is the
+# per-simulation-event log. Both are consumed by the WebSocket gateway and the
+# historical HTTP endpoints. Rows are never mutated.
+# ---------------------------------------------------------------------------
+
+
+class RobotTelemetry(Base):
+    """Append-only per-tick robot telemetry snapshot (Version 3.5 Telemetry).
+
+    One row per simulation tick that produced a state change or movement. Mirrors
+    the live ``Robot`` / ``RobotBattery`` values at that sim-time but lives in its
+    own table so the authoritative robot state is never touched by telemetry. Used
+    to rebuild the robot's path/state over time (playback, V3.7).
+    """
+
+    __tablename__ = "robot_telemetry"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_id = Column(
+        Integer,
+        ForeignKey("robots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mission_id = Column(Integer, nullable=True, index=True)
+    sim_time = Column(Float, nullable=False)
+    status = Column(String, nullable=False)
+    battery_pct = Column(Float, nullable=False)
+    position_x = Column(Float, nullable=False)
+    position_y = Column(Float, nullable=False)
+    heading_deg = Column(Float, nullable=False)
+    speed = Column(Float, nullable=False)
+    waypoint_index = Column(Integer, nullable=False, default=0)
+    completed_item_count = Column(Integer, nullable=False, default=0)
+    recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    robot = relationship("Robot")
+
+
+class RobotEvent(Base):
+    """Append-only per-simulation-event log (Version 3.5 Telemetry).
+
+    One row per ``SimulationEvent`` the engine emits. ``event_type`` is the
+    engine's ``EVENT_*`` string; ``detail`` is the event's JSON payload. This is
+    the same event stream the WebSocket gateway broadcasts, persisted for
+    historical retrieval and later playback (V3.7).
+    """
+
+    __tablename__ = "robot_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_id = Column(
+        Integer,
+        ForeignKey("robots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mission_id = Column(Integer, nullable=True, index=True)
+    event_type = Column(String, nullable=False, index=True)
+    sim_time = Column(Float, nullable=False)
+    detail = Column(Text, nullable=True)
+    recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     robot = relationship("Robot")
 
