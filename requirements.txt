@@ -1,5 +1,14 @@
+# Backend dependencies for the Autonomous Coconut Harvester.
+# Install with:  python -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+# A running PostgreSQL (or Neon) connection string must be provided via DATABASE_URL in .env.
 
-
-pip install fastapi uvicorn
-pip install requests
-pip install ultralytics opencv-python pillow
+fastapi
+uvicorn[standard]          # ASGI server + websockets (required for /ws/robot)
+sqlalchemy
+psycopg2-binary           # PostgreSQL driver for SQLAlchemy
+pydantic
+python-dotenv             # loads .env (DATABASE_URL, CORS_ORIGINS)
+python-multipart          # FastAPI UploadFile / File form parsing
+ultralytics               # YOLOv8 tree + coconut detection
+opencv-python             # image decoding for detection endpoints
+numpy                     # array ops used by detection endpoints

@@ -27,7 +27,10 @@ Claude-specific working notes for the Autonomous Coconut Harvester repository.
   resolve in both cases.
 - **Database:** schema is ensured automatically when the backend starts
   (`database/init_db.init_db` → `create_all` + idempotent `ALTER … IF NOT EXISTS`).
-  For a fresh clone, copy `.env.example` to `.env` and set `DATABASE_URL`.
+  For a fresh clone: `pip install -r requirements.txt`, copy `.env.example` to
+  `.env`, and set `DATABASE_URL`. `CORS_ORIGINS` (optional) overrides the allowed
+  frontend origins; `NEXT_PUBLIC_API_BASE_URL` (optional) points the frontend at
+  the backend.
 - **Models / `.env` are gitignored** — never commit them, and the app will not
   start without a valid `DATABASE_URL`.
 

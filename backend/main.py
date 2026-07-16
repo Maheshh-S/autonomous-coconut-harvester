@@ -1,11 +1,18 @@
+import os
 import sys
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Ensure the backend package root is importable regardless of the current
 # working directory, so `from api…` / `from database…` resolve both when the
 # app is launched as `uvicorn main:app` (from backend/) and as
 # `uvicorn backend.main:app` (from the project root).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# Load the project-root .env so configuration does not depend on the working
+# directory (matches database/db.py).
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -52,9 +59,19 @@ app.mount(
     name="inspection_uploads",
 )
 
+# CORS origins are configurable; default to the local dev frontend. Comma-
+# separated list via CORS_ORIGINS (e.g. "http://localhost:3000,https://app.example.com").
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv(
+        "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

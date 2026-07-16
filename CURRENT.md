@@ -1,6 +1,6 @@
 # CURRENT.md
 
-- **Project Version:** 3.8.3 (Version 3 line; V3.8 Production Hardening in progress)
+- **Project Version:** 3.8.4 (Version 3 line; V3.8 Production Hardening in progress)
 - **Current Status:** Version 3 pipeline complete through V3.7.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics). All V1–V3 work is implemented and verified but **not yet committed** — awaiting explicit approval.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
@@ -1370,6 +1370,37 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
       (no page or component references the removed `/` or `DroneUploader`); no live V3
       endpoint changed; Dashboard / Survey / Digital Twin / Robot / History / Tree
       pages untouched. **NOT committed** — awaiting approval.
+  - **VERSION 3.8.4 — Configuration & Environment Cleanup (completed; awaiting commit
+    approval):** config/env/dependency hygiene only — **no behaviour change, no
+    business-logic change, no redesign.**
+    - **`requirements.txt` rewritten** from the old placeholder (`pip install …`
+      shell commands) into a real, installable manifest: `fastapi`, `uvicorn[standard]`,
+      `sqlalchemy`, `psycopg2-binary`, `pydantic`, `python-dotenv`, `python-multipart`,
+      `ultralytics`, `opencv-python`, `numpy`. Dropped the unused `pillow` and
+      `requests`; `websockets` is already provided by `uvicorn[standard]`; `aiofiles`
+      was never imported. Every listed package is proven imported/required by the
+      backend (UploadFile → `python-multipart`; YOLO → `ultralytics`/`opencv-python`/
+      `numpy`; PG driver → `psycopg2-binary`; env → `python-dotenv`).
+    - **CORS externalized (`backend/main.py`):** hardcoded
+      `["http://localhost:3000","http://127.0.0.1:3000"]` replaced by `CORS_ORIGINS`
+      (comma-separated env var) with the same localhost list as the default. `main.py`
+      now loads `.env` via `load_dotenv` (consistent with `database/db.py`). No behaviour
+      change in dev.
+    - **Duplicate frontend config eliminated (`app/survey/page.tsx`):** removed the
+      locally re-declared `const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ||
+      "http://127.0.0.1:8000"` and imported the single source of truth from
+      `lib/api/detection.ts` instead. `detection.ts` remains the only place the default
+      lives.
+    - **`.env.example` updated:** documents `DATABASE_URL` (required, no default),
+      `CORS_ORIGINS` (optional), and `NEXT_PUBLIC_API_BASE_URL` (optional frontend).
+      No secrets committed; `.env` stays gitignored.
+    - **Docs synced:** `README.md` setup now installs via `pip install -r requirements.txt`
+      (removed the placeholder note + over-listed deps); `CLAUDE.md` setup note lists
+      `requirements.txt`, `CORS_ORIGINS`, `NEXT_PUBLIC_API_BASE_URL`. `AGENTS.md`
+      already accurate.
+    - **Verification:** `py_compile` OK; `tsc --noEmit` 0 errors; `next build` success;
+      no application behaviour changed; CORS default identical to prior hardcoded value;
+      API base-URL default identical. **NOT committed** — awaiting approval.
   - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`

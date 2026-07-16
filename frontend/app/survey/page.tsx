@@ -33,6 +33,7 @@ import {
   type HarvestMission,
   type HarvestType,
   type RobotStatus,
+  API_BASE_URL,
 } from "@/lib/api/detection"
 
 type Mission = {
@@ -92,9 +93,6 @@ type PermanentTrees = {
   avg_match_confidence: number | null
   trees: PermanentTree[]
 }
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
 
 const IMAGE_EXT = /\.(jpe?g|png)$/i
 

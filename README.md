@@ -197,22 +197,17 @@ models/           YOLOv8 weights (gitignored): tree_model/, coconut_model/
 
    ```bash
    python -m venv venv && source venv/bin/activate
-   pip install fastapi uvicorn[standard] sqlalchemy psycopg2-binary pydantic \
-     python-multipart aiofiles ultralytics opencv-python pillow requests websockets
+   pip install -r requirements.txt
    cp .env.example .env              # then set your DATABASE_URL
    uvicorn backend.main:app --reload # or: cd backend && uvicorn main:app --reload
    ```
 
-   > **Note:** `requirements.txt` is currently a placeholder (shell `pip install`
-   > commands, not a pinned manifest). Install the packages above directly. The
-   > `websockets` package is required for the `/ws/robot` endpoint.
-   >
-   > The exact required backend packages are: `fastapi`, `uvicorn[standard]`,
-   > `sqlalchemy`, `psycopg2-binary`, `pydantic`, `python-multipart`, `aiofiles`,
-   > `ultralytics`, `opencv-python`, `pillow`, `requests`, `websockets`.
-   >
-   > The schema is created/migrated automatically at startup
-   > (`backend/database/init_db.py`).
+   > The backend reads configuration from `.env` (via `python-dotenv`):
+   > `DATABASE_URL` (required PostgreSQL/Neon connection string), and optionally
+   > `CORS_ORIGINS` (comma-separated allowed origins; defaults to the local dev
+   > frontend). The schema is created/migrated automatically at startup
+   > (`backend/database/init_db.py`). `uvicorn[standard]` provides the WebSocket
+   > support required by the `/ws/robot` endpoint.
 
 2. **Frontend**
    ```bash
