@@ -567,6 +567,90 @@
         first 3 flown positions. Mission geometry is now planner-defined, not image-inferred.
       - *(VERSION 2.8.3 code is implemented and verified; awaiting commit approval — do NOT
          commit yet.)*
+    - **VERSION 3.0 — Robot Simulation Architecture & Specification Freeze (PROPOSED;
+      architecture & spec only, NO code):** before implementing Version 3, the complete
+      Robot Simulation architecture was designed and frozen as a proposal. No production
+      code, frontend, or backend was written; Version 2 architecture is untouched and no
+      existing behaviour changes.
+      - **Scope:** one simulated, time-driven harvesting robot executing a `HarvestMission`
+        on the (frozen) Digital Twin. Backend owns all robot behaviour; frontend only
+        visualizes (Major Design Principle). All §5 exclusions stand (no ROS/SLAM/
+        multi-robot/live-drone-telemetry/physical-autonomous-nav/hardware-control/auth).
+      - **Domain model (spec Appendix A.2):** new `Robot`, `DockStation`, `RobotBattery`,
+        `RobotTelemetry`, `RobotEvent` tables; `RobotTask` / `RobotMission` are **adapters**
+        over the existing immutable `HarvestMissionItem` / `HarvestMission` (no duplicate
+        queue — §42/§43). Robot position is in the **same farm-pixel space** as
+        `computeMosaicLayout` / `TreeObservation` (single coordinate system, no SLAM).
+      - **State machine (A.3):** 7-state `RobotState` (Idle/Moving/Climbing/Scanning/
+        Harvesting/Returning/Error, §26/§45.1) + a `DOCKED` battery sub-state; transitions
+        backend-only.
+      - **Navigation split (A.5):** route planning (Harvest Planner NN, §41, unchanged) ≠
+        movement planning (pure `RobotNavigator`, farm-pixel trajectories) ≠ execution
+        (`RobotSimulationEngine` pure `step(dt)` + `SimulationClock` `sim = wall ×
+        speed_factor` + `RobotTicker` driver).
+      - **Telemetry (A.6):** commands over HTTP (existing `HarvestMission` endpoints + new
+        `Robot` commands); **live** state/position/battery over **WebSocket `/ws/robot`**
+        (event-driven, no polling for live state); append-only `RobotEvent` +
+        time-series `RobotTelemetry` persisted for charts/playback.
+      - **Frontend (A.7):** additive `RobotLayer` (marker + path + battery ring) shares the
+        `FarmViewer` transformed stage; `RobotStatusPanel`, `DashboardRobotCard`; playback
+        replays stored telemetry through the same components. Renderer freeze (Decision 6)
+        preserved — `FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer` unchanged.
+      - **Milestones (A.8):** V3.1 Domain → V3.2 Navigation → V3.3 State Machine → V3.4
+        Telemetry → V3.5 Visualization → V3.6 Autonomous Behaviour (engine) → V3.7
+        Playback → V3.8 Production Hardening.
+      - **Critical review (A.9):** flagged and mitigated coupling (single farm-pixel
+        coord), duplication (`RobotTask`/`RobotMission` as adapters), polling (WebSocket),
+        telemetry scaling (retention + `(robot_id,ts)` index + throttled sampling), and
+        complexity (pure `step(dt)` shared by live/replay).
+      - **Docs:** `PROJECT_SPECIFICATION.md` **Appendix A (PROPOSED)**, `ARCHITECTURE.md`
+        Version 3 block, `DECISIONS.md` **Decision 7**. **No implementation; awaiting
+        approval to proceed to V3.1.**
+    - **VERSION 2.9 — Project Stabilization & Version 3 Readiness (completed; awaiting
+      commit approval):** a final engineering stabilization pass **before** Version 3
+      implementation. **Not a feature, not a refactor, not a redesign** — Version 2
+      architecture and behaviour are unchanged. Scope limited to stabilization +
+      Version 3 structure prep; no business-logic or user-visible changes.
+      - **Dead code removed (provably unused only, per the strict "do not guess" rule):**
+        - `api/survey_api.py` — removed the unused `project_tile_center_gps` import
+          (the Flight Planner imports it directly) and the dead `base_lat`/`base_lon`
+          local assignments + their now-unused `mission` query in
+          `generate_tiles_for_mission` (the planner reads `mission.base_gps_*` itself).
+        - `api/dashboard_api.py` — removed the unused `SurveyMissionStatus` import.
+        - Verified with `pyflakes` (0 issues) and clean backend import. The legacy
+          V1 `Task`-based system (`robot_api.py`, `database/tasks.py`, `map_api`/`tree_api`
+          `Task` usage, `Task` model) was **deliberately retained** — it is live (mounted
+          in `main.py`) and the spec keeps V1 endpoints intentionally; removing it would
+          change behaviour and was outside the "provably unused" bar.
+      - **Folder organization / Version 3 preparation:** created empty package
+        directories (`.gitkeep` placeholders, **no implementation**) —
+        `backend/{simulation,navigation,telemetry,websocket}/` and
+        `frontend/components/{digitalTwin,dashboard,robot}/` + `frontend/robot/`. Existing
+        live files were **not moved** (reorganizing frozen V2 renderer components risks
+        build break for no current benefit; the task permits moving only when it improves
+        maintainability).
+      - **Naming consistency:** reviewed — existing names are consistent
+        (`HarvestMission`, `HarvestMissionItem`, `SimulationFlightPlanner`, `PlannerConfig`,
+        `FlightPlan`). The V3 proposed names (`RobotSimulationEngine`, `RobotTicker`,
+        `RobotLayer`, `TelemetryService`, `SimulationClock`) are forward declarations in
+        Appendix A / `ROBOT_ARCHITECTURE.md`; no renames applied (avoid unnecessary
+        renaming of not-yet-existing code).
+      - **Dependency cleanup:** frontend `package.json` deps are minimal and all used
+        (core `next`/`react`/`react-dom` + dev tooling; `leaflet`/`react-leaflet` already
+        removed in V2.7; Playwright drives the regression suite). `requirements.txt`
+        remains the documented placeholder (CURRENT.md) — left untouched (not a reliable
+        manifest; editing would be a guess). No libraries added or version-bumped.
+      - **Documentation:** `ROBOT_ARCHITECTURE.md` created (robot subsystem overview,
+        domain model, state machine, mission lifecycle, navigation pipeline, telemetry
+        pipeline, event flow, milestones, future extension points — architecture only, no
+        implementation). CURRENT/ARCHITECTURE/DECISIONS synced to Version 2.8.3 + V3
+        PROPOSED; V2 remains fully consistent.
+      - **Verification:** backend imports clean; `pyflakes` 0 issues; `npx tsc --noEmit`
+        0 errors; `next build` succeeds; Playwright `verify_v26.js` **15/15, 0 console
+        errors**; no behaviour or UI/backend regressions; repository structure ready for
+        Version 3 (empty packages created, no live files disturbed).
+      - *(VERSION 2.9 code is implemented and verified; awaiting commit approval — do NOT
+         commit yet.)*
   - **Next:**
     - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
       "Locate on twin" pan-to-tree action in the panel (still no mutation); eventually

@@ -34,7 +34,6 @@ from database.models import (
     HarvestMissionItem,
     HarvestMissionItemStatus,
     SurveyMission,
-    SurveyMissionStatus,
     ACTIVE_HARVEST_MISSION_STATUSES,
 )
 

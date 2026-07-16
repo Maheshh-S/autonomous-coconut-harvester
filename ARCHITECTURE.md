@@ -77,3 +77,45 @@ persisted in **PostgreSQL** (Neon).
 - **mapping/** – coverage-path planning.
 - **perception/** – detection scripts.
 - **simulation/** – robot simulator.
+
+## Version 3 — Robot Simulation (PROPOSED, architecture only)
+
+> No production code. Design only. Version 2 (Digital Twin) stays frozen.
+
+- One **simulated, time-driven harvesting robot** executes a `HarvestMission` on the
+  Digital Twin. **Backend owns all robot behaviour**; the frontend only visualizes
+  backend state (Decision 6 + V3 Major Design Principle).
+- **Domain (Appendix A.2):** new `Robot`, `DockStation`, `RobotBattery`,
+  `RobotTelemetry`, `RobotEvent` tables; `RobotTask` / `RobotMission` are **adapters**
+  over the existing immutable `HarvestMissionItem` / `HarvestMission` (no duplicate
+  queue — §42/§43).
+- **State machine (A.3):** the 7-state `RobotState` (Idle/Moving/Climbing/Scanning/
+  Harvesting/Returning/Error) from §26/§45.1, plus a `DOCKED` battery sub-state.
+  Transitions driven only by the backend `RobotController`.
+- **Navigation split (A.5):** (1) **route planning** = Harvest Planner Nearest-
+  Neighbour (§41, unchanged); (2) **movement planning** = new pure `RobotNavigator`
+  (farm-pixel trajectory, no mutation); (3) **execution** = `RobotSimulationEngine`
+  (pure `step(dt)`) + `SimulationClock` (sim time = wall × speed_factor) +
+  `RobotTicker` driver.
+- **Coordinate system:** robot position is in the **same farm-pixel space** as
+  `computeMosaicLayout`/`TreeObservation` — one plane for robot + tree boxes (no SLAM,
+  §5).
+- **Telemetry (A.6):** commands over **HTTP** (existing `HarvestMission` endpoints +
+  new `Robot` commands); **live** state/position/battery streamed over **WebSocket
+  `/ws/robot`** (event-driven, no polling for live state); `RobotEvent` (append-only)
+  + `RobotTelemetry` (time-series) persisted for charts/playback.
+- **Frontend (A.7):** additive `RobotLayer` (marker + path + battery ring) shares the
+  `FarmViewer` transformed stage with `OverlayLayer`; `RobotStatusPanel`,
+  `DashboardRobotCard`; playback replays stored telemetry through the same components.
+- **Milestones (A.8):** V3.1 Domain → V3.2 Navigation → V3.3 State Machine → V3.4
+  Telemetry → V3.5 Visualization → V3.6 Autonomous Behaviour (engine) → V3.7 Playback
+  → V3.8 Production Hardening.
+- Full specification: `PROJECT_SPECIFICATION.md` **Appendix A (PROPOSED)**; companion
+  design doc: **`ROBOT_ARCHITECTURE.md`**.
+- **Version 2.9 (stabilization, completed PROPOSED-ready):** dead unused imports/vars
+  removed (`survey_api` unused `project_tile_center_gps` import + dead `base_lat/base_lon`
+  in `generate_tiles_for_mission`; `dashboard_api` unused `SurveyMissionStatus` import);
+  legacy V1 `Task` system retained (live, spec keeps V1 endpoints); empty Version 3
+  package dirs created (`backend/{simulation,navigation,telemetry,websocket}`,
+  `frontend/components/{digitalTwin,dashboard,robot}`, `frontend/robot`) with no
+  implementation; `ROBOT_ARCHITECTURE.md` added. No business-logic or behaviour change.

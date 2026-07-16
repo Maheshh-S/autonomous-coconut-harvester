@@ -28,7 +28,6 @@ from api.tree_api import tree_model
 from api.gps_projection import (
     gps_distance,
     project_detection_gps,
-    project_tile_center_gps,
     DISTANCE_THRESHOLD,
 )
 # Version 2.8.3 — simulated Flight Planner is the source of truth for tile
@@ -333,10 +332,6 @@ def list_survey_images(mission_id: int):
 
 
 def generate_tiles_for_mission(db, mission_id: int) -> int:
-    mission = db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
-    base_lat = mission.base_gps_lat if mission is not None else None
-    base_lon = mission.base_gps_lon if mission is not None else None
-
     images = (
         db.query(SurveyImage)
         .filter(SurveyImage.mission_id == mission_id)

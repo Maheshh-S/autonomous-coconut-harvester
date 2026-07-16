@@ -3722,3 +3722,281 @@ amendment.
 the Autonomous Coconut Harvesting System. This document is the single source of truth;
 where it conflicts with README, ARCHITECTURE.md, CURRENT.md, DECISIONS.md, or SpecKit
 files, this document governs.*
+
+---
+
+# Appendix A — Version 3 Robot Simulation Architecture (PROPOSED)
+
+> **Status: PROPOSED — architecture & specification only. No production code.**
+> Version 2 (Digital Twin) is frozen and complete. This appendix designs Version 3:
+> the simulated autonomous harvesting **robot** that executes a Harvest Mission on the
+> Digital Twin. It does **not** retract or amend any v1.0 / V2 decision; it adds a new
+> subsystem. Where it references V2 entities (`TreeObservation`, `SurveyTile`,
+> `computeMosaicLayout`) it reuses them — it introduces no competing coordinate system.
+> All frozen exclusions (§5) stand: **no ROS, no SLAM, no multi-robot, no live drone
+> telemetry, no autonomous navigation (physical driving), no hardware control, no
+> auth.** The robot is a **simulator** satisfying the same HTTP/WebSocket contract a
+> real robot would (§56).
+
+## A.1 Goals & Non-Goals
+
+**Goals**
+- One simulated, time-driven harvesting robot that the farmer can watch on the
+  Digital Twin while it executes a Harvest Mission.
+- Backend owns **all** robot behaviour (lifecycle, navigation, state machine, mission
+  execution, battery, telemetry, events). The frontend only visualises backend state
+  (Decision 6; Major Design Principle).
+- Replace the V1 coarse `robot_state` (Idle/Harvesting/Paused/Completed/Cancelled,
+  §45.3) with the full 7-state machine (§26/§45.1) and smooth, time-based position.
+- Be replaceable by a real robot with **minimal** change: the contract (commands in,
+  telemetry out) is what hardware must satisfy; the simulation engine is the only part
+  that would be swapped.
+
+**Non-Goals (carried from §5 + this design)**
+- No physical actuator/control code; movement is geometric interpolation on the
+  farm-pixel plane, not perception-and-control.
+- No new route *optimization* — route order stays the Harvest Planner's Nearest-
+  Neighbour (§41). V3 adds only *movement* (how the robot traverses the given order),
+  not *routing*.
+- No fleet; exactly one robot, exactly one live `HarvestMission` (§43.1).
+
+## A.2 Domain Model
+
+V3 introduces domain entities. To avoid duplication, `RobotTask` is an **adapter view**
+over the existing immutable `HarvestMissionItem` (§42, §43) — it is **not** a new
+table. The genuinely new persisted entities are `Robot`, `DockStation`,
+`RobotTelemetry`, `RobotEvent`, `RobotBattery` (the latter two are child rows of
+`Robot` / append-only event log).
+
+| Entity | Kind | Responsibility | Key fields |
+|---|---|---|---|
+| `Robot` | new table | The single simulated robot's identity + live state. One row (singleton). | `id`, `name`, `status` (RobotState), `position_x`, `position_y` (farm-pixel), `heading_deg`, `current_mission_id`, `current_task_id`, `battery_id`, `dock_id`, `updated_at` |
+| `DockStation` | new table | Fixed home/charging point. One row (singleton). | `id`, `farm_x`, `farm_y`, `label` |
+| `RobotMission` | **adapter** (not a new table) | A running execution of a `HarvestMission` by the robot. Reuses `HarvestMission` (§43) as the mission header and `HarvestMissionItem` as the queue. | — (view over `HarvestMission`) |
+| `RobotTask` | **adapter** (not a new table) | One queued unit of robot work. Reuses `HarvestMissionItem` (§42). | — (view over `HarvestMissionItem`) |
+| `RobotTelemetry` | new table (time-series) | Periodic snapshot of live robot state for charts/playback. | `robot_id`, `ts`, `state`, `pos_x`, `pos_y`, `battery_pct`, `current_task_id`, `speed` |
+| `RobotEvent` | new table (append-only) | Discrete lifecycle/state/error events (the event bus log). | `robot_id`, `ts`, `type`, `payload_json`, `mission_id`, `task_id` |
+| `RobotBattery` | new table (or column on `Robot`) | Charge state + drain/recharge model. | `robot_id`, `pct`, `status` (CHARGING/DISCHARGING/IDLE), `last_change_ts` |
+
+**Why `RobotTask`/`RobotMission` are adapters, not tables:** the spec already mandates
+`HarvestMission`/`HarvestMissionItem` as the immutable mission + queue (§42–§45) and
+forbids duplicating business logic. Introducing a parallel task table would split the
+source of truth. The robot *consumes* the existing queue; `RobotTask` is the robot's
+read model of a `HarvestMissionItem` (carrying the tree's farm-pixel target derived
+from `TreeObservation`/the twin layout).
+
+**Coordinate system (reuse, not reinvent):** the robot's `position_x/position_y` are in
+the **farm-pixel space** already used by `computeMosaicLayout` (V2, Decision 6). Tree
+targets come from the same `TreeObservation.local_pixel_*` + `SurveyTile.grid_row/col`
+math the overlay uses, so the robot icon and the tree boxes align on one plane. No new
+GPS-based localisation is introduced (SLAM excluded, §5).
+
+## A.3 Robot State Machine
+
+The robot's authoritative state is `RobotState` (7 values, from §26/§45.1). It is a
+strict superset of the V1 coarse `robot_state`; the V1 endpoints remain valid by
+mapping (coarse → fine) for backward compatibility.
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> MOVING: task assigned (claim next RobotTask)
+    MOVING --> CLIMBING: arrive at tree base
+    CLIMBING --> SCANNING: at canopy
+    SCANNING --> HARVESTING: task eligible + harvest requested
+    SCANNING --> RETURNING: scan-only task (re-scan)
+    HARVESTING --> RETURNING: harvest complete
+    RETURNING --> IDLE: arrive at dock / next task pending
+    IDLE --> SCANNING: direct re-scan task
+    MOVING --> ERROR: travel fault
+    CLIMBING --> ERROR: climb fault
+    SCANNING --> ERROR: capture/detect fault
+    HARVESTING --> ERROR: harvest fault
+    ERROR --> IDLE: recovered
+    ERROR --> RETURNING: safe-abort
+    IDLE --> DOCKED: battery low → recharge
+    DOCKED --> IDLE: charged
+```
+
+- `ERROR` is reachable from any active state and always resolves to `IDLE` (recover)
+  or `RETURNING` (safe-abort) — never wedged (§27).
+- Battery-low is **not** an error; it is a `DOCKED` sub-state (charging) entered from
+  `IDLE` (or `RETURNING`→`DOCKED` if it must recharge mid-mission). This keeps the
+  fault path clean and avoids overloading `ERROR`.
+- Transitions are driven **only by the backend** (`RobotController`); the frontend
+  never sends a state. It sends *commands* (`start`/`pause`/`resume`/`cancel`/`advance`
+  already exist on `HarvestMission`; V3 adds `set_speed`, `recharge`, `reset`).
+
+## A.4 Robot Mission Flow
+
+```
+Harvest Mission (HarvestMission, §43 — already built)
+   │  start() → RUNNING; claims first RobotTask (HarvestMissionItem PENDING→IN_PROGRESS)
+   ▼
+Robot Mission (RobotController owns execution)
+   │  per RobotTask:
+   ▼
+Task Queue (ordered HarvestMissionItem list, §42)
+   │  RobotController pulls next pending in visit_order
+   ▼
+Execution (RobotSimulationEngine advances time)
+   IDLE → MOVING (interpolate farm-pixel path to tree) → CLIMBING → SCANNING
+        → HARVESTING (writes post-harvest InventorySnapshot, §44.5) → RETURNING → IDLE
+   │  on task complete: advance() claims next; auto-COMPLETED when queue empty (§43.5)
+   ▼
+Telemetry + Events (streamed via WebSocket, §A.6)
+```
+
+The robot does **not** invent tasks, eligibility, or order — it consumes the planner's
+output exactly as today (§20.3, §38.3). V3 only adds *how the robot physically traverses
+and reports* the already-ordered queue.
+
+## A.5 Navigation Architecture (three separated concerns)
+
+Explicitly separating the spec's requirement — **route planning ≠ movement planning ≠
+execution**:
+
+1. **Route planning** — *owned by the Harvest Planner* (Nearest-Neighbour, §41).
+   Output: ordered `HarvestMissionItem` list (visit_order). **Unchanged in V3.** Lives
+   in `harvest_mission` / `harvest_planner.py`.
+2. **Movement planning** — *new, `RobotNavigator`* (pure function / service, no DB
+   writes of business state). Given (a) the current farm-pixel position, (b) the next
+   tree's farm-pixel target, (c) the depot position, it produces a **trajectory**:
+   a sequence of `(x, y, t)` waypoints with a constant ground speed (linear interp,
+   optional smooth turn at the tree). It also plans the *return-to-dock* leg. It reads
+   positions; it does **not** move anything. Pure & unit-testable.
+3. **Robot execution** — *new, `RobotSimulationEngine` + `RobotController`*. Consumes
+   `RobotNavigator` trajectories and, driven by the Simulation Clock (§A.5.4), writes
+   the robot's live `position_x/position_y/heading`, advances the state machine, drains
+   battery, and emits telemetry/events. This is the only component that mutates live
+   robot state.
+
+**Why separate:** a bug in movement math cannot corrupt the queue or inventory (§20.3);
+navigation is reusable/testable without a running sim; a real robot would replace only
+the execution layer (its own navigator/controller) while the planner and queue stay.
+
+### A.5.1 Simulation Clock
+
+A single `SimulationClock` owns *simulated time*:
+
+- **Sim time vs wall time:** `sim_now = wall_start + (wall_elapsed × speed_factor)`.
+  `speed_factor` (e.g. 1× / 5× / 20×) is operator-set; default 1×. Pause freezes sim
+  time (the clock stops advancing) — distinct from HTTP `mission.pause`, which also
+  halts the engine.
+- **Tick model:** the engine advances in fixed `dt` steps (e.g. 100 ms sim-time). Each
+  tick = one pure `step(dt)` that moves the robot along its current trajectory, drains
+  battery, and possibly fires state transitions / telemetry samples.
+- **Driver:** a `RobotTicker` advances the clock. Architecture only — the driver may be
+  a background asyncio task, a `while` loop in the simulator process, or ticked on
+  WebSocket subscription. The engine itself is **driver-agnostic and pure** (given
+  `(state, dt)` → `new_state`), so it is trivially testable and replayable.
+- **Determinism:** same start state + same command sequence + same `dt` → identical
+  run. Enables playback (§A.7) and regression tests without a clock.
+
+### A.5.2 Battery model
+
+`RobotBattery` drains per sim-time while `MOVING`/`CLIMBING`/`HARVESTING`
+(configurable rates), holds while `IDLE`/`SCANNING`, recharges at `DOCKED`. Below a
+low threshold the engine routes the robot to `DOCKED` (recharge) before continuing.
+Battery is **telemetry + a soft constraint**, not a fault (§27.3 hardware faults are
+generic `ERROR`; battery is ordinary state).
+
+## A.6 Telemetry Architecture
+
+Two channels, by nature of data:
+
+| Channel | Mechanism | Contents | Consumer |
+|---|---|---|---|
+| **Commands** | HTTP (existing) | `start`/`pause`/`resume`/`cancel`/`advance` on `HarvestMission`; new `set_speed`, `recharge`, `reset` on `Robot`. | `RobotController`. |
+| **On-demand state** | HTTP `GET` | `GET /harvest/missions/{id}/status` (keep, coarse-compatible) + new `GET /robot/state`, `GET /robot/telemetry?since=`. | Dashboard pull, initial load, replay seed. |
+| **Live telemetry** | **WebSocket** (`/ws/robot`) | Stream of `RobotEvent` + periodic `RobotTelemetry` samples (position, state, battery, speed, current task). | Twin robot marker, status panel, live charts. |
+
+**Why WebSocket for live, HTTP for commands:** live position/state changes many times
+per second during movement — polling (the V1 §36 approach) wastes requests and lags.
+WebSocket pushes deltas as they happen (event-driven, Major Design Principle: "avoid
+polling for live robot state"). Commands stay HTTP because they are rare,
+idempotency-sensitive, and benefit from request/response semantics + HTTP status. The
+frontend still keeps a *light* HTTP poll only as a fallback/reconnect seed, never as
+the primary live path.
+
+**Event catalogue (streamed):** `MISSION_STARTED`, `TASK_CLAIMED`, `STATE_CHANGED`
+(from→to), `POSITION_SAMPLE` (high-rate, throttled), `BATTERY_CHANGED`, `TASK_COMPLETED`,
+`HARVEST_WRITTEN` (inventory snapshot id), `MISSION_COMPLETED`, `ERROR_RAISED`
+(code), `DOCKED`/`RECHARGED`, `PAUSED`/`RESUMED`/`CANCELLED`. Each event = one
+`RobotEvent` row (append-only, §18) and one WebSocket frame. `POSITION_SAMPLE` is the
+only high-frequency frame; everything else is discrete and cheap.
+
+**Payload shape (example):**
+```json
+{ "type": "STATE_CHANGED", "ts": "2026-07-16T09:12:03.000Z",
+  "robot_id": 1, "mission_id": 88, "task_id": 12,
+  "from": "MOVING", "to": "CLIMBING", "pos": {"x": 4120, "y": 2050}, "battery_pct": 87.3 }
+```
+
+## A.7 Frontend Architecture (visualization only)
+
+The renderer stays React/DOM (Decision 6). V3 adds **additive** components sharing the
+existing `computeMosaicLayout` farm-pixel space — no rewrite.
+
+- **Digital Twin robot visualization (`RobotLayer`):** a presentational overlay
+  sibling of `OverlayLayer` inside the same transformed `FarmViewer` stage. Renders the
+  robot marker at `Robot.position_x/y` (farm-pixel), colour-coded by `RobotState`
+  (§45.1 palette), with a trailing path polyline from `RobotTelemetry` samples and a
+  small battery ring. It subscribes to `/ws/robot` and writes only CSS transform —
+  never recomputes business state. The robot's farm-pixel position comes straight from
+  the WebSocket frame; no projection in the browser.
+- **Status panel (`RobotStatusPanel`):** current `RobotState`, mission code, current/
+  next tree, completed/remaining, battery %, speed, elapsed sim-time. Driven by the
+  WebSocket event stream; falls back to `GET /robot/state` on (re)connect.
+- **Dashboard Robot Card (`DashboardRobotCard`):** compact version of the status panel
+  for `/dashboard` (no twin); shows state + battery + mission progress, expands to
+  `/map` (reuses the existing `expandHref` pattern from `DashboardFarmCard`).
+- **Playback support:** because the engine is deterministic and `RobotTelemetry`/
+  `RobotEvent` are persisted (§A.2), a past mission can be replayed by streaming its
+  stored samples through the same `RobotLayer`/`RobotStatusPanel` — no second code
+  path. A `playback` mode feeds the components from `GET /robot/telemetry?mission_id=&since=`
+  instead of the live WebSocket.
+
+**Frontend never decides behaviour:** it sends only commands (via existing HTTP
+endpoints + new command endpoints) and renders backend state. All state transitions,
+movement, battery, and event generation happen in the backend.
+
+## A.8 Milestone Breakdown
+
+| Milestone | Scope | Key deliverables |
+|---|---|---|
+| **V3.1 Robot Domain** | Persisted entities + adapters. | `Robot`, `DockStation`, `RobotBattery`, `RobotTelemetry`, `RobotEvent` tables; `RobotTask`/`RobotMission` as adapters over `HarvestMissionItem`/`HarvestMission`; migration (idempotent `init_db`). |
+| **V3.2 Navigation** | Movement planning only. | `RobotNavigator` (pure trajectory generator, farm-pixel in/out); unit tests for straight/turn/return-to-dock legs. No live mutation. |
+| **V3.3 State Machine** | RobotState + transitions. | `RobotController` enforcing §A.3; `DOCKED` battery routing; error/safe-abort; mapping coarse↔fine for V1 backward-compat. |
+| **V3.4 Telemetry** | Event + sample capture. | `RobotEvent`/`RobotTelemetry` writers; `GET /robot/state`, `GET /robot/telemetry`. |
+| **V3.5 Visualization** | Frontend robot on the twin. | `RobotLayer` (farm-pixel marker + path + battery ring), `RobotStatusPanel`, `DashboardRobotCard`; WebSocket client. |
+| **V3.6 Autonomous Behaviour** | The simulation engine. | `SimulationClock` + `RobotSimulationEngine` (pure `step(dt)`), `RobotTicker` driver; smooth time-based MOVING→CLIMBING→SCANNING→HARVESTING→RETURNING; battery drain/recharge; live telemetry stream. |
+| **V3.7 Playback** | Replay past missions. | Feed stored `RobotTelemetry`/`RobotEvent` through the same components in `playback` mode; no second renderer. |
+| **V3.8 Production Hardening** | Critical review + cleanup. | Two-agent review (backend/frontend), N+1/perf on telemetry queries, WebSocket reconnect/backpressure, dead-code removal, regression suite, docs sync. |
+
+Each milestone is independently verifiable; V3.1–V3.4 are backend-only and can land
+before any UI (V3.5), keeping the renderer freeze undisturbed.
+
+## A.9 Risks & Recommendations (critical review)
+
+- **Coupling risk — robot vs tree positions:** mitigated by reusing the V2 farm-pixel
+  space (`TreeObservation` + `computeMosaicLayout`) as the *single* coordinate system.
+  Do **not** introduce a GPS-based robot localiser (SLAM excluded, §5).
+- **Duplication risk — task table:** mitigated by `RobotTask`/`RobotMission` as
+  **adapters** over the existing immutable `HarvestMissionItem`/`HarvestMission`. No
+  parallel queue; one source of truth (§42).
+- **Polling risk:** mitigated by WebSocket for live telemetry; HTTP retained only for
+  commands + fallback seed. Avoids the V1 §36 poll storm during movement.
+- **Scaling:** `RobotTelemetry` is high-volume — add a TTL/retention policy and index
+  on `(robot_id, ts)`; sample at a throttled rate (e.g. 10 Hz) and store only
+  `POSITION_SAMPLE` deltas. `RobotEvent` stays append-only and small.
+- **Complexity:** keep `RobotSimulationEngine.step(dt)` **pure** (state in, state out)
+  so the ticker, tests, and playback all share one code path — no branching for
+  "live vs replay". This is the single most important simplification.
+- **Real-robot swap:** the contract boundary is the WebSocket telemetry frame +
+  HTTP command set. Keep that frame stable; the `RobotSimulationEngine` is the only
+  component a real robot replaces (its own navigator/controller feed the same frame).
+- **Renderer freeze (Decision 6):** `RobotLayer` is additive and shares the transformed
+  stage; it does **not** change `FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer`.
+
+*End of Appendix A — Version 3 Robot Simulation Architecture (PROPOSED).*
