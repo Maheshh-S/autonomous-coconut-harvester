@@ -1,6 +1,6 @@
 # CURRENT.md
 
-- **Project Version:** 3.8.4 (Version 3 line; V3.8 Production Hardening in progress)
+- **Project Version:** 3.8.5 (Version 3 line; V3.8 Production Hardening in progress)
 - **Current Status:** Version 3 pipeline complete through V3.7.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics). All V1–V3 work is implemented and verified but **not yet committed** — awaiting explicit approval.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
@@ -1401,6 +1401,34 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
     - **Verification:** `py_compile` OK; `tsc --noEmit` 0 errors; `next build` success;
       no application behaviour changed; CORS default identical to prior hardcoded value;
       API base-URL default identical. **NOT committed** — awaiting approval.
+  - **VERSION 3.8.5 — Repository Cleanup & Organization (completed; awaiting commit
+    approval):** hygiene only — **no behaviour change, no code change, no redesign.**
+    - **Accidental local DB artifacts removed:** tracked 0-byte `test.db` and
+      `backend/test.db` (the app uses PostgreSQL via `DATABASE_URL`; neither file is
+      referenced anywhere). `.gitignore` now ignores `*.db`/`*.sqlite`/`*.sqlite3`.
+    - **Empty placeholder directories removed:** `planning/`, `robot_control/`,
+      `scripts/`, `tests/` (root; the real Playwright specs live in
+      `frontend/tests/e2e/`), `datasets/` (gitignored, empty), `ing/` (incl.
+      `ing/integrations`), `dashboard/` (root; distinct from the live `/dashboard`
+      route + `dashboard_api.py`). Kept `communication/` and `configs/` — the frozen
+      `PROJECT_SPECIFICATION.md` directory table explicitly reserves them.
+    - **Stale demo asset directories removed:** `farm_view_demo-images/` and
+      `ripness-Check-demo-images/` — tracked sample screenshots with zero code or doc
+      references (proven unused). `demo_images/` (tracked sample coconut/drone images)
+      retained as potential seed assets.
+    - **macOS clutter:** removed the root `.DS_Store` (untracked, already gitignored).
+    - **`.gitignore` hardened:** added Local Databases (`*.db`/`*.sqlite`/`*.sqlite3`),
+      Playwright outputs (`test-results/`, `playwright-report/`, `frontend/test-results/`,
+      `frontend/playwright-report/`, `frontend/blob-report/`, `playwright/.cache/`),
+      `.vercel`, and editor swap files (`*.swp`, `*~`).
+    - **Kept intentionally:** `backend/test_db.py` (a genuine DB connectivity + schema
+      check utility, not a temp script), `verify_v*.js` (the documented V3 regression
+      harnesses, referenced in this file), `mapping/` + `perception/` (V1 packages
+      retained per V3.8.2 — `perception` still imports `mapping.coverage_path`).
+    - **Verification:** `py_compile` (backend incl. `test_db.py`) OK; `tsc --noEmit` 0
+      errors; `next build` success; empty-directory scan clean; orphan-reference scan
+      finds no dangling links to removed files; no application behaviour changed.
+      **NOT committed** — awaiting approval.
   - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`

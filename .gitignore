@@ -61,6 +61,13 @@ models/
 *.7z
 
 # -----------------------------
+# Local Databases
+# -----------------------------
+*.db
+*.sqlite
+*.sqlite3
+
+# -----------------------------
 # Python Testing
 # -----------------------------
 .pytest_cache/
@@ -80,6 +87,23 @@ dist/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+.vercel
+
+# -----------------------------
+# Playwright
+# -----------------------------
+test-results/
+playwright-report/
+playwright/.cache/
+
+# -----------------------------
+# Editor
+# -----------------------------
+*.swp
+*~
 
 # -----------------------------
 # Environment
