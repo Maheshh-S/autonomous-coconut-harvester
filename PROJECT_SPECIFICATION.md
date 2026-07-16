@@ -3872,7 +3872,7 @@ execution**:
 
 1. **Route planning** — *owned by the Harvest Planner* (Nearest-Neighbour, §41).
    Output: ordered `HarvestMissionItem` list (visit_order). **Unchanged in V3.** Lives
-   in `harvest_mission` / `harvest_planner.py`.
+   in `harvest_mission` / `harvest_mission_api.py`.
 2. **Movement planning** — *new, `RobotNavigator`* (pure function / service, no DB
    writes of business state). Given (a) the current farm-pixel position, (b) the next
    tree's farm-pixel target, (c) the depot position, it produces a **trajectory**:

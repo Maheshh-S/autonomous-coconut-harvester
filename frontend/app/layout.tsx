@@ -38,21 +38,17 @@ export default function RootLayout({
             Dashboard
           </Link>
 
-          <Link href="/trees">
-            Trees
+          <Link href="/survey">
+            Survey
           </Link>
 
           <Link href="/map">
-  Farm
-</Link>
+            Digital Twin
+          </Link>
 
-<Link href="/survey">
-  Survey
-</Link>
+          <Link href="/robot">Robot</Link>
 
-<Link href="/robot">Robot</Link>
-
-<Link href="/robot/history">Mission History</Link>
+          <Link href="/robot/history">History</Link>
 
         </div>
 

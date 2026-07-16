@@ -6,7 +6,6 @@ flow) lives in the FastAPI backend. This app renders data and sends requests.
 
 ## Stack
 - **Next.js 16** (App Router) + **React 19** + **Tailwind 4**
-- **Leaflet** (via `react-leaflet` + `leaflet`) for the plantation map
 - **Playwright** for end‑to‑end tests
 
 ## Scripts
@@ -26,17 +25,20 @@ backend must be running for the pages to load live data.
 ## Pages (`app/`)
 | Route | File | Purpose |
 |-------|------|---------|
-| `/` | `app/page.tsx` | Upload a drone/tree image and run detection |
+| `/` | `app/page.tsx` | Home — project entrance (pipeline overview, link to Dashboard) |
+| `/dashboard` | `app/dashboard/page.tsx` | Operational overview (counts, farm summary, charts) |
+| `/survey` | `app/survey/page.tsx` | Survey Mission image ingestion + inspection/inventory/harvest |
+| `/map` | `app/map/page.tsx` | Digital Twin farm viewer (survey mission tiles) |
+| `/robot` | `app/robot/page.tsx` | Robot simulation + harvest-mission execution |
+| `/robot/history` | `app/robot/history/page.tsx` | Mission History & Analytics |
 | `/trees` | `app/trees/page.tsx` | Tree dashboard (summary from `GET /trees/summary`) |
 | `/trees/[treeId]` | `app/trees/[treeId]/page.tsx` | Single‑tree detail + coconut upload |
-| `/map` | `app/map/page.tsx` | Plantation map (`GET /plantation/map`) |
-| `/robot` | `app/robot/page.tsx` | Robot task polling/completion (`/robot/next_task`, `/robot/complete_task`) |
 
 ## Components (`components/`)
-- `DroneUploader.tsx` – upload + tree detection, draws detected boxes.
 - `CoconutUploader.tsx` – upload a coconut photo, shows detected coconuts.
-- `MapView.tsx` / `MapWrapper.tsx` – Leaflet map (client‑only via `dynamic`).
-- `leafletFix.ts` – fixes default Leaflet marker icon paths under bundlers.
+- `FarmMosaic` / `OverlayLayer` / `FarmViewer` / `TreeDetailsDrawer` – Digital Twin viewer.
+- `DashboardFarmCard` – dashboard farm summary card.
+- `robot/` – `RobotLayer`, `RobotMarker`, `RobotPathLayer`, `RobotStatusCard`, `SimulationControls`.
 
 ## Notes
 - Upload previews use native `<img>` with `blob:` URLs (dynamic, not static

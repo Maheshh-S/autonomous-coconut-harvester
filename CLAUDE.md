@@ -36,7 +36,7 @@ Claude-specific working notes for the Autonomous Coconut Harvester repository.
 - `survey_api` — survey missions, tile generation, tree matching, permanent trees
 - `inspection_api` — coconut ripeness inspection → `InventorySnapshot`
 - `harvest_mission_api` — `HarvestMission` planning + start/pause/resume/cancel/advance
-- `harvest_planner` / `planner_api` — Nearest-Neighbour ordering + legacy V1 bulk tasks
+- `harvest_mission_api` — Nearest-Neighbour ordering + immutable harvest mission build
 - `tree_api` — tree summary + YOLO tree detection
 - `coconut_api` — YOLO coconut ripeness detection
 - `drone_api` — GPS dedup (4 m) → stores a `Tree` (legacy V1)
@@ -44,7 +44,7 @@ Claude-specific working notes for the Autonomous Coconut Harvester repository.
   gates `Task` creation by `harvest_type` (legacy V1)
 - `robot_api` — legacy V1 robot task polling / completion (`/robot/next_task`,
   `/robot/complete_task`)
-- `map_api` — geo data for the map view
+- `drone_api` — V1 drone survey ingestion (kept legacy)
 - `robot_domain` / `robot_navigation` / `robot_simulation` / `robot_telemetry` /
   `robot_history` — V3 robot subsystem
 - `dashboard_api` — `GET /dashboard/overview` aggregation

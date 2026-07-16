@@ -225,7 +225,7 @@ Three separated concerns (explicit requirement — route ≠ movement ≠ execut
 
 1. **Route planning** — Harvest Planner Nearest-Neighbour (§41). Output: ordered
    `HarvestMissionItem` list (`visit_order`). **Unchanged in V3.** Lives in
-   `harvest_mission` / `harvest_planner.py`.
+   `harvest_mission` / `harvest_mission_api.py`.
 2. **Movement planning** — `RobotNavigator` (pure function/service, no business-state
    writes). Given current farm-pixel position, the next tree's farm-pixel target, and
    the depot position, it produces a **trajectory**: a sequence of `(x, y, t)` waypoints

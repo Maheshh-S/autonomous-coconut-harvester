@@ -30,7 +30,7 @@ single source of truth; the frontend never computes business results.
 - FastAPI routers in `backend/api/` (`survey_api`, `inspection_api`,
   `harvest_mission_api`, `robot_domain`, `robot_navigation`, `robot_simulation`,
   `robot_telemetry`, `robot_history`, `tree_api`, `dashboard_api`, `coconut_api`,
-  `drone_api`, `map_api`, `detection_api`, `planner_api`, `harvest_planner`).
+  `drone_api`, `detection_api`).
 - SQLAlchemy session/engine in `backend/database/db.py`; models in
   `backend/database/models.py` (`Tree`, `TreeObservation`, `Inspection`,
   `InventorySnapshot`, `HarvestMission`, `HarvestMissionItem`, `Robot`,
@@ -73,7 +73,7 @@ single source of truth; the frontend never computes business results.
   GPS per position comes from `api/gps_projection.py`. `survey_api.
   generate_tiles_for_mission` persists the planner output onto each `SurveyTile` so
   the frontend never infers positions.
-- `backend/api/harvest_mission_api.py` (with `harvest_planner.py`) builds the
+- `backend/api/harvest_mission_api.py` builds the
   ordered `HarvestMission` from the latest inventory using the frozen Nearest-
   Neighbour route.
 

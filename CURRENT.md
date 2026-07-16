@@ -1,6 +1,6 @@
 # CURRENT.md
 
-- **Project Version:** 3.7.3 (Version 3 line; V3.8 Production Hardening is the next milestone)
+- **Project Version:** 3.8.3 (Version 3 line; V3.8 Production Hardening in progress)
 - **Current Status:** Version 3 pipeline complete through V3.7.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics). All V1–V3 work is implemented and verified but **not yet committed** — awaiting explicit approval.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
@@ -418,10 +418,11 @@ max-width:768px`) = **`position: fixed` bottom sheet**, full width, `height: 70v
     - **Minor cleanup:** removed a dangling `//strech` debug comment; de-duplicated the
       `API_BASE_URL` constant in `DroneUploader.tsx` (now imports the canonical export);
       fixed the `/trees` page title ("Farm Dashboard" → "Trees").
-    - **V1 endpoints intentionally kept:** `/detect/trees`, `/plantation/map`, `/drone/*`
-      etc. are the preserved V1 data/business logic per the freeze and remain mounted
-      (not dead code). `DroneUploader` / `CoconutUploader` are the real V2 survey/inspection
-      upload entry points and were kept.
+    - **V1 endpoints intentionally kept:** `/detect/trees`, `/drone/*` etc. are the
+      preserved V1 data/business logic per the freeze and remain mounted (not dead
+      code). `DroneUploader` / `CoconutUploader` are the real V2 survey/inspection
+      upload entry points and were kept. _Note:_ `/plantation/map`, `/planner/*` were
+      later removed in V3.8.2 as verified-dead (see below).
     - **Verification:** `tsc --noEmit` + `next build` pass (no Leaflet imports remain);
       backend imports clean; isolated DB script proves the twin fix; live twin endpoint
       returns 302 trees; `/trees/summary` ~3.2 s; Playwright **dashboard** (no Farm Map /
@@ -567,10 +568,11 @@ max-width:768px`) = **`position: fixed` bottom sheet**, full width, `height: 70v
         `generate_tiles_for_mission` (the planner reads `mission.base_gps_*` itself).
       - `api/dashboard_api.py` — removed the unused `SurveyMissionStatus` import.
       - Verified with `pyflakes` (0 issues) and clean backend import. The legacy
-        V1 `Task`-based system (`robot_api.py`, `database/tasks.py`, `map_api`/`tree_api`
+        V1 `Task`-based system (`robot_api.py`, `database/tasks.py`, `tree_api`
         `Task` usage, `Task` model) was **deliberately retained** — it is live (mounted
         in `main.py`) and the spec keeps V1 endpoints intentionally; removing it would
-        change behaviour and was outside the "provably unused" bar.
+        change behaviour and was outside the "provably unused" bar. _Note:_ the
+        `map_api` router (`/plantation/map`) was later removed in V3.8.2 as verified-dead.
     - **Folder organization / Version 3 preparation:** created empty package
       directories (`.gitkeep` placeholders, **no implementation**) —
       `backend/{simulation,navigation,telemetry,websocket}/` and
@@ -1315,6 +1317,59 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
       the UI auto-syncs to the backend default), `/survey`, `/dashboard`, and
       `verify_v371.js` (`/robot/history`, `/robot/history/2`, `/map?tree=698`). Servers
       stopped after verification. **NOT committed** — awaiting approval.
+  - **VERSION 3.8.2 — Dead Backend Removal (completed; awaiting commit approval):** a
+    removal-only hardening — **no new features, no redesign, V3 behaviour unchanged.**
+    Removes backend code proven unused by BOTH the Phase 1 and Phase 2.0 audits.
+    - **Routes/files removed (zero runtime references, zero imports, zero mounts):**
+      - `backend/api/planner_api.py` — `POST /planner/generate_tasks` (bulk V1 task
+        generation). Only mounted in `main.py`; no callers. Its `create_task_if_needed`
+        import is **still used** by `detection_api.py`, so `database/tasks.py` was
+        deliberately **retained** (V1 Task pipeline is in scope to keep).
+      - `backend/api/harvest_planner.py` — `GET /planner/harvest_order`. Only mounted in
+        `main.py`; no callers; defines no shared helpers.
+      - `backend/api/map_api.py` — `GET /plantation/map`. Only mounted in `main.py`; the
+        frontend `/map` page uses the Digital Twin (`/mission/{id}/tiles`), not this
+        endpoint — verified zero frontend callers. (The V1 `Task` model and `map_api`
+        `Task` usage referenced in V3.7.1 remain mounted via `robot_api`/`tree_api`.)
+    - **`main.py` cleanup:** removed the three `from api… import` lines and the three
+      `app.include_router(...)` calls. No other router registration touched.
+    - **NOT removed (per evidence rule + scope):** `database/tasks.py` (live, used by
+      `detection_api.py`); `mapping/` and `perception/` packages (`perception/drone_scan.py`
+      still imports `mapping.coverage_path` — reference not proven dead, and outside
+      `backend/`); the V1 `Task` subsystem, Robot/Tree/Detection APIs; all DB models,
+      migrations, schemas, and `current_task_id`.
+    - **Docs corrected:** `AGENTS.md`, `ARCHITECTURE.md`, `CLAUDE.md` router lists;
+      `harvest_planner.py` → `harvest_mission_api.py` in `ROBOT_ARCHITECTURE.md` and
+      `PROJECT_SPECIFICATION.md`; `frontend/README.md` `/map` line; `CURRENT.md`
+      `/plantation/map` "intentionally kept" claim corrected above.
+    - **Verification:** `py_compile` OK; `pyflakes` 0 issues; `import main` clean; backend
+      boots; all mounted routers valid; `tsc --noEmit` 0 errors; `next build` success;
+      no live V3 endpoint changed; no Digital Twin / Robot / Harvest / Analytics
+      regression. **NOT committed** — awaiting approval.
+  - **VERSION 3.8.3 — Dead Frontend Removal, Navigation Cleanup & Home Page (completed;
+    awaiting commit approval):** a removal-only + minimal-page addition — **no new
+    business features, no redesign, V3 behaviour unchanged.**
+    - **V1 upload page removed:** `app/page.tsx` (the old Version 1 "Drone Uploader"
+      landing page) replaced by a minimal Home page (project title, one-line
+      description,       "Version 3" tag, primary "Open Dashboard" button, and the
+      Survey → Digital Twin → Inspection → Inventory → Harvest Mission → Robot
+      Simulation → Mission History & Analytics pipeline list). Not a marketing page,
+      not the Dashboard.
+    - **Dead component removed:** `components/DroneUploader.tsx` — its only consumer was
+      the removed `/` page. The real V2/V3 survey-upload entry point is `app/survey/page.tsx`
+      (calls `detection.ts` directly); `CoconutUploader.tsx` is retained (used by the
+      kept `/trees/[treeId]` page).
+    - **Navigation cleanup (`app/layout.tsx`):** removed the `Trees` link (not in the
+      V3 app nav; the Tree pages remain reachable from Mission History detail). Renamed
+      the `/map` nav label from "Farm" to "Digital Twin" to match the canonical name.
+      Nav now exposes: Home, Dashboard, Survey, Digital Twin, Robot, History.
+    - **Docs corrected:** `AGENTS.md` page + component lists; `frontend/README.md`
+      (removed Leaflet/MapView/MapWrapper/leafletFix/DroneUploader/V1 `/robot/next_task`
+      stale references; replaced with the current page + component inventory).
+    - **Verification:** `tsc --noEmit` 0 errors; `next build` success; zero broken links
+      (no page or component references the removed `/` or `DroneUploader`); no live V3
+      endpoint changed; Dashboard / Survey / Digital Twin / Robot / History / Tree
+      pages untouched. **NOT committed** — awaiting approval.
   - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`
@@ -1332,5 +1387,5 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
     manifest; the README documents the actual required packages.
   - Model weights (`*.pt`) and `.env` are gitignored; they are local‑only.
   - Navigation is rendered inline in `layout.tsx` (the old `Navbar.tsx` component was removed).
-    The "Dashboard" nav link points to `/dashboard`; a "Trees" link exposes the old
-    `/trees` page.
+    Nav exposes Home, Dashboard, Survey, Digital Twin, Robot, Mission History; the
+    `/trees` pages remain reachable from Mission History detail.

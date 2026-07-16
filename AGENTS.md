@@ -38,7 +38,7 @@ Do not skip steps. If a listed doc does not yet exist, note it and proceed.
 ## 3. Repository Layout
 
 - `backend/` — FastAPI services, database models, domain logic.
-  - `backend/api/` — API routers (survey, inspection, harvest_mission, robot_domain, robot_navigation, robot_simulation, robot_telemetry, robot_history, tree, dashboard, coconut, drone, map, detection, planner, harvest_planner).
+  - `backend/api/` — API routers (survey, inspection, harvest_mission, robot_domain, robot_navigation, robot_simulation, robot_telemetry, robot_history, tree, dashboard, coconut, drone, detection).
   - `backend/database/` — SQLAlchemy models, engine/session, and `init_db` (idempotent manual migrations).
   - `backend/harvest/` — `execution.py`, the shared harvest-mission execution service.
   - `backend/navigation/` — pure robot movement planning (`RobotNavigator`, `NavigationService`).
@@ -48,8 +48,8 @@ Do not skip steps. If a listed doc does not yet exist, note it and proceed.
   - `backend/analytics/` — `mission_history.py` (Mission History & Analytics).
   - `backend/main.py` — app assembly, CORS, router mounting, `init_db()` at startup.
 - `frontend/` — React/Next.js UI (App Router).
-  - `frontend/app/` — pages: `/` (Drone Uploader), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`, `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
-  - `frontend/components/` — `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `DroneUploader`, `CoconutUploader`, `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
+  - `frontend/app/` — pages: `/` (Home), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`, `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
+  - `frontend/components/` — `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `CoconutUploader`, `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
   - `frontend/lib/` — `api/detection.ts` (single API client), `mosaicLayout.ts` (shared farm-pixel transform), `useRobotSimulation.ts` (WS hook).
 - `models/` — YOLOv8 weights (`tree_model/`, `coconut_model/`), gitignored.
 
