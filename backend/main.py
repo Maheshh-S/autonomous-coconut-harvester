@@ -27,6 +27,7 @@ from api.harvest_mission_api import router as harvest_mission_router
 from api.dashboard_api import router as dashboard_router
 from api.robot_domain import router as robot_domain_router
 from api.robot_navigation import router as robot_navigation_router
+from api.robot_simulation import router as robot_simulation_router
 
 app = FastAPI()
 
@@ -71,6 +72,7 @@ app.include_router(harvest_mission_router)
 app.include_router(dashboard_router)
 app.include_router(robot_domain_router)
 app.include_router(robot_navigation_router)
+app.include_router(robot_simulation_router)
 
 
 # Ensure the database schema matches the models on startup. This is idempotent

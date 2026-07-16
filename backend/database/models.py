@@ -553,6 +553,33 @@ class RobotConfiguration(Base):
     robot = relationship("Robot")
 
 
+class RobotStateTransition(Base):
+    """Append-only record of a Robot state transition (Version 3.3 State Machine).
+
+    Every legal transition performed by ``RobotStateMachine`` is persisted here with
+    its previous state, next state, a free-text ``reason``, and the wall-clock
+    ``created_at``. This history is the single source for later telemetry/playback
+    (V3.4/V3.7) — the state machine itself stays agnostic of WebSockets and telemetry;
+    it only writes these rows. Rows are never mutated.
+    """
+
+    __tablename__ = "robot_state_transitions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_id = Column(
+        Integer,
+        ForeignKey("robots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    previous_state = Column(String, nullable=False)
+    next_state = Column(String, nullable=False)
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    robot = relationship("Robot")
+
+
 class SurveyMission(Base):
     __tablename__ = "survey_missions"
 

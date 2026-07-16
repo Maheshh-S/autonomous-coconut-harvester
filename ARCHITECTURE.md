@@ -97,13 +97,24 @@ persisted in **PostgreSQL** (Neon).
   (farm-pixel trajectory, no mutation); (3) **execution** = `RobotSimulationEngine`
   (pure `step(dt)`) + `SimulationClock` (sim time = wall × speed_factor) +
   `RobotTicker` driver.
-  - **V3.1 + V3.2 implemented (not yet committed):** the Robot Domain (`Robot`,
-    `DockStation`, `RobotBattery`, `RobotConfiguration`; `GET /robot`,
-    `GET /robot/state`, `POST /robot/reset`, `POST /robot/recharge`,
-    `POST /robot/speed`) and the Navigation layer (`backend/navigation/`: faithful
-    `computeMosaicLayout` port, pure `RobotNavigator`, `NavigationService`;
-    `GET /robot/navigation`, `GET /robot/navigation/plan`) are real and verified.
-    No execution, no Robot-state mutation, fully deterministic. See `CURRENT.md`.
+   - **V3.1 + V3.2 + V3.3 implemented (not yet committed):** the Robot Domain
+     (`Robot`, `DockStation`, `RobotBattery`, `RobotConfiguration`; `GET /robot`,
+     `GET /robot/state`, `POST /robot/reset`, `POST /robot/recharge`,
+     `POST /robot/speed`), the Navigation layer (`backend/navigation/`: faithful
+     `computeMosaicLayout` port, pure `RobotNavigator`, `NavigationService`;
+     `GET /robot/navigation`, `GET /robot/navigation/plan`), and the State Machine
+     (`backend/robot/state_machine.py`: frozen `LEGAL_TRANSITIONS`, append-only
+     `robot_state_transitions` history; `POST /robot/state`, `GET /robot/state/
+     history`) are real and verified. **V3.3.1** refines the machine so every
+     operational state may fault into `ERROR` (recovery unchanged: `ERROR`→
+     `{RETURNING,IDLE}` only); `RobotStateMachine` remains the sole `robot.status`
+     mutator. **V3.4 Robot Simulation Engine** is now real (`backend/simulation/`:
+     pure `SimulationClock` + `SimulationEngine` (`step(dt)`, linear movement,
+     battery drain, transitions via `RobotStateMachine`, internal events) +
+     `SimulationScheduler` thread driver; `POST`/`GET /robot/simulation`). No
+     WebSocket, no telemetry persistence, no frontend, no charging in V3.4. The
+     engine stays pure and deterministic; `RobotStateMachine` remains the sole
+     `robot.status` mutator. See `CURRENT.md`.
 - **Coordinate system:** robot position is in the **same farm-pixel space** as
   `computeMosaicLayout`/`TreeObservation` — one plane for robot + tree boxes (no SLAM,
   §5).
@@ -115,8 +126,8 @@ persisted in **PostgreSQL** (Neon).
   `FarmViewer` transformed stage with `OverlayLayer`; `RobotStatusPanel`,
   `DashboardRobotCard`; playback replays stored telemetry through the same components.
 - **Milestones (A.8):** V3.1 Domain → V3.2 Navigation → V3.3 State Machine → V3.4
-  Telemetry → V3.5 Visualization → V3.6 Autonomous Behaviour (engine) → V3.7 Playback
-  → V3.8 Production Hardening.
+  Robot Simulation Engine → V3.5 Telemetry → V3.6 Visualization → V3.7 Playback →
+  V3.8 Production Hardening.
 - Full specification: `PROJECT_SPECIFICATION.md` **Appendix A (FROZEN)**; companion
   design doc: **`ROBOT_ARCHITECTURE.md`**.
 - **Version 2.9 (stabilization, completed PROPOSED-ready):** dead unused imports/vars

@@ -23,7 +23,7 @@ side-effect free; no randomness is introduced.
 
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from database.db import SessionLocal
 from database.models import (
@@ -40,6 +40,7 @@ from database.models import (
     DEFAULT_BATTERY_LOW_THRESHOLD,
     DEFAULT_BATTERY_CRITICAL_THRESHOLD,
 )
+from robot.state_machine import RobotStateMachine, IllegalTransition, legal_targets
 
 router = APIRouter()
 
@@ -218,6 +219,7 @@ def _serialize_state(robot: Robot, battery: RobotBattery) -> dict:
             and robot.current_task_id is None
             and robot.status == RobotState.IDLE.value
         ),
+        "available_transitions": legal_targets(robot.status),
     }
 
 
@@ -249,6 +251,71 @@ def get_robot_state():
             .first()
         )
         return _serialize_state(robot, battery)
+    finally:
+        db.close()
+
+
+@router.get("/robot/state/history")
+def get_robot_state_history(limit: int = 100):
+    """Append-only transition history (oldest → newest): previous, next, reason, ts."""
+    db = SessionLocal()
+    try:
+        robot = ensure_robot_domain(db)
+        machine = RobotStateMachine(robot)
+        records = machine.history(db, limit=limit)
+        return {
+            "robot_id": robot.id,
+            "count": len(records),
+            "history": [
+                {
+                    "id": r.id,
+                    "previous_state": r.previous_state,
+                    "next_state": r.next_state,
+                    "reason": r.reason,
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in records
+            ],
+        }
+    finally:
+        db.close()
+
+
+class RobotStateTransitionRequest(BaseModel):
+    to: str
+    reason: str | None = None
+
+
+@router.post("/robot/state")
+def post_robot_state(data: RobotStateTransitionRequest):
+    """Command a validated state transition. Illegal transitions return 400.
+
+    The ``RobotStateMachine`` owns validation; this endpoint only forwards the
+    request and surfaces ``IllegalTransition`` as an HTTP 400. No timing, movement,
+    battery, or telemetry is performed here.
+    """
+    db = SessionLocal()
+    try:
+        robot = ensure_robot_domain(db)
+        machine = RobotStateMachine(robot)
+        try:
+            record = machine.transition(db, data.to, reason=data.reason)
+        except IllegalTransition as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        battery = (
+            db.query(RobotBattery)
+            .filter(RobotBattery.robot_id == robot.id)
+            .first()
+        )
+        result = _serialize_state(robot, battery)
+        result["transition"] = {
+            "id": record.id,
+            "previous_state": record.previous_state,
+            "next_state": record.next_state,
+            "reason": record.reason,
+            "created_at": record.created_at.isoformat(),
+        }
+        return result
     finally:
         db.close()
 

@@ -753,8 +753,128 @@
         (`/dashboard/overview` 200); **frontend untouched** (no frontend files
         changed).
       - **Implementation report** delivered; **NOT committed** — awaiting approval.
-  - **Next:**
-    - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
+    - **VERSION 3.3 — Robot State Machine (completed; awaiting approval, NOT
+      committed):** the **state machine only** — it owns every Robot state
+      transition, nothing else. It does NOT move the robot, execute missions,
+      animate, implement the Simulation Engine, or know about WebSockets. Fully
+      deterministic. Version 2 + V3.1 + V3.2 behaviour/endpoints are untouched.
+      - **New model `RobotStateTransition`** (`database/models.py`): append-only
+        history row — `robot_id`, `previous_state`, `next_state`, `reason`,
+        `created_at`. Never mutated; the single source for later telemetry/playback
+        (V3.4/V3.7). The state machine stays agnostic of WebSockets/telemetry — it
+        only writes these rows. Created by `Base.metadata.create_all` (new table,
+        no ALTER needed).
+      - **New module `backend/robot/state_machine.py`** (the V2.9-prepared
+        `backend/robot/` package is now populated) + `backend/robot/__init__.py`.
+        `RobotStateMachine` owns: current state, **transition validation**
+        (`LEGAL_TRANSITIONS` frozen edge table), **transition execution**
+        (mutates `robot.status`), **transition history** (appends
+        `RobotStateTransition`), and **transition timestamps**. Also exposes
+        `legal_targets` / `is_legal` / `IllegalTransition`. Pure validator — no
+        timing, movement, battery, or telemetry.
+       - **Frozen transition rules (explicit edges only):**
+         `DOCKED→IDLE`, `IDLE→MOVING`, `MOVING→{CLIMBING,RETURNING}`,
+         `CLIMBING→SCANNING`, `SCANNING→HARVESTING`, `HARVESTING→MOVING`,
+         `RETURNING→DOCKED`, `ERROR→{RETURNING,IDLE}`. No self-transitions, no
+         implicit edges, no hidden mutations. `ERROR` has **no inbound** recovery
+         edge (it is only a recovery *source* to RETURNING/IDLE).
+      - **API (`api/robot_domain.py`, extended):** `GET /robot/state` now also
+        returns `available_transitions`; new `GET /robot/state/history`
+        (ordered previous/next/reason/ts) and `POST /robot/state`
+        (`{to, reason}` — validates via `RobotStateMachine`, illegal → HTTP 400,
+        returns updated state + the recorded transition). V3.1 `/robot/*` and V1
+        `robot_api.py` untouched; V3.2 navigation unchanged.
+      - **Verification:** `py_compile` + `pyflakes` clean (0 issues); live HTTP
+        self-check passed **every** assertion — full legal chain executes and
+        updates `robot.status`; exactly 8 history records appended with correct
+        edge sequence + timestamps + reasons; all illegal transitions (incl.
+        self-transitions and `to:ERROR`) rejected with 400 and **no state
+        mutation**; validation deterministic across repeated calls; no V3.1/V3.2
+         regression (`/robot`, `/robot/recharge`, `/robot/navigation` 200);
+         **frontend untouched**.
+       - **Implementation report** delivered; **NOT committed** — awaiting approval.
+     - **VERSION 3.3.1 — State Machine Refinement (completed; awaiting approval, NOT
+       committed):** a minimal architecture refinement — **no redesign, no new
+       features, no other V3 milestone touched.** It only lets operational failures
+       fault the robot. `LEGAL_TRANSITIONS` was extended so **every operational
+       state may transition into `ERROR`**: `DOCKED→ERROR`, `IDLE→ERROR`,
+       `MOVING→ERROR`, `CLIMBING→ERROR`, `SCANNING→ERROR`, `HARVESTING→ERROR`,
+       `RETURNING→ERROR`. Recovery is **unchanged**: `ERROR` may transition ONLY to
+       `RETURNING` or `IDLE` (no other recovery path); there is still no inbound
+       edge *into* a non-ERROR destination from `ERROR`. `RobotStateMachine`
+       remains the **only** component permitted to mutate `robot.status`;
+       Simulation, Navigation, Telemetry, WebSocket, and the frontend still never
+       mutate `Robot.state` directly. Only `backend/robot/state_machine.py`
+       (`LEGAL_TRANSITIONS`) was changed; `models.py`, the API, and all other V3
+       files are untouched.
+       - **Verification:** `pyflakes` clean; live HTTP confirmed `available_transitions`
+         now includes `ERROR` from every operational state (e.g. IDLE →
+         `['ERROR','MOVING']`); `POST /robot/state` to `ERROR` succeeds from each
+         operational state; `ERROR→{RETURNING,IDLE}` still legal while
+         `ERROR→{MOVING,CLIMBING,SCANNING,HARVESTING,DOCKED}` still 400 with **no
+         state mutation**; all self-transitions (`X→X`) still rejected; history
+          schema/shape unchanged; deterministic; no V3.1/V3.2 regression.
+          **NOT committed** — awaiting approval.
+     - **VERSION 3.4 — Robot Simulation Engine (completed; awaiting approval, NOT
+       committed):** brings the robot to life — it **executes** a previously
+       generated `NavigationPlan` over simulated time. **No** WebSocket, **no**
+       telemetry persistence, **no** frontend, **no** playback, **no** charging
+       UI — it only runs the simulation. Architecture discipline upheld: the
+       engine never decides navigation, never validates transitions, never emits
+       WebSocket frames, never renders UI.
+       - **`backend/simulation/clock.py` — `SimulationClock`:** pure, deterministic
+         time mapping. `sim_now = sim_offset + (wall − start) × speed_factor`;
+         `pause` freezes sim time, `resume` continues with no jump; `speed_factor`
+         re-anchors without losing accumulated sim time. No robot state, no DB.
+       - **`backend/simulation/context.py` — `SimulationContext` + `SimulationEvent`:**
+         the live state bag (waypoints, position, heading, speed, `status`, battery,
+         progress, `sim_time`, timers) the pure engine reads/writes, plus the
+         **internal** events (`WaypointReached`, `TreeReached`, `HarvestStarted`,
+         `HarvestFinished`, `ReturnedToDock`, `MissionCompleted`, `BatteryLow`,
+         `StateChanged`, `Moving`). Events are **not** streamed or persisted in V3.4
+         (telemetry consumes them in V3.5); they exist so the engine is observable
+         and V3.5 needs no redesign.
+       - **`backend/simulation/engine.py` — `SimulationEngine` (pure `step(dt)`):**
+         advances the context by one fixed `dt` (sim seconds) and never reads a
+         clock, never touches the DB, never mutates `robot.status` except through
+         the injected `transition_fn`. Movement is **linear interpolation** in
+         farm-pixel space (no curves/obstacle-avoidance/physics). State flow per
+         tree waypoint: `MOVING → CLIMBING → SCANNING → HARVESTING → MOVING`,
+         round-trip ends `RETURNING → DOCKED`. **Battery** drains at a fixed rate
+         while active (MOVING/CLIMBING/SCANNING/HARVESTING/RETURNING), clamped to
+         `[0,100]`; at the configured low threshold it requests `RETURNING` and
+         diverts straight to the dock (skipping remaining trees). `NavigationPlan`
+         is consumed immutably.
+       - **`backend/simulation/scheduler.py` — `SimulationScheduler` (singleton, the
+         only wall-clock/thread driver):** `start` resolves the Harvest Mission,
+         builds the immutable `NavigationPlan` via `NavigationService`, creates the
+         engine + context, and launches a daemon thread ticking at a fixed real
+         interval (each tick advances sim-time by `real_dt × speed_factor` and calls
+         `engine.step`). Persists the context back onto `Robot`/`RobotBattery` with a
+         fresh DB session per tick. `pause`/`resume`/`stop` control the run; `status`
+         reports phase, sim time, progress, and recent events. The engine's
+         `transition_fn` is wired to `RobotStateMachine.transition(db, …)`, so the
+         state machine remains the **sole** mutator of persisted `robot.status`.
+       - **`backend/api/robot_simulation.py` + `main.py`:** new router
+         `POST /robot/simulation/start` (`mission_id?`, `speed_factor=1×`),
+         `POST /robot/simulation/pause`, `POST /robot/simulation/resume`,
+         `POST /robot/simulation/stop`, `GET /robot/simulation` — control + status
+         only. Mounted in `main.py`.
+       - **Scope guards honoured:** no WebSocket, no `RobotEvent`/`RobotTelemetry`
+         persistence (those tables belong to V3.5), no frontend change, no charging
+         logic (battery drains and diverts to dock; recharge stays a manual
+         `POST /robot/recharge`). Only `backend/simulation/` (new) + the API router
+         + `main.py` mount were added; V3.1–V3.3 code is untouched.
+       - **Verification:** `pyflakes` clean (0 issues); the pure engine unit-tested
+         for **determinism** (two identical runs produce byte-identical position/
+         status/battery/event sequences), full-mission execution (both trees
+         harvested → returned to dock → `DOCKED`), and **battery-low diversion**
+         (harvests the in-progress tree, then routes to dock skipping the rest);
+         live HTTP confirmed `start`→`running`, sim-time advances, `pause` freezes
+         sim-time (stable), `resume` continues, `stop` cleanly halts; API smoke test
+         shows V3.1/V3.2/V3.3 endpoints unchanged (200) and `frontend/` untouched.
+         **NOT committed** — awaiting approval.
+     - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
       "Locate on twin" pan-to-tree action in the panel (still no mutation); eventually
       supersede the sparse legacy `/trees/[treeId]` page with the panel.
      - **V2.6 (overlay performance) — observations recorded during V2.5.1 (no code change):**

@@ -132,6 +132,43 @@ States: `IDLE`, `MOVING`, `CLIMBING`, `SCANNING`, `HARVESTING`, `RETURNING`, `ER
 - Transitions are driven **only by the backend** (`RobotController`); the frontend
   sends *commands*, never a state.
 
+  > **V3.3 status (implemented, not yet committed):** the `RobotStateMachine`
+  > (`backend/robot/state_machine.py`) enforces the frozen explicit edge set
+  > (`LEGAL_TRANSITIONS`) and rejects everything else with no hidden mutation. It
+  > persists every transition to `robot_state_transitions` (previous/next/reason/
+  > ts) — the append-only source for later telemetry/playback. `POST /robot/state`
+  > commands a validated transition (illegal → HTTP 400); `GET /robot/state`
+  > returns `available_transitions`; `GET /robot/state/history` lists the log. The
+  > machine owns no timing, movement, battery, or telemetry.
+  >
+  > **V3.3.1 refinement (implemented, not yet committed):** every operational
+  > state may additionally fault into `ERROR` (`DOCKED`/`IDLE`/`MOVING`/`CLIMBING`/
+  > `SCANNING`/`HARVESTING`/`RETURNING` → `ERROR`) so operational failures can
+  > transition into error. Recovery is **unchanged**: `ERROR` still resolves ONLY
+  > to `RETURNING` or `IDLE` (no other recovery path). `RobotStateMachine` remains
+  > the **only** component allowed to mutate `robot.status`; Simulation,
+  > Navigation, Telemetry, WebSocket, and the frontend never mutate `Robot.state`
+  > directly. See `CURRENT.md` V3.3 / V3.3.1.
+  >
+  > **V3.4 Robot Simulation Engine (implemented, not yet committed):** the
+  > executor is now real. `backend/simulation/` holds the pure `SimulationClock`
+  > (deterministic `sim = wall × speed_factor`, pause/resume), the pure
+  > `SimulationEngine` (`step(dt)`: linear farm-pixel interpolation, battery drain
+  > while active, transitions delegated to `RobotStateMachine` via an injected
+  > `transition_fn`, internal `SimulationEvent`s), `SimulationContext` (live state
+  > bag), and `SimulationScheduler` (the only wall-clock/thread driver; builds the
+  > immutable `NavigationPlan`, ticks the engine, persists to `Robot`/`RobotBattery`).
+  > `RobotStateMachine` stays the **sole** mutator of `robot.status`. **Scope
+  > guards:** no WebSocket, no telemetry persistence, no frontend, no charging
+  > logic (battery drains and diverts to dock on low threshold). Events are
+  > internal only (V3.5 telemetry will consume them). `POST/GET /robot/simulation`
+  > control the run. See `CURRENT.md` V3.4.
+  >
+  > *Note on milestone numbering:* this task builds the **Simulation Engine** under
+  > the label "V3.4". The frozen `ROBOT_ARCHITECTURE.md` milestone table (§8) had
+  > previously placed Telemetry at V3.4 and the engine at V3.6; this delivery
+  > realises the engine one milestone early. The table below is updated to match.
+
 ## 4. Mission Lifecycle
 
 ```
@@ -182,14 +219,25 @@ Three separated concerns (explicit requirement — route ≠ movement ≠ execut
    > `TreeObservation` / `SurveyTile` / the V3.1 `Robot`+`DockStation`. `GET
    > /robot/navigation` and `GET /robot/navigation/plan` are read-only. No movement,
    > no execution, no Robot-state mutation. See `CURRENT.md` V3.2.
-3. **Execution** — `RobotSimulationEngine` + `RobotController`. Consumes `RobotNavigator`
-   trajectories and, driven by the Simulation Clock, writes the robot's live
-   `position_x/position_y/heading`, advances the state machine, drains battery, and
-   emits telemetry/events. The only component that mutates live robot state.
+ 3. **Execution** — `RobotSimulationEngine` + `RobotController`. Consumes `RobotNavigator`
+    trajectories and, driven by the Simulation Clock, writes the robot's live
+    `position_x/position_y/heading`, advances the state machine, drains battery, and
+    emits telemetry/events. The only component that mutates live robot state.
 
-Why separate: a bug in movement math cannot corrupt the queue or inventory (§20.3);
-navigation is reusable/testable without a running sim; a real robot replaces only the
-execution layer.
+    > **V3.4 status (implemented, not yet committed):** the executor is real.
+    > `backend/simulation/` holds `SimulationClock` (deterministic sim-time),
+    > `SimulationEngine` (pure `step(dt)` — linear movement, battery drain, state
+    > transitions delegated to `RobotStateMachine`, internal `SimulationEvent`s),
+    > `SimulationContext` (live state bag), and `SimulationScheduler` (the only
+    > wall-clock/thread driver; builds the immutable `NavigationPlan` via
+    > `NavigationService`, ticks the engine, persists to `Robot`/`RobotBattery`).
+    > The engine never reads a clock, never touches the DB, and never mutates
+    > `robot.status` except through the injected `transition_fn` →
+    > `RobotStateMachine`. No telemetry/WebSocket/frontend/charging in V3.4.
+
+ Why separate: a bug in movement math cannot corrupt the queue or inventory (§20.3);
+ navigation is reusable/testable without a running sim; a real robot replaces only the
+ execution layer.
 
 ### Simulation Clock
 
@@ -253,10 +301,11 @@ Persistence enables playback: a past mission is replayed by streaming its stored
 |---|---|---|
 | **V3.1 Robot Domain** | Persisted entities + adapters | `Robot`, `DockStation`, `RobotBattery`, `RobotTelemetry`, `RobotEvent`; `RobotTask`/`RobotMission` adapters over `HarvestMissionItem`/`HarvestMission`; idempotent migration. **(implemented, not committed)** |
 | **V3.2 Navigation** | Movement planning only | `RobotNavigator` (pure trajectory generator) + `NavigationService`; `backend/navigation/` package; `GET /robot/navigation` + `GET /robot/navigation/plan`; deterministic, read-only, no live mutation. **(implemented, not committed)** |
-| **V3.3 State Machine** | RobotState + transitions | `RobotController` enforcing §3; `DOCKED` battery routing; error/safe-abort; coarse↔fine mapping for V1 compat. |
-| **V3.4 Telemetry** | Event + sample capture | `RobotEvent`/`RobotTelemetry` writers; `GET /robot/state`, `GET /robot/telemetry`. |
-| **V3.5 Visualization** | Frontend robot on twin | `RobotLayer` (marker + path + battery ring), `RobotStatusPanel`, `DashboardRobotCard`; WebSocket client. |
-| **V3.6 Autonomous Behaviour** | Simulation engine | `SimulationClock` + `RobotSimulationEngine` (pure `step(dt)`), `RobotTicker`; smooth time-based states; battery drain/recharge; live telemetry. |
+| **V3.3 State Machine** | RobotState + transitions | `RobotStateMachine` enforcing §3 (frozen `LEGAL_TRANSITIONS`); append-only `robot_state_transitions` history; `GET /robot/state/history` + `POST /robot/state`; no timing/movement/battery/telemetry. **(implemented, not committed)** |
+| **V3.3.1 State Machine Refinement** | allow faults into ERROR | Every operational state may transition → `ERROR` (operational failure can fault the robot); recovery unchanged (`ERROR`→`{RETURNING,IDLE}` only); `RobotStateMachine` stays the sole `robot.status` mutator. Minimal change to `LEGAL_TRANSITIONS` only. **(implemented, not committed)** |
+| **V3.4 Robot Simulation Engine** | Execute the plan over time | `backend/simulation/`: pure `SimulationClock` + `SimulationEngine` (`step(dt)`, linear movement, battery drain, transitions via `RobotStateMachine`, internal `SimulationEvent`s) + `SimulationScheduler` (thread driver, builds immutable `NavigationPlan`, persists to `Robot`/`RobotBattery`); `POST/GET /robot/simulation`. No WebSocket/telemetry/frontend/charging. **(implemented, not committed)** |
+| **V3.5 Telemetry** | Event + sample capture | `RobotEvent`/`RobotTelemetry` writers (consume the engine's internal `SimulationEvent`s); `GET /robot/state`, `GET /robot/telemetry`. |
+| **V3.6 Visualization** | Frontend robot on twin | `RobotLayer` (marker + path + battery ring), `RobotStatusPanel`, `DashboardRobotCard`; WebSocket client. |
 | **V3.7 Playback** | Replay past missions | Feed stored telemetry through same components in `playback` mode; no second renderer. |
 | **V3.8 Production Hardening** | Critical review + cleanup | Two-agent review; N+1/perf on telemetry; WebSocket reconnect/backpressure; dead-code removal; regression suite; docs sync. |
 
@@ -273,4 +322,27 @@ Persistence enables playback: a past mission is replayed by streaming its stored
 - **Renderer freeze (Decision 6):** `RobotLayer` is additive and shares the transformed
   stage; it does not change `FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer`.
 
+Simulation Rule
+
+SimulationEngine never creates events manually for consumers.
+
+Simulation emits only SimulationEvent.
+
+Every external subsystem observes those events.
+
+Simulation never knows who is listening.
+
+Consumers include:
+
+Telemetry
+
+Replay
+
+WebSocket
+
+Logging
+
+Analytics
+
+Testing
 *End of ROBOT_ARCHITECTURE.md — architecture only, no implementation.*
