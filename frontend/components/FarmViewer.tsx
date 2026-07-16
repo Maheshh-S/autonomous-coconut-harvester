@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import FarmMosaic, { MosaicTile } from "@/components/FarmMosaic"
 import OverlayLayer from "@/components/OverlayLayer"
-import TreeDetailsPanel from "@/components/TreeDetailsPanel"
+import TreeDetailsDrawer from "@/components/TreeDetailsDrawer"
 import type { TreeOverlay } from "@/lib/api/detection"
 
 // V2.3 / V2.4 — Digital Twin Viewer (PROJECT_SPECIFICATION.md §V2.8 navigation
@@ -78,6 +78,10 @@ export default function FarmViewer({
   viewRef.current = view
   const [smooth, setSmooth] = useState(false)
   const [dragging, setDragging] = useState(false)
+  // V2.6 — tracked viewport size so OverlayLayer can compute the visible
+  // farm-pixel rectangle for viewport culling. Updates only on resize (never
+  // during a pan/zoom gesture), so it never triggers per-frame re-renders.
+  const [viewportSize, setViewportSize] = useState({ w: 0, h: 0 })
   // V2.4 — currently selected tree (selection only; no details panel yet).
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null)
   // Reset selection when the mission/tiles change.
@@ -99,6 +103,17 @@ export default function FarmViewer({
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(
     null
   )
+
+  // V2.5.1 (ISSUE 3) — hit-testing for tap-vs-drag. OverlayLayer no longer
+  // intercepts pointer events, so a press can start on a tree box and still pan.
+  // We remember which tree (if any) the press began on and whether the pointer
+  // moved; on release, a stationary press on a box selects that tree.
+  const pointerDownInfo = useRef<{
+    treeId: number | null
+    x: number
+    y: number
+    moved: boolean
+  } | null>(null)
 
   // Zoom keeping the point under (clientX, clientY) fixed in the viewport.
   // Writes the DOM directly (no React re-render) and updates viewRef; the caller
@@ -179,6 +194,18 @@ export default function FarmViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tiles])
 
+  // V2.6 — keep the viewport size in state (ResizeObserver) so OverlayLayer's
+  // culling rect stays correct after layout changes. Fires on mount + resize.
+  useEffect(() => {
+    const vp = viewportRef.current
+    if (!vp) return
+    const update = () => setViewportSize({ w: vp.clientWidth, h: vp.clientHeight })
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(vp)
+    return () => ro.disconnect()
+  }, [])
+
   const pointerDistance = () => {
     const pts = [...pointers.current.values()]
     if (pts.length < 2) return 0
@@ -209,11 +236,29 @@ export default function FarmViewer({
       setDragging(false)
       pinchPrevDist.current = pointerDistance()
     }
+
+    // V2.5.1 (ISSUE 3) — record the tree under the press for tap-to-select.
+    const hit = (e.target as HTMLElement)?.closest?.("[data-tree-id]")
+    pointerDownInfo.current = {
+      treeId: hit ? Number(hit.getAttribute("data-tree-id")) : null,
+      x: e.clientX,
+      y: e.clientY,
+      moved: false,
+    }
   }
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!pointers.current.has(e.pointerId)) return
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    // V2.5.1 (ISSUE 3) — mark the press as a drag once it moves past a small
+    // threshold, so a real pan does not also count as a tap-select.
+    const info = pointerDownInfo.current
+    if (info && !info.moved) {
+      const dx = e.clientX - info.x
+      const dy = e.clientY - info.y
+      if (dx * dx + dy * dy > 25) info.moved = true
+    }
 
     if (pointers.current.size >= 2) {
       const dist = pointerDistance()
@@ -245,6 +290,14 @@ export default function FarmViewer({
       dragRef.current = null
       setDragging(false)
       setView(viewRef.current) // commit final gesture to state (zoom % readout)
+
+      // V2.5.1 (ISSUE 3) — a stationary press that began on a tree box is a tap:
+      // select it. A drag (pan) or a press on empty space selects nothing.
+      const info = pointerDownInfo.current
+      pointerDownInfo.current = null
+      if (info && !info.moved && info.treeId != null) {
+        setSelectedTreeId(info.treeId)
+      }
     } else if (pointers.current.size === 1) {
       // Lifted one finger of a pinch — resume panning with the remaining one.
       const [p] = [...pointers.current.entries()]
@@ -260,62 +313,15 @@ export default function FarmViewer({
 
   return (
     <div
-      ref={viewportRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endPointer}
-      onPointerCancel={endPointer}
-      onDoubleClick={fit}
       style={{
         position: "relative",
         width: "100%",
         height,
         minHeight,
         overflow: "hidden",
-        background: "#0b0f0b",
-        cursor: dragging ? "grabbing" : "grab",
-        touchAction: "none",
-        userSelect: "none",
-        WebkitUserSelect: "none",
       }}
     >
-      <div
-        ref={stageRef}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          transformOrigin: "0 0",
-          transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`,
-          transition: smooth ? "transform 0.12s ease-out" : "none",
-          willChange: "transform",
-        }}
-      >
-        <FarmMosaic tiles={tiles} gap={gap} apiBaseUrl={apiBaseUrl} />
-        {trees && trees.length > 0 && (
-          <OverlayLayer
-            trees={trees}
-            tiles={tiles}
-            gap={gap}
-            scale={view.scale}
-            selectedTreeId={selectedTreeId}
-            onTreeSelect={setSelectedTreeId}
-          />
-        )}
-
-        {/* V2.5 — Tree Details panel. Mounted as a sibling of the stage so the
-            viewer (mosaic + overlay) is never recreated; selecting another tree
-            only swaps the panel's content. Closing clears the selection. */}
-        {enableDetailsPanel && selectedTreeId != null && selectedOverlay && (
-          <TreeDetailsPanel
-            tree={selectedOverlay}
-            apiBaseUrl={apiBaseUrl}
-            onClose={() => setSelectedTreeId(null)}
-          />
-        )}
-      </div>
-
-      {/* Controls overlay — stop propagation so taps don't start a pan/pinch. */}
+      {/* Toolbar — sibling of the Viewport, never transformed. */}
       <div
         onPointerDown={(e) => e.stopPropagation()}
         style={{
@@ -324,19 +330,11 @@ export default function FarmViewer({
           right: 12,
           display: "flex",
           gap: 6,
-          zIndex: 5,
+          zIndex: 7,
         }}
       >
-        <ViewerButton
-          label="+"
-          title="Zoom in"
-          onClick={() => zoomCenter(BUTTON_STEP)}
-        />
-        <ViewerButton
-          label="–"
-          title="Zoom out"
-          onClick={() => zoomCenter(1 / BUTTON_STEP)}
-        />
+        <ViewerButton label="+" title="Zoom in" onClick={() => zoomCenter(BUTTON_STEP)} />
+        <ViewerButton label="–" title="Zoom out" onClick={() => zoomCenter(1 / BUTTON_STEP)} />
         <ViewerButton label="Fit" title="Fit to screen (double-click)" onClick={fit} />
         {expandHref && (
           <ViewerButton
@@ -347,20 +345,83 @@ export default function FarmViewer({
         )}
       </div>
 
+      {/* Viewport — owns pan/zoom pointer handling. Contains ONLY the scaled
+          stage (mosaic + overlay). The Tree Details drawer is a sibling of this
+          viewport, NOT inside the transformed stage, so it never scales. */}
       <div
-        data-testid="zoom-readout"
+        ref={viewportRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endPointer}
+        onPointerCancel={endPointer}
+        onDoubleClick={fit}
         style={{
           position: "absolute",
-          left: 12,
-          bottom: 12,
-          color: "#6b7d6b",
-          fontSize: 12,
-          zIndex: 5,
-          pointerEvents: "none",
+          inset: 0,
+          overflow: "hidden",
+          background: "#0b0f0b",
+          cursor: dragging ? "grabbing" : "grab",
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
         }}
       >
-        {Math.round(view.scale * 100)}%
+        <div
+          ref={stageRef}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            transformOrigin: "0 0",
+            transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`,
+            transition: smooth ? "transform 0.12s ease-out" : "none",
+            willChange: "transform",
+          }}
+        >
+          <FarmMosaic tiles={tiles} gap={gap} apiBaseUrl={apiBaseUrl} />
+          {trees && trees.length > 0 && (
+            <OverlayLayer
+              trees={trees}
+              tiles={tiles}
+              gap={gap}
+              scale={view.scale}
+              tx={view.tx}
+              ty={view.ty}
+              viewportWidth={viewportSize.w}
+              viewportHeight={viewportSize.h}
+              selectedTreeId={selectedTreeId}
+            />
+          )}
+        </div>
+
+        <div
+          data-testid="zoom-readout"
+          style={{
+            position: "absolute",
+            left: 12,
+            bottom: 12,
+            color: "#6b7d6b",
+            fontSize: 12,
+            zIndex: 5,
+            pointerEvents: "none",
+          }}
+        >
+          {Math.round(view.scale * 100)}%
+        </div>
       </div>
+
+      {/* V2.5.1 (ISSUE 1) — Tree Details drawer lives OUTSIDE the transformed
+          stage, as a sibling of the Viewport, so it stays fixed on screen at any
+          zoom. Always mounted; it slides in/out so opening/closing never
+          recreates the viewer. */} 
+      {enableDetailsPanel && (
+        <TreeDetailsDrawer
+          open={selectedTreeId != null}
+          tree={selectedOverlay}
+          apiBaseUrl={apiBaseUrl}
+          onClose={() => setSelectedTreeId(null)}
+        />
+      )}
     </div>
   )
 }

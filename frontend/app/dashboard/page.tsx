@@ -4,13 +4,10 @@ import { useCallback, useEffect, useState } from "react"
 import {
   getDashboardOverview,
   getRobotStatus,
-  getMapData,
   type DashboardOverview,
   type RobotStatus,
-  type MapTree,
   type ActivityEvent,
 } from "@/lib/api/detection"
-import MapWrapper from "@/components/MapWrapper"
 import DashboardFarmCard from "@/components/DashboardFarmCard"
 
 const POLL_MS = 5000
@@ -153,7 +150,6 @@ const ACTIVITY_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardOverview | null>(null)
   const [robot, setRobot] = useState<RobotStatus | null>(null)
-  const [trees, setTrees] = useState<MapTree[]>([])
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
@@ -171,12 +167,6 @@ export default function DashboardPage() {
         }
       } else {
         setRobot(null)
-      }
-
-      try {
-        setTrees(await getMapData())
-      } catch {
-        // map is non-critical; leave prior trees in place
       }
 
       setError(null)
@@ -411,29 +401,9 @@ export default function DashboardPage() {
         <DashboardFarmCard />
       </div>
 
-      {/* Map + Recent Activity */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
-          gap: 12,
-          marginTop: 24,
-          alignItems: "start",
-        }}
-      >
-        <div style={card}>
-          <div style={{ fontWeight: 600, marginBottom: 10 }}>
-            Farm Map ({trees.length} trees)
-          </div>
-          {trees.length > 0 ? (
-            <MapWrapper trees={trees} />
-          ) : (
-            <p style={{ color: "#999" }}>No permanent trees to display.</p>
-          )}
-        </div>
-
-        <div style={card}>
-          <div style={{ fontWeight: 600, marginBottom: 10 }}>Recent Activity</div>
+      {/* Recent Activity */}
+      <div style={card}>
+        <div style={{ fontWeight: 600, marginBottom: 10 }}>Recent Activity</div>
           {data.recent_activity.length === 0 ? (
             <p style={{ color: "#999" }}>No activity yet.</p>
           ) : (
@@ -469,7 +439,6 @@ export default function DashboardPage() {
             </ul>
           )}
         </div>
-      </div>
     </main>
   )
 }

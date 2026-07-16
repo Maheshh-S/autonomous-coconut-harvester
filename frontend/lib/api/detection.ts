@@ -111,22 +111,6 @@ export async function getTreesSummary() {
   return res.json()
 }
 
-export async function getMapData() {
- 
-  const res = await fetch(
-    getApiUrl("/plantation/map"),
-    {
-      cache: "no-store"
-    }
-  )
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch map data")
-  }
-
-  return res.json()
-}
-
 // ---------------------------------------------------------------------------
 // Survey Mission + image ingestion (Feature 2)
 // ---------------------------------------------------------------------------
@@ -632,13 +616,4 @@ export async function getDashboardOverview() {
   })
   if (!res.ok) throw new Error("Failed to load dashboard overview")
   return res.json() as Promise<DashboardOverview>
-}
-
-export interface MapTree {
-  tree_id: number
-  tree_code: string | null
-  gps_lat: number
-  gps_lon: number
-  coconuts_detected: number
-  tasks_remaining: number
 }

@@ -27,6 +27,12 @@ export default function RobotPage() {
         { cache: "no-store" }
       )
 
+      if (!res.ok) {
+        setMessage(`Could not reach the robot service (${res.status}).`)
+        setTask(null)
+        return
+      }
+
       const data = await res.json()
 
       if (data.message) {

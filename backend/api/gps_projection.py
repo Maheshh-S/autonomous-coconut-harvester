@@ -65,6 +65,8 @@ def project_tile_center_gps(
     base_lon: float,
     tile_row: int,
     tile_col: int,
+    row_spacing_deg: float = SPACING_DEG,
+    col_spacing_deg: float = SPACING_DEG,
 ) -> tuple[float, float]:
     """Project a tile's *centre* to a generated (lat, lon).
 
@@ -72,9 +74,15 @@ def project_tile_center_gps(
     where the intra-tile pixel offset is zero — so it depends only on the mission
     base coordinate and the tile's grid position. Kept here (single source, §10)
     so tile metadata persistence and the Digital Twin never re-derive the spacing.
+
+    ``row_spacing_deg`` / ``col_spacing_deg`` allow the Flight Planner (VERSION
+    2.8.3) to override the default ground distance between adjacent tile centres;
+    they default to ``SPACING_DEG`` so existing callers are unchanged.
     """
 
-    return base_lat + (tile_row * SPACING_DEG), base_lon + (tile_col * SPACING_DEG)
+    return base_lat + (tile_row * row_spacing_deg), base_lon + (
+        tile_col * col_spacing_deg
+    )
 
 
 def project_detection_gps(

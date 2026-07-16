@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { detectTrees } from "@/lib/api/detection"
+import { detectTrees, API_BASE_URL } from "@/lib/api/detection"
 import { useRouter } from "next/navigation"
 
 type Tree = {
@@ -12,8 +12,6 @@ type Tree = {
   y2: number
   confidence: number
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
 
 export default function DroneUploader() {
 

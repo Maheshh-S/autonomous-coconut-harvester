@@ -31,7 +31,9 @@ from api.gps_projection import (
     project_tile_center_gps,
     DISTANCE_THRESHOLD,
 )
-
+# Version 2.8.3 — simulated Flight Planner is the source of truth for tile
+# spatial placement; mission geometry is planner-config-defined, not image-derived.
+from api.flight_planner import plan_flight, FlightPlannerError
 
 router = APIRouter()
 
@@ -348,33 +350,36 @@ def generate_tiles_for_mission(db, mission_id: int) -> int:
         .all()
     }
 
-    # Version 2 (§V2.5, Decision 4): the deterministic coverage grid is computed
-    # once here (from the survey image ordering) and PERSISTED onto each tile, so
-    # it is never recomputed downstream. Image dimensions are filled later during
-    # tile processing (see ``process_tile``) — the only stage that decodes the file.
-    grid = _tile_grid_positions(db, mission_id)
-
-    def _tile_center(row: int, col: int):
-        if base_lat is None or base_lon is None:
-            return None, None
-        return project_tile_center_gps(base_lat, base_lon, row, col)
+    # Version 2.8.3 — the survey geometry is produced by the simulated Flight
+    # Planner (``SimulationFlightPlanner``) from an EXPLICIT ``PlannerConfig``
+    # (rows/cols/origin/pattern/spacing — §DECISIONS Decision 6b), NOT from the
+    # image count. The grid is persisted onto each tile so the frontend never
+    # infers positions (§V2, Decision 4). Images only populate the planned capture
+    # positions; an overflow (more images than planned cells) is a validation
+    # error, never a silently-extended grid. Image dimensions are filled later
+    # during tile processing (``process_tile``) — the only stage that decodes the
+    # file.
+    try:
+        flight = plan_flight(db, mission_id)
+    except FlightPlannerError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    placement_by_image = {p.image_id: p for p in flight.placements}
 
     created = 0
     for image in images:
         if image.id in existing:
             continue
-        row, col = grid.get(image.id, (0, 0))
-        center_lat, center_lon = _tile_center(row, col)
+        p = placement_by_image[image.id]
         db.add(
             SurveyTile(
                 mission_id=mission_id,
                 image_id=image.id,
                 status=SurveyTileStatus.PENDING.value,
-                capture_order=image.upload_order,
-                grid_row=row,
-                grid_col=col,
-                center_gps_lat=center_lat,
-                center_gps_lon=center_lon,
+                capture_order=p.capture_order,
+                grid_row=p.grid_row,
+                grid_col=p.grid_col,
+                center_gps_lat=p.center_gps_lat,
+                center_gps_lon=p.center_gps_lon,
             )
         )
         created += 1
@@ -386,14 +391,14 @@ def generate_tiles_for_mission(db, mission_id: int) -> int:
         db.query(SurveyTile).filter(SurveyTile.mission_id == mission_id).all()
     ):
         if tile.grid_row is None or tile.capture_order is None:
-            image = next((im for im in images if im.id == tile.image_id), None)
-            row, col = grid.get(tile.image_id, (0, 0))
-            tile.grid_row = row
-            tile.grid_col = col
-            tile.capture_order = image.upload_order if image is not None else None
-            center_lat, center_lon = _tile_center(row, col)
-            tile.center_gps_lat = center_lat
-            tile.center_gps_lon = center_lon
+            p = placement_by_image.get(tile.image_id)
+            if p is None:
+                continue
+            tile.grid_row = p.grid_row
+            tile.grid_col = p.grid_col
+            tile.capture_order = p.capture_order
+            tile.center_gps_lat = p.center_gps_lat
+            tile.center_gps_lon = p.center_gps_lon
     db.commit()
 
     # Keep the denormalized mission tile counter in sync with the actual tile rows.
@@ -434,26 +439,6 @@ def generate_tiles_for_mission(db, mission_id: int) -> int:
 # geometry refines which candidate wins and is reported as the match confidence.
 GPS_WEIGHT = 0.7
 GEO_WEIGHT = 0.3
-
-
-def _tile_grid_positions(db, mission_id: int) -> dict:
-    """Map image_id -> (row, col) in a deterministic coverage grid.
-
-    The mission system does not yet compute a real coverage grid (§8.3); we lay
-    the uploaded images out in a square-ish grid by their upload order so that
-    each tile gets a stable spatial cell for projection. Deterministic and good
-    enough for the matching foundation — a real grid would slot in here later.
-    """
-
-    images = (
-        db.query(SurveyImage)
-        .filter(SurveyImage.mission_id == mission_id)
-        .order_by(SurveyImage.upload_order)
-        .all()
-    )
-    n = len(images)
-    cols = max(1, math.ceil(math.sqrt(n)))
-    return {img.id: (idx // cols, idx % cols) for idx, img in enumerate(images)}
 
 
 def _representative_sort_key(obs: TreeObservation, tile_dims: dict) -> tuple:
@@ -563,7 +548,10 @@ def match_trees_for_mission(db, mission_id: int) -> int:
     touched_tree_ids: set = set()
     created = 0
     observation_data: list = []
-    new_trees: list = []
+    # (lightweight_dict, ORM_Tree) pairs for trees created this run. Resolved to
+    # real ids in the post-flush pass below; keyed by pair (not by dict identity,
+    # which is unhashable) so we can repoint the dict and record the real id.
+    new_tree_pairs: list = []
     # Deferred Tree updates: applied once via a single executemany UPDATE after the
     # loop, so the ~N existing-tree UPDATEs collapse into one round-trip.
     tree_updates: dict = {}
@@ -669,7 +657,6 @@ def match_trees_for_mission(db, mission_id: int) -> int:
                     last_box_h=bh,
                 )
                 db.add(resolved_tree)
-                new_trees.append(resolved_tree)
                 new_id = None  # assigned by the batched flush after the loop
                 # Mirror the new tree into the match set as a plain dict so later
                 # detections in this run can converge on it.
@@ -684,15 +671,9 @@ def match_trees_for_mission(db, mission_id: int) -> int:
                 all_trees.append(resolved)
                 # Id assigned by the single batched flush after the loop (below),
                 # so the observation's tree_id is populated before the bulk insert.
-                tree_updates[resolved["id"]] = {
-                    "id": None,  # filled after the post-loop flush assigns the id
-                    "last_seen_mission_id": mission_id,
-                    "times_seen": 1,
-                    "last_matching_confidence": None,
-                    "last_box_w": bw,
-                    "last_box_h": bh,
-                    "availability": "ACTIVE",
-                }
+                # Track the (dict, ORM) pair so the post-flush pass can repoint the
+                # dict to the real id and record that id in touched_tree_ids.
+                new_tree_pairs.append((resolved, resolved_tree))
                 created += 1
 
             # Version 2 (§V2.5): record this detection as a permanent, historical
@@ -727,11 +708,20 @@ def match_trees_for_mission(db, mission_id: int) -> int:
         db.flush()
         # Map each new ORM Tree back to the lightweight dict used during matching,
         # so the observation rows assembled below carry the real (assigned) id.
-        new_tree_dicts = [od["tree"] for od in observation_data if od["tree"].get("id") is None]
-        for t, rdict in zip(new_trees, new_tree_dicts):
+        # Multiple detections can converge on the SAME new stub tree — they share
+        # the same dict reference — so we resolve by (dict, Tree) pair rather than
+        # zipping observation dicts 1:1 with the ORM objects; a 1:1 zip would drop
+        # the extra converged observations and leave their tree_id NULL on insert.
+        # We also record the real id in touched_tree_ids so the representative pass
+        # below repoints these brand-new trees' current_observation_id. Previously
+        # only None was added (the stub's id before flush) and was silently skipped,
+        # leaving every new tree's current_observation_id NULL and the Digital Twin
+        # empty for a first survey.
+        for rdict, t in new_tree_pairs:
             # Immutable public code derived from the row id — unique/stable.
             t.tree_code = f"TREE-{t.id:04d}"
             rdict["id"] = t.id
+            touched_tree_ids.add(t.id)
             tree_updates[t.id] = {
                 "id": t.id,
                 "last_seen_mission_id": mission_id,

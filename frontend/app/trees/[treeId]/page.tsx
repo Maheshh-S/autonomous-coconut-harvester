@@ -25,6 +25,7 @@ export default function TreePage({ params }: Props) {
 
   const [harvestType, setHarvestType] = useState("mature")
   const [tree, setTree] = useState<TreeSummary | null>(null)
+  const [notFound, setNotFound] = useState(false)
 
 
 
@@ -32,6 +33,7 @@ export default function TreePage({ params }: Props) {
 
     async function loadTree() {
 
+      setNotFound(false)
       const trees: TreeSummary[] = await getTreesSummary()
 
       const t = trees.find(
@@ -39,12 +41,24 @@ export default function TreePage({ params }: Props) {
       )
 
       setTree(t ?? null)
+      if (!t) setNotFound(true)
     }
 
     loadTree()
   }, [treeId])
 
   // --------------------------
+
+  if (notFound) {
+    return (
+      <div style={{ padding: 20 }}>
+        <h1>Tree Detail Page</h1>
+        <p style={{ color: "#dc2626" }}>
+          Tree #{treeId} not found.
+        </p>
+      </div>
+    )
+  }
 
   if (!tree) {
     return <div>Loading...</div>
@@ -102,12 +116,16 @@ export default function TreePage({ params }: Props) {
             Mature only
           </option>
 
-          <option value="tender">
-            Tender only
+          <option value="potential">
+            Potential only
           </option>
 
-          <option value="both">
-            Both
+          <option value="premature">
+            Premature only
+          </option>
+
+          <option value="all">
+            All
           </option>
 
         </select>

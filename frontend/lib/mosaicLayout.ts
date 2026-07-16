@@ -43,18 +43,26 @@ export function computeMosaicLayout(
     rowH.set(row, Math.max(rowH.get(row) ?? 0, h))
   }
 
-  const maxCol = Math.max(...tiles.map((t) => t.grid_col as number))
-  const maxRow = Math.max(...tiles.map((t) => t.grid_row as number))
+  // Fit only the *occupied* farm rectangle: derive the bounding box from the
+  // actual tiles (min/max row/col) rather than assuming a 0-based dense grid.
+  // This guarantees the viewer frames the real farm with no artificial empty
+  // rows/columns (VERSION 2.8.2).
+  const cols = tiles.map((t) => t.grid_col as number)
+  const rows = tiles.map((t) => t.grid_row as number)
+  const maxCol = Math.max(...cols)
+  const maxRow = Math.max(...rows)
+  const minCol = Math.min(...cols)
+  const minRow = Math.min(...rows)
 
   const colX = new Array<number>(maxCol + 1)
   let x = gap
-  for (let c = 0; c <= maxCol; c++) {
+  for (let c = minCol; c <= maxCol; c++) {
     colX[c] = x
     x += (colW.get(c) ?? MIN_TILE) + gap
   }
   const rowY = new Array<number>(maxRow + 1)
   let y = gap
-  for (let r = 0; r <= maxRow; r++) {
+  for (let r = minRow; r <= maxRow; r++) {
     rowY[r] = y
     y += (rowH.get(r) ?? MIN_TILE) + gap
   }

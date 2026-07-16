@@ -131,11 +131,28 @@ def _eligible_trees(db, harvest_type: str) -> List[dict]:
         .all()
     )
 
+    # Bulk-load the Inventory Snapshots in ONE round-trip instead of one query per
+    # tree — the previous per-tree db.get was an N+1 that became hundreds of
+    # sequential round-trips against the remote Neon database.
+    snapshot_ids = [
+        t.current_inventory_id for t in trees if t.current_inventory_id is not None
+    ]
+    snapshots = (
+        {
+            s.id: s
+            for s in db.query(InventorySnapshot)
+            .filter(InventorySnapshot.id.in_(snapshot_ids))
+            .all()
+        }
+        if snapshot_ids
+        else {}
+    )
+
     eligible: List[dict] = []
     for tree in trees:
         if tree.id in assigned:
             continue
-        snap = db.get(InventorySnapshot, tree.current_inventory_id)
+        snap = snapshots.get(tree.current_inventory_id)
         if snap is None:
             continue
         expected = getattr(snap, count_attr)

@@ -85,26 +85,37 @@ def get_trees_summary():
 
     trees = db.query(Tree).all()
 
-    result = []
+    # Bulk-aggregate coconut counts and open-task counts in TWO queries instead of
+    # 2 queries per tree (an N+1 that becomes ~600 sequential round-trips against
+    # the remote Neon database and hangs the endpoint). Group server-side and map
+    # by tree id.
+    from sqlalchemy import func
 
-    for t in trees:
+    coconut_rows = (
+        db.query(Detection.tree_id, func.count(Detection.id))
+        .group_by(Detection.tree_id)
+        .all()
+    )
+    coconut_counts = {tid: c for tid, c in coconut_rows}
 
-        coconuts = db.query(Detection).filter(
-            Detection.tree_id == t.id
-        ).count()
+    task_rows = (
+        db.query(Task.tree_id, func.count(Task.id))
+        .filter(Task.status != "completed")
+        .group_by(Task.tree_id)
+        .all()
+    )
+    task_counts = {tid: c for tid, c in task_rows}
 
-        tasks = db.query(Task).filter(
-            Task.tree_id == t.id,
-            Task.status != "completed"
-        ).count()
-
-        result.append({
+    result = [
+        {
             "tree_id": t.id,
             "gps_lat": t.gps_lat,
             "gps_lon": t.gps_lon,
-            "coconuts_detected": coconuts,
-            "tasks_remaining": tasks
-        })
+            "coconuts_detected": coconut_counts.get(t.id, 0),
+            "tasks_remaining": task_counts.get(t.id, 0),
+        }
+        for t in trees
+    ]
 
     db.close()
 

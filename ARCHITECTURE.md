@@ -30,6 +30,19 @@ persisted in **PostgreSQL** (Neon).
 ## Mapping / Planning
 - `mapping/coverage_path.py` generates a lawnmower GPS coverage path used by the
   drone scan orchestrator.
+- `backend/api/flight_planner.py` is the **simulated Flight Planner** and the
+  **source of truth for survey mission geometry** (Version 2.8.3). It owns
+  `rows`, `cols`, `origin`, `traversal_pattern`, `row_spacing` and `column_spacing`
+  via an explicit `PlannerConfig` (NOT derived from the image count — no
+  `sqrt`/divisor/nearest-rectangle heuristic). It emits `rows*cols` **waypoints**
+  (capture positions) in flown (boustrophedon) order and slots the uploaded images
+  into those positions by `upload_order`; fewer images populate only the available
+  positions, more images raise a validation error (HTTP 422). Centre GPS per
+  position comes from `gps_projection.project_tile_center_gps`. `survey_api.
+  generate_tiles_for_mission` persists the planner output onto each `SurveyTile` so
+  the frontend never infers positions (replaces the old `ceil(sqrt(n))` ragged-grid
+  heuristic — VERSION 2.8.1 root cause #1; hardened in V2.8.3 so the planner defines
+  geometry rather than inferring it from image count).
 - `backend/api/planner_api.py` and `harvest_planner.py` turn mature detections
   into an ordered harvest plan.
 

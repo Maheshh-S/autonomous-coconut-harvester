@@ -67,9 +67,7 @@ function FarmMosaic({
         width,
         height,
         background: "#0b0f0b",
-        overflow: "auto",
-        border: "1px solid #2c3a2c",
-        borderRadius: 8,
+        overflow: "hidden",
       }}
     >
       {placed.map((p) =>

@@ -17,7 +17,7 @@ export default async function TreesPage() {
 
     <div style={{ padding: 20 }}>
 
-      <h1>Farm Dashboard</h1>
+      <h1>Trees</h1>
 
       <table
         border={1}

@@ -252,23 +252,348 @@
       panel (highlight-only).
     - *(VERSION 2.5 code is implemented and verified; awaiting commit approval — do NOT
        commit yet.)*
-  - **Performance TODO (V2.1 write path, not a blocker):** the bulk-write path is now
+   - **VERSION 2.5.1 — Tree Details UX / interaction refinement (completed; awaiting
+     commit approval):** a refinement of V2.5 — **no new features, no new data, no backend
+     change**. Fixes five issues found after V2.5.
+     - **ISSUE 1 (panel scaled with zoom — root cause found):** in V2.5 the
+       `TreeDetailsPanel` was rendered **inside the transformed stage `<div ref={stageRef}>`**,
+       so it inherited `transform: translate(…) scale(…)` and shrank/grew with zoom. Fix:
+       the component is renamed **`TreeDetailsDrawer`** and is now a **sibling of the
+       Viewport**, outside the transformed stage — it stays fixed on screen at any zoom
+       (verified: drawer width 384px unchanged after zoom-in). New `FarmViewer` layout =
+       `Toolbar` (sibling) + `Viewport` (owns pan/zoom; contains **only** the Stage:
+       `FarmMosaic` + `OverlayLayer`) + `TreeDetailsDrawer` (sibling of Viewport).
+     - **ISSUE 3 (drag-to-pan unreliable — root cause found):** `OverlayLayer` boxes had
+       `onPointerDown={(e)=>e.stopPropagation()}` which blocked the Viewport's `onPointerDown`
+       (pan) whenever the press started on a box. With ~302 densely-packed boxes covering
+       the canvas, pan only worked in the rare gaps. Fix: `OverlayLayer` no longer
+       intercepts pointer events and no longer emits selection — it is purely presentational
+       (renders `data-tree-id` boxes + hover). Tap-vs-drag detection moved into `FarmViewer`:
+       `pointerDownInfo` records the tree under the press + a small movement threshold; on
+       pointer-up, a **stationary** press on a box selects it (via `setSelectedTreeId`), a
+       drag pans and does **not** select. Pan now works everywhere; 302 boxes no longer block it.
+     - **ISSUE 2 (UX redesign):** the debug-panel look is replaced with clean dashboard
+       **cards** — Tree Information (code / GPS / times-seen / confidence), Current Inventory
+       (Total / Mature / Potential / Premature stats), Inspection History (list), Latest
+       Inspection Images (3-col thumbnail grid), Harvest Status. No new data fields.
+     - **ISSUE 4 (drawer must not reset the viewer):** the drawer is **always mounted** and
+       slides in/out via an `open` prop (transform transition), so opening/closing never
+       recreates the viewer / mosaic / overlay. Last-selected tree is retained in a ref so
+       content stays visible during slide-out (no flicker). Verified: stage transform
+       (zoom+pan) is byte-identical before vs after an open→close cycle.
+     - **ISSUE 5 (responsive):** desktop = right-side drawer `min(384px, 92vw)` at `top:52`
+       (clears the toolbar), `pointerEvents` disabled when closed; mobile (`matchMedia
+       max-width:768px`) = **`position: fixed` bottom sheet**, full width, `height: 70vh`
+       (anchored to the viewport bottom, not the FarmViewer container — verified: bottom at
+       viewport bottom). Body scrolls; no new data.
+     - **Files changed:** `frontend/components/TreeDetailsDrawer.tsx` (new; replaced
+       `TreeDetailsPanel.tsx`), `FarmViewer.tsx` (layout split + tap selection),
+       `OverlayLayer.tsx` (removed `onTreeSelect` + `stopPropagation`), `app/map/page.tsx`
+       (unchanged — still passes `enableDetailsPanel`). Dashboard card unaffected
+       (`enableDetailsPanel` default false → drawer never rendered).
+     - **Verification:** `tsc --noEmit` + `next build` pass; Playwright harness **11/11, 0
+       console errors** — 302 boxes, drawer starts closed, tap opens drawer, drawer width
+       unaffected by zoom, drag pans the stage, drag does NOT select, open/close preserves
+       zoom+pan, close clears selection, reselect works, mobile bottom sheet anchored to
+       viewport bottom; dashboard renders 302 boxes with no drawer, 0 errors.
+     - *(VERSION 2.5.1 code is implemented and verified; awaiting commit approval — do NOT
+        commit yet.)*
+   - **VERSION 2.6 — Renderer Performance (viewport culling + label LOD) (completed;
+     awaiting commit approval):** PERFORMANCE ONLY — no new UI features, no component
+     redesign, no business-logic changes, no API changes, no backend change. Honours the
+     Architecture Freeze (RULE 1): `FarmViewer` still owns all interaction state;
+     `FarmMosaic`, `OverlayLayer`, and `TreeDetailsDrawer` stay presentation-only.
+     - **Files changed (frontend only):**
+       - `frontend/components/OverlayLayer.tsx` — adds viewport culling + zoom LOD;
+         centroid marker is now LOD-gated (was always rendered).
+       - `frontend/components/FarmViewer.tsx` — tracks `viewportSize` via a
+         `ResizeObserver` and passes the current `tx` / `ty` / `viewportWidth` /
+         `viewportHeight` to `OverlayLayer`. No other logic changed.
+       - `FarmMosaic`, `TreeDetailsDrawer`, `Toolbar`, and the API layer are **untouched**.
+       - **No backend change** (culling/LOD are pure frontend transforms).
+     - **Rendering architecture (unchanged):** `FarmMosaic` (presentation) is wrapped by
+       `FarmViewer`'s transformed **stage**; `OverlayLayer` mounts **inside the stage** and
+       inherits the single CSS transform (zoom/pan/fit for free, no duplicated transform).
+       `FarmViewer` commits `view` (scale/tx/ty) to React state **only at gesture end**;
+       during a gesture it writes the transform straight to the DOM, so navigation never
+       re-renders the overlay per frame.
+     - **Viewport culling (RULE 2):** the visible rectangle is computed in **farm-pixel
+       space** from the current `scale`, `translation (tx,ty)`, and `viewport size` — no GPS
+       approximation. `farm = (screen − t) / scale`, so the rect is
+       `left = −tx/s`, `top = −ty/s`, `right = (vw − tx)/s`, `bottom = (vh − ty)/s`, padded
+       by a ~64-screen-px margin. Boxes outside the rect are **not rendered**. `selected`
+       and `hovered` trees are **never culled** (highlight + drawer stay live even when
+       panned off-screen). The visible list is `useMemo`'d, so it recomputes only when the
+       committed view / data / selection changes — never per animation frame.
+     - **Label LOD (RULE 3):** by zoom **percentage** (`scale × 100`):
+       - **< 20%** — boxes only; labels **and** centroid markers hidden (selected/hovered
+         excepted).
+       - **20–40%** — boxes + centroid; **selected / hovered** label shown.
+       - **> 40%** — boxes + centroid + **all** labels.
+       The **selected tree's label is ALWAYS visible** (overrides the LOD hide). A minimum
+       on-screen box size (`w·s > 8 && h·s > 6`) prevents a label on a sub-pixel box.
+     - **Avoiding re-renders (RULE 4):** culling/LOD recompute only on committed `view`
+       change (gesture end) or resize — pan/zoom gestures do **not** recreate overlay data
+       or re-render the layer mid-flight. `FarmMosaic`, `Toolbar`, and `Drawer` are never
+       recreated by selection/culling.
+     - **DOM rendering preserved (RULE 5):** still plain absolutely-positioned `<div>`s;
+       no Canvas / SVG / WebGL migration. Those remain a future fallback only if box counts
+       exceed a DOM threshold.
+     - **Performance measurements (RULE 6) — before vs after** (dataset: 302 trees;
+       "before" derived from the pre-change V2.5.1 source: centroid always rendered, no
+       culling, so all 302 boxes were always in the DOM):
+       | View | Before DOM nodes | After DOM nodes |
+       |---|---|---|
+       | Fit (~12%) | 604 (302 box + 302 centroid; labels hidden) | **302** (boxes only — LOD hides centroids) |
+       | Zoomed ~72% | 906 (all 302 × box+centroid+label, off-screen ones still in DOM) | **69** (23 visible × 3, culled) |
+       - **Rendered boxes:** fit = 302 (all visible, no cull); zoomed ~72% = **23 / 302**
+         (off-screen trees removed from the DOM).
+       - **Initial render:** unchanged (single `computeMosaicLayout` + memoised cull).
+       - **Pan FPS:** ≈ **60** (no React re-render during pan — same as before; the
+         transform is written directly to the DOM).
+       - **Zoom responsiveness:** wheel commits `view` per tick → cull/LOD recompute; smooth
+         at 302 trees.
+     - **Verification (RULE 7):** `tsc --noEmit` + `next build` pass; backend unaffected.
+       Playwright harness **15/15, 0 console errors** — fit renders all 302 (labels hidden
+       at <20%); selected label always visible when zoomed out; zoom-in culls to 23 boxes
+       with all labels + centroids (LOD >40%); pan ≈ 60 FPS; drag pans and does not select;
+       Fit restores whole-farm view; tap opens drawer; close clears selection; dashboard
+       renders 302 boxes with no drawer. Mobile (390×780): 302 boxes at fit, drawer opens as
+       bottom sheet anchored to viewport bottom, 0 errors.
+     - **Remaining limitations:**
+       - Culling recomputes at **gesture end**, not per animation frame: during a long pan,
+         trees that scroll off the prior view stay in the DOM until release (they pan
+         correctly with the stage, so there is no visual glitch — just extra nodes until
+         release). A future enhancement could throttle cull updates via `requestAnimationFrame`
+         for progressive reveal during very long pans.
+       - The test dataset is only 302 trees and they all fit on screen, so culling's benefit
+         is only visible when zoomed in. The implementation targets large plantations
+         (thousands of trees) where, at fit, only the visible subset is ever in the DOM.
+       - LOD centroid/label thresholds (20% / 40%) are the spec-suggested values; tunable.
+    - *(VERSION 2.6 code is implemented and verified; awaiting commit approval — do NOT
+        commit yet.)*
+    - **VERSION 2.7 — Release Hardening (completed; awaiting commit approval):** the
+      final hardening milestone for the frozen Version 2. Architecture locked; scope was
+      critical review, dead-code/legacy cleanup, correctness + performance fixes, and
+      regression — **no new features, no new APIs, no architecture change**. Two read-only
+      review agents (backend + frontend) were run; every reported issue was verified against
+      the code before action.
+      - **CRITICAL backend fix — new trees never appeared in the twin (root cause found +
+        proven):**
+        `match_trees_for_mission` added only `None` to `touched_tree_ids` for newly created
+        trees (the pre-flush stub dict had `id=None`); the post-flush loop repointed the
+        observation dicts and `tree_updates` but **never added the real new-tree ids to
+        `touched_tree_ids`**. So `_recompute_representative_observations` (which filters out
+        `None`) silently skipped every brand-new tree, leaving `Tree.current_observation_id`
+        NULL. The twin endpoint (`GET /mission/{id}/trees`, which joins
+        `TreeObservation.id == Tree.current_observation_id`) then returned **zero rows** for a
+        first survey — the Digital Twin was empty on a clean database. **Fix:** track new
+        trees as `(dict, ORM_Tree)` pairs (`new_tree_pairs`) and, after the batched flush,
+        repoint each dict to its real id, add it to `touched_tree_ids`, and write
+        `tree_updates`. This also fixes a **related crash**: the old code `zip`ped
+        `new_trees` 1:1 with `new_tree_dicts` (observation dicts), so when **two detections
+        converged on the same new stub tree** (shared dict) the second observation kept
+        `tree_id=None` and the bulk `INSERT` failed. Resolution is now by pair/identity, so
+        converging detections correctly become multiple observations of one new tree.
+        **Validated** with an isolated DB script: 2 new trees created, both got
+        `current_observation_id` set, 3 observations (two converging), twin query returns
+        both. *(survey_api.py:566, 684, 726–743, 807.)*
+      - **Backend N+1 fix (harvest planner):** `_eligible_trees` did a per-tree
+        `db.get(InventorySnapshot, …)` inside the tree loop — an N+1 that becomes hundreds of
+        round-trips on Neon. Collapsed into one grouped `IN` query. *(harvest_mission_api.py:
+        135–152.)*
+      - **Backend N+1 fix (`GET /trees/summary` — this endpoint was HANGING):**
+        tree_api.py looped per-tree `Detection.count()` + `Task.count()` (2 queries/tree →
+        ~604 round-trips over 302 trees → request hung >20 s). Collapsed into two grouped
+        aggregates. **Validated:** endpoint now returns 302 rows in ~3.2 s (was timeout). This
+        also unblocks the `/trees` server page and the `/trees/[treeId]` detail lookup, which
+        both call `getTreesSummary` and were previously stuck on "Loading…".
+        *(tree_api.py:81–110.)*
+      - **Legacy V1 Leaflet map removed (Decision 5 violation fixed):** the dashboard rendered
+        a **second**, parallel V1 Leaflet/OSM "Farm Map" card alongside the V2 Digital Twin
+        (`DashboardFarmCard`) — a direct violation of the frozen "single viewer, no parallel
+        maps" rule. Removed `components/MapView.tsx`, `MapWrapper.tsx`, `leafletFix.ts`,
+        their only consumer on `/dashboard`, and the now-unused `getMapData` + `MapTree` from
+        `lib/api/detection.ts`. Removed `react-leaflet` / `leaflet` / `@types/leaflet` from
+        `package.json` and `node_modules`. The V2 twin (`/map` + `DashboardFarmCard`) is now the
+        only farm viewer (Decision 5 satisfied).
+      - **Frontend correctness fixes:**
+        - `/trees/[treeId]`: an unknown `treeId` previously rendered "Loading…" **forever**
+          (no not-found state). Now shows "Tree #… not found." *(trees/[treeId]/page.tsx.)*
+        - `/robot`: `res.ok` was never checked, so a non-200 from `/robot/next_task` threw on
+          `res.json()` and crashed the page. Now shows a graceful message.
+        - `/trees/[treeId]` harvest select offered V1 terms `tender`/`both`; the backend
+          `HarvestType` is `mature|potential|premature|all`. Options corrected.
+        - `TreeDetailsDrawer`: the harvest lookup (`harvestReady` flip) re-triggered the detail
+          effect, firing a **duplicate** `getTreeInventory`/`getTreeInventoryHistory`/
+          `getTreeInspections` fetch on first selection. Gated the detail fetch on
+          `harvestReady` so it runs once. *(TreeDetailsDrawer.tsx:145–203.)*
+      - **Minor cleanup:** removed a dangling `//strech` debug comment; de-duplicated the
+        `API_BASE_URL` constant in `DroneUploader.tsx` (now imports the canonical export);
+        fixed the `/trees` page title ("Farm Dashboard" → "Trees").
+      - **V1 endpoints intentionally kept:** `/detect/trees`, `/plantation/map`, `/drone/*`
+        etc. are the preserved V1 data/business logic per the freeze and remain mounted
+        (not dead code). `DroneUploader` / `CoconutUploader` are the real V2 survey/inspection
+        upload entry points and were kept.
+      - **Verification:** `tsc --noEmit` + `next build` pass (no Leaflet imports remain);
+        backend imports clean; isolated DB script proves the twin fix; live twin endpoint
+        returns 302 trees; `/trees/summary` ~3.2 s; Playwright **dashboard** (no Farm Map /
+        Leaflet, Overview + Recent Activity present), **tree detail** (valid id → detail,
+        bogus id → not found, no infinite Loading), **robot** (no crash) — **0 console errors**;
+         V2.6 regression suite **15/15, 0 console errors** (twin viewer intact after Leaflet
+        removal + backend fixes).
+      - *(VERSION 2.7 code is implemented and verified; awaiting commit approval — do NOT
+         commit yet.)*
+    - **VERSION 2.8 — Digital Twin Polish & UX Refinement (completed; awaiting commit
+      approval):** the final polish milestone before Version 2 is frozen. Polish only — no
+      new features, no new APIs, no architecture change, no new business logic. Scope was a
+      complete visual + interaction audit of the Digital Twin viewer on both `/map` and the
+      `/dashboard` card, plus root-cause fixes for the glitches found. The audit confirmed
+      the core is already solid: 302/302 box centres align inside their tile images
+      (no drift), 0 broken tile images, 0 console errors, mobile bottom-sheet drawer
+      anchored to the viewport bottom, dashboard renders 302 boxes with no drawer, culling
+      + LOD working (fit = 302 boxes / labels hidden <20% / selected label always visible;
+      zoom-in ~72% = 23 culled boxes with all labels + centroids; pan ≈ 60 FPS).
+      - **Fix 1 (root cause found) — mosaic `overflow: auto` (legacy V2.2):** `FarmMosaic`
+        was the only scroll container inside the transformed stage, while `FarmViewer`'s
+        viewport already clips with `overflow: hidden`. The mosaic should never scroll.
+        Changed to `overflow: hidden` (single source — fixes both `/map` and the dashboard
+        card, which share `FarmMosaic`).
+      - **Fix 2 (root cause found) — scaling frame artifact:** `FarmMosaic`'s root carried a
+        `1px solid` border + `8px` border-radius that lived *inside the CSS-transformed
+        stage*, so they grew with zoom — a frame around the entire plantation that thickened
+        as you zoomed in. The `FarmViewer` viewport already supplies the dark container, so
+        the border/radius were removed from the mosaic root. The visible result is a
+        seamless farm edge meeting the dark viewport (no scaling frame).
+      - **Files changed:** `frontend/components/FarmMosaic.tsx` only (the mosaic rendering
+        engine; `FarmViewer`, `OverlayLayer`, `TreeDetailsDrawer`, `DashboardFarmCard`, the
+        API layer, and all backend are untouched). No new endpoints, no layout-math change
+        (`computeMosaicLayout` unchanged), no extra renders / duplicate requests / N+1 /
+        layout thrash introduced — the V2.6 optimizations are preserved.
+      - **Out of scope (confirmed not glitches, left as-is):** no page-level scroll; selected
+        top-row label not clipped by the viewport; toolbar z-index (7) correctly sits above
+        the drawer (6) without overlapping the close button; the gap renders as the intended
+        black seam (seam-de-emphasised, §V2.6); hover highlights + shows the label (the
+        spec's "lightweight hover popup" was not added — it would be a new feature, outside
+        this polish milestone's scope; interaction rules from V2.4–V2.7 stand).
+      - **Verification:** `tsc --noEmit` passes (0 errors); `next build` succeeds (all routes
+        compile, no unresolved imports); backend unaffected (frontend-only change). Playwright
+        regression suite `verify_v26.js` **15/15, 0 console errors**; a V2.8 re-audit
+        confirms `overflow: hidden`, border/radius `0px`, 302/302 boxes aligned inside tiles,
+        0 broken images, 0 console errors.
+      - *(VERSION 2.8 code is implemented and verified; awaiting commit approval — do NOT
+         commit yet.)*
+    - **Performance TODO (V2.1 write path, not a blocker):** the bulk-write path is now
     structurally correct (O(1) batched statements, no per-row ORM round-trips), but we
     have **not yet proven** the remaining ~80 s / 302-row runtime on the remote Neon DB is
     purely round-trip latency. A hidden per-row cost may still exist (e.g. driver-level
     executemany behaviour, FK/index maintenance, or an overlooked autoflush). **Action:**
-    profile a clean run later with SQLAlchemy `echo=True` query logging and/or PostgreSQL
-    `EXPLAIN ANALYZE` on the batched `UPDATE`/`INSERT` to confirm whether any per-row work
-    remains. Do this before claiming the optimization is fully realised.
+     profile a clean run later with SQLAlchemy `echo=True` query logging and/or PostgreSQL
+     `EXPLAIN ANALYZE` on the batched `UPDATE`/`INSERT` to confirm whether any per-row work
+     remains. Do this before claiming the optimization is fully realised.
+    - **VERSION 2.8.2 — Digital Twin Layout Correction & Flight Planner Foundation (completed;
+      awaiting commit approval):** fixes the VERSION 2.8.1 root-cause defect — the survey mosaic
+      was laid out with `cols = ceil(sqrt(n))`, leaving a **ragged, partially-empty last row**
+      (black voids / non-rectangular farm). The renderer and `computeMosaicLayout` were proven
+      correct in V2.8.1; the bug was purely in **data generation**.
+      - **Simulated Flight Planner (`backend/api/flight_planner.py`):** the new **source of
+        truth for tile placement**. `plan_flight(db, mission_id)` lays the mission's images into
+        the most rectangular grid that exactly tiles `n` (`_choose_grid_shape`: `cols` = divisor
+        of `n` nearest `sqrt(n)`, so `rows*cols == n`, no empty cells; primes fall back to 1×n),
+        then assigns `grid_row/col` + `capture_order` in **boustrophedon (lawnmower) flew order**
+        (`_boustrophedon_order`) with per-tile centre GPS from
+        `gps_projection.project_tile_center_gps`. Returns a `FlightPlan` with `FlightPlacement`s.
+      - **`survey_api.generate_tiles_for_mission`** now consumes `plan_flight` and persists
+        `grid_row/col`, `capture_order`, `center_gps_lat/lon` onto each `SurveyTile` (backfill
+        path heals pre-V2 rows). The dead `ceil(sqrt(n))` `_tile_grid_positions` helper was
+        **deleted** (no dead code).
+      - **`frontend/lib/mosaicLayout.ts`** now fits only the **occupied bounding box**
+        (min/max `grid_row/col` of actual tiles), so Fit frames the real farm rectangle with no
+        artificial empty rows/columns. (`FarmViewer`/`FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer`
+        were not modified — Decision 6 + scope rule.)
+      - **Migration:** demo missions **78 and 88** re-assigned via the planner to a dense **5×2
+        rectangular grid** (was ragged 4×3). Trees stay bound to their original tile content; only
+        spatial placement changed. Idempotent.
+      - **Decision 6 / 6b (DECISIONS.md):** renderer confirmed React/DOM (no engine change in V2);
+        Flight Planner owns tile placement contract; ARCHITECTURE.md updated to record it.
+      - **Verification:** backend imports clean; `npx tsc --noEmit` 0 errors; regression suite
+        `verify_v26.js` **15/15, 0 console errors**; live `/map` for mission 88 renders a **2×5
+        rectangle** (10 tiles, 10 expected cells, uniform 2050px spacing, no overlaps, 0 console
+        errors); API confirms both missions dense + `capture_order` 1–10 follows flown order;
+        dashboard==`/map` box parity retained. **No rendering-engine change was made.**
+       - *(VERSION 2.8.2 code is implemented and verified; awaiting commit approval — do NOT
+          commit yet.)*
+    - **VERSION 2.8.3 — Flight Planner Configuration (Architecture Refinement; completed;
+      awaiting commit approval):** an architecture refinement **before Version 3** so the
+      simulator behaves like a real autonomous survey mission. **Not a new feature, not a
+      redesign** — the renderer stays frozen (Decision 6).
+      - **Problem addressed:** V2.8.2 still *derived* the grid from the image count
+        (`_choose_grid_shape` = divisor-nearest-`sqrt(n)`). That removed empty cells but still
+        tied mission geometry to how many photos were uploaded — not how a real flight planner
+        behaves. The Flight Planner must own the geometry.
+      - **New architecture (`backend/api/flight_planner.py`):**
+        - **`PlannerConfig`** (frozen dataclass) explicitly defines `rows`, `cols`, `origin`
+          (`GridOrigin`: TOP_LEFT/RIGHT/BOTTOM_LEFT/RIGHT), `traversal_pattern`
+          (`TraversalPattern`: BOUSTROPHEDON), `row_spacing`, `column_spacing` (degrees,
+          default `SPACING_DEG`). Geometry is **never** computed from image count.
+        - **`SimulationFlightPlanner`** owns the mission geometry and emits `rows*cols`
+          **waypoints** (capture positions) in flown order, then slots the uploaded images into
+          the planned positions (by `upload_order`). Centre GPS per position uses the §10
+          `project_tile_center_gps` (extended additively with optional `row_spacing_deg`/
+          `col_spacing_deg`, defaulting to `SPACING_DEG` — single source preserved).
+        - **`DEFAULT_PLANNER_CONFIG` = rows=5, cols=2, TOP_LEFT, BOUSTROPHEDON, standard
+          spacing** — deterministic, explicitly configured for the 10-frame demo dataset.
+        - **Rules (per approved architecture):** NO `sqrt()`, NO divisor search, NO nearest
+          rectangle, NO heuristic factorisation. **Fewer images than planned** → only the
+          available positions are populated (rest of the plan unoccupied). **More images than
+          planned** → raises `FlightPlannerError` (surfaced as **HTTP 422** by
+          `generate_tiles_for_mission`); extra rows/cols are never invented.
+        - `_choose_grid_shape` (the sqrt/heuristic helper) was **deleted**; `plan_flight` is
+          retained as a backwards-compatible thin wrapper (`SimulationFlightPlanner().plan`).
+      - **`api/gps_projection.py`:** `project_tile_center_gps` gained optional
+        `row_spacing_deg`/`col_spacing_deg` (default `SPACING_DEG`) so the planner can honour
+        configurable spacing while keeping the §10 single source. Existing callers unchanged.
+      - **Renderer / components UNCHANGED** (Decision 6 + scope): `FarmViewer`, `FarmMosaic`,
+        `OverlayLayer`, `TreeDetailsDrawer` and `mosaicLayout.ts` were not modified. Fit still
+        frames the occupied bounding box; the planner now guarantees that bounding box equals
+        the configured grid.
+      - **Verification:** backend imports clean; **no** `sqrt`/`divisor`/heuristic logic remains
+        in the planner; `tsc --noEmit` 0 errors; regression suite `verify_v26.js` **15/15, 0
+        console errors**; live `/map` (mission 88) renders the **2×5 rectangle** (10 tiles, 10
+        expected cells, uniform 2050px spacing, no overlaps, 0 console errors); API confirms
+        both missions 78/88 dense + `capture_order` 1–10 follows flown order; **overflow test**
+        (1×1 grid, 10 images) raises `FlightPlannerError` → `HTTPException(422)` with a clear
+        message; **fewer-images test** (3 images, 5×2 grid) yields exactly 3 placements at the
+        first 3 flown positions. Mission geometry is now planner-defined, not image-inferred.
+      - *(VERSION 2.8.3 code is implemented and verified; awaiting commit approval — do NOT
+         commit yet.)*
   - **Next:**
     - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
       "Locate on twin" pan-to-tree action in the panel (still no mutation); eventually
       supersede the sparse legacy `/trees/[treeId]` page with the panel.
-    - LOD + viewport culling (§V2.8/§V2.10) for the overlay — current rendering approach and
-      the two optimization levers are recorded under VERSION 2.4 ("Rendering approach").
-      Consider Canvas/WebGL (§V2.8 line 3642) only if box counts exceed the DOM threshold;
-      preserve the `onTreeSelect` / `selectedTreeId` contract. Overlay currently renders all
-      boxes (fine at ~300 trees).
+     - **V2.6 (overlay performance) — observations recorded during V2.5.1 (no code change):**
+       the V2.5.1 interaction fixes surfaced the exact cost drivers, confirming the V2.4
+       plan:
+       - **DOM count is the dominant cost.** `OverlayLayer` currently mounts **3 DOM nodes
+         per tree** (box + centroid marker + label) ≈ **~900 nodes at 302 trees**. Each is a
+         positioned `<div>` with inline `counter-scaled` styles (font-size/line-height/border
+         recomputed per `scale` change in the render loop). This is fine at ~300 trees but is
+         the lever to attack first for larger farms.
+       - **Two cheap wins, in order:** (1) **viewport culling** — only render boxes whose
+         farm-pixel rect intersects the current viewport rect (cheap math in `mosaicLayout`
+         farm-pixel space, no projection); (2) **LOD by zoom** — drop the centroid marker and
+         label (the 2 non-essential nodes) below a scale threshold, leaving just the box. Both
+         preserve the `data-tree-id` + `selectedTreeId`/`onTreeSelect` contract.
+       - **Renderer swap is a last resort:** only move to Canvas/WebGL (§V2.8 line 3642) if box
+         counts exceed a DOM threshold (e.g. many thousands) where culling+LOD is insufficient.
+         A Canvas renderer must still honor hit-testing (hit `data-tree-id`-equivalent) so
+         `FarmViewer`'s tap-selection keeps working unchanged.
+       - Pan/zoom are already smooth (rAF transform writes, `will-change: transform`, no React
+         re-render during gesture) — V2.6 should not regress this.
+     - LOD + viewport culling (§V2.8/§V2.10) for the overlay — current rendering approach and
+       the two optimization levers are recorded above. Consider Canvas/WebGL (§V2.8 line 3642)
+       only if box counts exceed the DOM threshold; preserve the `onTreeSelect` /
+       `selectedTreeId` contract. Overlay currently renders all boxes (fine at ~300 trees).
     - Commit Features 9–12, VERSION 2.1, VERSION 2.2, VERSION 2.3, and VERSION 2.4
       (pending approval).
     - Add backend unit tests for task‑generation/ripeness logic
