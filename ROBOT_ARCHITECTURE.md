@@ -1,6 +1,7 @@
 # ROBOT_ARCHITECTURE.md
 
-> **Status: FROZEN — approved baseline specification for Version 3. No production code.**
+> **Status: FROZEN — approved baseline specification for Version 3. Architecture locked;
+> implemented V3.1–V3.7.3 (not yet committed).**
 > Companion to `PROJECT_SPECIFICATION.md` Appendix A (Version 3 Robot Simulation,
 > FROZEN). Version 2 (Digital Twin) is frozen and complete. This document records
 > the robot subsystem design so Version 3 can be implemented without carrying

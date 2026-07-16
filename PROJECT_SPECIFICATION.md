@@ -5,10 +5,10 @@
 | Field | Value |
 |-------|-------|
 | **Project Name** | Autonomous Coconut Harvesting System |
-| **Document Version** | v1.0 Draft |
+| **Document Version** | v1.0 Draft (frozen) |
 | **Repository** | `autonomous-coconut-harvester` |
-| **Last Updated** | 2026-07-14 |
-| **Status** | Architecture Frozen — Implementation In Progress |
+| **Last Updated** | 2026-07-16 |
+| **Status** | Architecture Frozen — Version 3 implemented through V3.7.3 (not yet committed) |
 | **Owner** | Major Project Engineering Team |
 | **Classification** | Internal Engineering Reference |
 
@@ -16,8 +16,20 @@
 > model, and behaviour of the Autonomous Coconut Harvesting System. Where this
 > document and any other artefact (README, ARCHITECTURE.md, CURRENT.md,
 > DECISIONS.md, SpecKit files) disagree, this document governs. Other documents
-> are scheduled to be reconciled to this specification after the next
-> implementation cycle.
+> are reconciled to this specification.
+>
+> **Implementation note (2026-07-16):** this specification was authored before the
+> Version 2 Digital Twin and Version 3 Robot Simulation work. The many
+> **[Planned Enhancement]** markers scattered through the body describe gaps that
+> existed at draft time. As of V3.7.3 those items are **implemented**: the
+> `SurveyMission` / `SurveyTile` / `TreeObservation` data model, the drone-image
+> Digital Twin (replacing the V1 Leaflet/OSM map), the `InventorySnapshot` system,
+> the immutable `HarvestMission` / `HarvestMissionItem` queue, the Robot Domain /
+> State Machine / Simulation Engine / Telemetry, and Mission History & Analytics
+> are all built and verified. The `[Planned Enhancement]` labels are retained as
+> historical record of the original gap analysis and are **not** to be read as
+> currently-unimplemented. See `CURRENT.md` for the authoritative per-version
+> implementation status.
 
 ---
 
@@ -127,17 +139,19 @@ while fine sensing is expensive per tree but is the only way to get trustworthy
 ripeness data. Combining the two into one vehicle would force a trade-off between
 coverage speed and inspection quality that the project refuses to make.
 
-**Current implementation status.** The repository currently implements a working
-end-to-end baseline: YOLOv8 tree detection, GPS de-duplication into a `Tree`
-table, YOLOv8 coconut-ripeness detection, harvest-preference gated task creation,
-a bulk planner, a tree dashboard and map view, and a simulated robot that polls
-for and completes tasks. The schema, however, is intentionally minimal and does
-**not yet** contain the `SurveyMission`, `Tile`, full `Tree` lifecycle,
-`Inventory`, `Robot Queue`/`Task` state machine, `HarvestMission`, or `History`
-entities described in the frozen architecture. Those are the next implementation
-targets. Where the current code differs from the frozen design, this document
-labels the gap as **[Planned Enhancement]** so it is unambiguous what exists
-versus what must be built.
+**Current implementation status.** The repository implements the full frozen
+pipeline end-to-end (Version 3, through V3.7.3): YOLOv8 tree detection, GPS
+de-duplication into permanent `Tree` records, the `SurveyMission` / `SurveyTile` /
+`TreeObservation` data model, the drone-image **Digital Twin** Farm Viewer (the V1
+Leaflet/OSM map was removed), YOLOv8 coconut-ripeness detection writing immutable
+`InventorySnapshot`s, the `HarvestMission` / `HarvestMissionItem` queue with a
+frozen Nearest-Neighbour route, the Robot Domain / State Machine / Simulation
+Engine / Telemetry pipeline, and Mission History & Analytics. The robot is
+simulated; the same HTTP/WebSocket contract is designed to be driven by real
+hardware without restructuring the backend. All work is implemented and verified
+but **not yet committed** — see `CURRENT.md` for per-version status. The
+**[Planned Enhancement]** markers elsewhere in this document are historical (see
+the implementation note at the top of this file).
 
 **Long-term vision.** A farmer opens the dashboard, sees the plantation rendered
 as a digital twin, triggers a drone survey, watches trees appear as permanent

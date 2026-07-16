@@ -37,20 +37,23 @@ Do not skip steps. If a listed doc does not yet exist, note it and proceed.
 
 ## 3. Repository Layout
 
-- `backend/` — FastAPI services, database models, perception modules.
-  - `backend/api/` — versioned API routers (survey, detection, inspection, harvest, harvest_mission, tree, dashboard, robot, planner, coconut, drone, map).
+- `backend/` — FastAPI services, database models, domain logic.
+  - `backend/api/` — API routers (survey, inspection, harvest_mission, robot_domain, robot_navigation, robot_simulation, robot_telemetry, robot_history, tree, dashboard, coconut, drone, map, detection, planner, harvest_planner).
   - `backend/database/` — SQLAlchemy models, engine/session, and `init_db` (idempotent manual migrations).
+  - `backend/harvest/` — `execution.py`, the shared harvest-mission execution service.
+  - `backend/navigation/` — pure robot movement planning (`RobotNavigator`, `NavigationService`).
+  - `backend/robot/` — `state_machine.py` (`RobotStateMachine`, frozen `LEGAL_TRANSITIONS`).
+  - `backend/simulation/` — `clock`, `engine`, `scheduler`, `config` (pure `step(dt)` simulation).
+  - `backend/telemetry/` — `event_bus`, `service`, `websocket_gateway`.
+  - `backend/analytics/` — `mission_history.py` (Mission History & Analytics).
   - `backend/main.py` — app assembly, CORS, router mounting, `init_db()` at startup.
 - `frontend/` — React/Next.js UI (App Router).
-  - `frontend/app/` — pages: `/` (Drone Uploader), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/trees`, `/trees/[treeId]`.
-  - `frontend/components/` — `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `DroneUploader`, `CoconutUploader`.
-  - `frontend/lib/` — `api/detection.ts` (single API client), `mosaicLayout.ts` (shared farm-pixel transform).
-- `.engineering/` — governance, specs, templates, workflows, review artefacts.
-- `knowledge/` — design decisions, ADRs, external references.
-- `development/` — experimental scripts/notebooks not shipped with the product.
-- `.codebase-memory/` — local knowledge-graph artifact (team-shareable; not source).
+  - `frontend/app/` — pages: `/` (Drone Uploader), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`, `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
+  - `frontend/components/` — `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `DroneUploader`, `CoconutUploader`, `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
+  - `frontend/lib/` — `api/detection.ts` (single API client), `mosaicLayout.ts` (shared farm-pixel transform), `useRobotSimulation.ts` (WS hook).
+- `models/` — YOLOv8 weights (`tree_model/`, `coconut_model/`), gitignored.
 
-Folders that no longer exist (e.g. the legacy V1 `MapView`/`MapWrapper`/`leafletFix` components) have been removed — do not reference them.
+Folders that no longer exist (e.g. the legacy V1 `MapView`/`MapWrapper`/`leafletFix` components, the `mapping/`, `perception/`, and `simulation/robot_simulator.py` V1 scripts) have been removed or superseded — do not reference them.
 
 ## 4. Engineering Workflow
 
@@ -128,7 +131,7 @@ Project work automatically follows the globally configured **Automatic Skill Dis
 - **Minor versions** refine architecture, UX, performance, or stability within the frozen design.
 - **Hardening releases** focus only on quality: critical review, correctness/performance fixes, dead-code/legacy cleanup, documentation sync, and regression. **No new features** belong in a hardening milestone.
 
-Version 2 is **FROZEN** at `v2.0` (architecture locked). V2.1–V2.7 are implemented and verified but **not yet committed** — commit only after explicit approval.
+Version 2 is **FROZEN** at `v2.0` (architecture locked); it is fully implemented and verified. Version 3 is implemented through **V3.7.3** (Survey → Digital Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics), all verified but **not yet committed**. Commit only after explicit approval. V3.8 Production Hardening is the next milestone.
 
 ## 10. Golden Rules
 
