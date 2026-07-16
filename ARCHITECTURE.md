@@ -78,7 +78,7 @@ persisted in **PostgreSQL** (Neon).
 - **perception/** – detection scripts.
 - **simulation/** – robot simulator.
 
-## Version 3 — Robot Simulation (PROPOSED, architecture only)
+## Version 3 — Robot Simulation (FROZEN baseline, architecture only)
 
 > No production code. Design only. Version 2 (Digital Twin) stays frozen.
 
@@ -110,7 +110,7 @@ persisted in **PostgreSQL** (Neon).
 - **Milestones (A.8):** V3.1 Domain → V3.2 Navigation → V3.3 State Machine → V3.4
   Telemetry → V3.5 Visualization → V3.6 Autonomous Behaviour (engine) → V3.7 Playback
   → V3.8 Production Hardening.
-- Full specification: `PROJECT_SPECIFICATION.md` **Appendix A (PROPOSED)**; companion
+- Full specification: `PROJECT_SPECIFICATION.md` **Appendix A (FROZEN)**; companion
   design doc: **`ROBOT_ARCHITECTURE.md`**.
 - **Version 2.9 (stabilization, completed PROPOSED-ready):** dead unused imports/vars
   removed (`survey_api` unused `project_tile_center_gps` import + dead `base_lat/base_lon`

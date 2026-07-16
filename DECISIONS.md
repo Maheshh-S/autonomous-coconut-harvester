@@ -38,7 +38,7 @@
   deliverable, and a real autopilot path slots in behind the same
   `SimulationFlightPlanner` / `PlannerConfig` interface.
 
-- **Decision 7 — Version 3 Robot Simulation architecture (PROPOSED)**: Version 3
+- **Decision 7 — Version 3 Robot Simulation architecture (FROZEN)**: Version 3
   introduces **one simulated, time-driven harvesting robot** that executes a
   `HarvestMission` on the (frozen) Digital Twin. **Backend owns all robot behaviour**
   (lifecycle, navigation, state machine, mission execution, battery, telemetry,
@@ -60,7 +60,8 @@
   contract boundary is the WebSocket telemetry frame + HTTP command set, so a real
   robot replaces only `RobotSimulationEngine`. Full spec: `PROJECT_SPECIFICATION.md`
   Appendix A (PROPOSED) and companion **`ROBOT_ARCHITECTURE.md`**. No production code
-  has been written; Version 2 architecture is untouched.
+  has been written; Version 2 architecture is untouched. **Frozen as the approved V3.0
+  baseline; implementation proceeds at V3.1.**
 
 - **Decision 8 — Version 2.9 stabilization (completed, PROPOSED-ready)**: before
   Version 3, a stabilization pass removed only **provably unused** code — the unused

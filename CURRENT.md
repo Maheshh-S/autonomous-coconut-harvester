@@ -567,11 +567,13 @@
         first 3 flown positions. Mission geometry is now planner-defined, not image-inferred.
       - *(VERSION 2.8.3 code is implemented and verified; awaiting commit approval — do NOT
          commit yet.)*
-    - **VERSION 3.0 — Robot Simulation Architecture & Specification Freeze (PROPOSED;
-      architecture & spec only, NO code):** before implementing Version 3, the complete
-      Robot Simulation architecture was designed and frozen as a proposal. No production
-      code, frontend, or backend was written; Version 2 architecture is untouched and no
-      existing behaviour changes.
+    - **VERSION 3.0 — Robot Simulation Architecture & Specification Freeze (FROZEN;
+      architecture & spec only, NO code):** the complete Robot Simulation architecture
+      was designed and is now **frozen as the approved baseline for Version 3
+      implementation**. No production code, frontend, or backend was written; Version 2
+      architecture is untouched and no existing behaviour changes. Frozen at commit
+      `eab06e9`, tag **`v2.9-project-stabilization`** (the stabilization release that
+      precedes V3.0 work). Implementation begins at **V3.1**.
       - **Scope:** one simulated, time-driven harvesting robot executing a `HarvestMission`
         on the (frozen) Digital Twin. Backend owns all robot behaviour; frontend only
         visualizes (Major Design Principle). All §5 exclusions stand (no ROS/SLAM/
@@ -603,9 +605,10 @@
         coord), duplication (`RobotTask`/`RobotMission` as adapters), polling (WebSocket),
         telemetry scaling (retention + `(robot_id,ts)` index + throttled sampling), and
         complexity (pure `step(dt)` shared by live/replay).
-      - **Docs:** `PROJECT_SPECIFICATION.md` **Appendix A (PROPOSED)**, `ARCHITECTURE.md`
-        Version 3 block, `DECISIONS.md` **Decision 7**. **No implementation; awaiting
-        approval to proceed to V3.1.**
+      - **Docs:** `PROJECT_SPECIFICATION.md` **Appendix A (FROZEN)**, `ARCHITECTURE.md`
+        Version 3 block, `DECISIONS.md` **Decision 7**, plus the companion
+        **`ROBOT_ARCHITECTURE.md`** (Robot Core Rule: deterministic execution). **No
+        implementation; baseline FROZEN — proceed to V3.1 on approval.**
     - **VERSION 2.9 — Project Stabilization & Version 3 Readiness (completed; awaiting
       commit approval):** a final engineering stabilization pass **before** Version 3
       implementation. **Not a feature, not a refactor, not a redesign** — Version 2

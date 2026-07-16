@@ -1,8 +1,8 @@
 # ROBOT_ARCHITECTURE.md
 
-> **Status: PROPOSED — architecture & specification only. No production code.**
+> **Status: FROZEN — approved baseline specification for Version 3. No production code.**
 > Companion to `PROJECT_SPECIFICATION.md` Appendix A (Version 3 Robot Simulation,
-> PROPOSED). Version 2 (Digital Twin) is frozen and complete. This document records
+> FROZEN). Version 2 (Digital Twin) is frozen and complete. This document records
 > the robot subsystem design so Version 3 can be implemented without carrying
 > unnecessary technical debt. All frozen exclusions (§5) stand: **no ROS, no SLAM,
 > no multi-robot, no live drone telemetry, no physical autonomous navigation, no

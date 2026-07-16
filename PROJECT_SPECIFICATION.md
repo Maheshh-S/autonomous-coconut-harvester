@@ -3725,9 +3725,9 @@ files, this document governs.*
 
 ---
 
-# Appendix A — Version 3 Robot Simulation Architecture (PROPOSED)
+# Appendix A — Version 3 Robot Simulation Architecture (FROZEN)
 
-> **Status: PROPOSED — architecture & specification only. No production code.**
+> **Status: FROZEN — approved baseline specification for Version 3. No production code yet.**
 > Version 2 (Digital Twin) is frozen and complete. This appendix designs Version 3:
 > the simulated autonomous harvesting **robot** that executes a Harvest Mission on the
 > Digital Twin. It does **not** retract or amend any v1.0 / V2 decision; it adds a new
@@ -3999,4 +3999,4 @@ before any UI (V3.5), keeping the renderer freeze undisturbed.
 - **Renderer freeze (Decision 6):** `RobotLayer` is additive and shares the transformed
   stage; it does **not** change `FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer`.
 
-*End of Appendix A — Version 3 Robot Simulation Architecture (PROPOSED).*
+*End of Appendix A — Version 3 Robot Simulation Architecture (FROZEN).*
