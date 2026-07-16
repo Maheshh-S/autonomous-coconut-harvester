@@ -175,6 +175,17 @@ def init_db():
             )
         )
 
+        # Version 3.7.1 — Mission History analytics refinement. create_all created the
+        # `robot_runs` table at V3.7; this ALTER evolves the existing table to carry the
+        # transparent Mission Score breakdown (JSON string). Idempotent.
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE robot_runs ADD COLUMN IF NOT EXISTS "
+                    "score_breakdown TEXT"
+                )
+            )
+
         # Version 3.1 — Robot Domain Foundation. create_all above already created the
         # `robots` / `dock_stations` / `robot_batteries` / `robot_configurations`
         # tables; seed the singleton domain rows idempotently so the robot exists on

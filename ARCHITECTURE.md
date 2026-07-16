@@ -127,13 +127,21 @@ persisted in **PostgreSQL** (Neon).
  - **Telemetry (A.6):** commands over **HTTP** (existing `HarvestMission` endpoints +
    new `Robot` commands); **live** state/position/battery streamed over **WebSocket
    `/ws/robot`** (event-driven, no polling for live state); `RobotEvent` (append-only)
-   + `RobotTelemetry` (time-series) persisted for charts/playback.
- - **Frontend (A.7):** additive `RobotLayer` (marker + path + battery ring) shares the
-   `FarmViewer` transformed stage with `OverlayLayer`; `RobotStatusPanel`,
-   `DashboardRobotCard`; playback replays stored telemetry through the same components.
- - **Milestones (A.8):** V3.1 Domain → V3.2 Navigation → V3.3 State Machine → V3.4
-   Robot Simulation Engine → V3.5 Telemetry & WebSocket → V3.6 Visualization →
-   V3.7 Playback → V3.8 Production Hardening.
+    + `RobotTelemetry` (time-series) persisted for the Operations Center (history,
+     summary, timeline, tree-activity, analytics, robot log).
+   - **Frontend (A.7):** additive `RobotLayer` (marker + path + battery ring) mounts
+     **inside** `FarmViewer`'s transformed stage (shares the one zoom/pan/fit transform
+     with `OverlayLayer`); `RobotMarker`/`RobotPathLayer` are counter-scaled by `1/scale`;
+     `RobotStatusCard` + `SimulationControls`; `useRobotSimulation` hook + observe-only
+     `RobotWebSocketClient` (single WS connection, no dup frames); wired into `/map`,
+     `/robot`, and the dashboard. **V3.7 adds the Mission History & Analytics page
+     (`/robot/history`) — presentation-only; every metric is computed backend-side in
+     `analytics/mission_history.py`** (supersedes the earlier "Playback" concept: no
+     replay, read-only derived analytics over completed runs).
+   - **Milestones (A.8):** V3.1 Domain → V3.2 Navigation → V3.3 State Machine → V3.4
+     Robot Simulation Engine → V3.5 Telemetry & WebSocket → V3.6 Visualization
+     (implemented, not committed) → V3.7 Mission History & Analytics (implemented, not
+     committed) → V3.8 Production Hardening.
 - Full specification: `PROJECT_SPECIFICATION.md` **Appendix A (FROZEN)**; companion
   design doc: **`ROBOT_ARCHITECTURE.md`**.
 - **Version 2.9 (stabilization, completed PROPOSED-ready):** dead unused imports/vars

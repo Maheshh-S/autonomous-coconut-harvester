@@ -38,6 +38,9 @@ from simulation.context import (
     EVENT_STATE_CHANGED,
     EVENT_MOVING,
 )
+# V3.7.3 — battery drain rate is a shared, calibrated constant (per simulation
+# second) so it stays in one place and retargets with the default speed.
+from simulation.config import BATTERY_DRAIN_PER_S
 
 # --- Deterministic activity durations (simulation seconds) -----------------
 # These are fixed, operator-independent constants. They live here (not in
@@ -46,12 +49,6 @@ from simulation.context import (
 CLIMB_DURATION_S = 2.0
 SCAN_DURATION_S = 2.0
 HARVEST_DURATION_S = 3.0
-
-# Battery drain rate (percentage points per simulation second) while active.
-# Single rate across all active states — simple, deterministic, and matches the
-# spec's "drains while moving/climbing/scanning/harvesting" without inventing
-# per-activity tuning that the configuration does not yet carry.
-BATTERY_DRAIN_PER_S = 0.5
 
 
 def _distance(ax: float, ay: float, bx: float, by: float) -> float:

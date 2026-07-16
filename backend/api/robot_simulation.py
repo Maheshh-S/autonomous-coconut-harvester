@@ -14,19 +14,30 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from simulation.scheduler import scheduler
+from simulation.config import DEFAULT_SIMULATION_SPEED
 
 router = APIRouter()
+
+
+@router.get("/robot/simulation/config")
+def get_simulation_config():
+    """Expose the backend-owned simulation defaults (V3.7.3).
+
+    The frontend initialises its speed control to ``default_speed_factor`` so the
+    default lives in exactly one place (the backend) rather than being duplicated.
+    """
+    return {"default_speed_factor": DEFAULT_SIMULATION_SPEED}
 
 
 @router.post("/robot/simulation/start")
 def start_simulation(
     mission_id: Optional[int] = Query(None),
-    speed_factor: float = Query(1.0),
+    speed_factor: float = Query(DEFAULT_SIMULATION_SPEED),
 ):
     """Begin executing the resolved Harvest Mission's NavigationPlan.
 
     Builds the immutable navigation plan and starts the deterministic simulation
-    thread. ``speed_factor`` scales simulation time vs wall time (default 1×).
+    thread. ``speed_factor`` scales simulation time vs wall time (default 60×).
     """
     if speed_factor <= 0:
         raise HTTPException(status_code=400, detail="speed_factor must be positive")
@@ -54,6 +65,19 @@ def resume_simulation():
 def stop_simulation():
     """Stop the run and release the scheduler (robot state is left as-is)."""
     return scheduler.stop()
+
+
+@router.post("/robot/simulation/return-to-dock")
+def return_to_dock():
+    """Recall the robot to its home dock (graceful, preserves mission context).
+
+    Transitions the active run to RETURNING and re-targets the route to the dock.
+    Contrast with ``stop`` (which halts the run entirely). This is the backend for
+    the UI's "Return to Dock" control: the robot drives home, battery state is
+    preserved, and the mission's progress remains available until an explicit
+    ``stop`` or ``reset``.
+    """
+    return scheduler.return_to_dock()
 
 
 @router.get("/robot/simulation")

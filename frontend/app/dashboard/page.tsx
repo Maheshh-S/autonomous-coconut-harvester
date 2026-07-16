@@ -1,14 +1,19 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import {
   getDashboardOverview,
   getRobotStatus,
+  getRobotRuns,
   type DashboardOverview,
   type RobotStatus,
+  type RobotRun,
   type ActivityEvent,
 } from "@/lib/api/detection"
 import DashboardFarmCard from "@/components/DashboardFarmCard"
+import { useRobotSimulation } from "@/lib/useRobotSimulation"
+import RobotStatusCard from "@/components/robot/RobotStatusCard"
 
 const POLL_MS = 5000
 
@@ -150,8 +155,17 @@ const ACTIVITY_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardOverview | null>(null)
   const [robot, setRobot] = useState<RobotStatus | null>(null)
+  const [latestRun, setLatestRun] = useState<RobotRun | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+
+  // V3.6 — live robot overlay fed by the WebSocket (current harvest mission).
+  const missionId = data?.current_harvest_mission?.id ?? null
+  const sim = useRobotSimulation(missionId)
+  const currentTreeCode =
+    sim.harvestingTreeId != null ? `Tree ${sim.harvestingTreeId}` : null
+  const nextTreeCode =
+    sim.nextTreeId != null ? `Tree ${sim.nextTreeId}` : null
 
   const refresh = useCallback(async () => {
     try {
@@ -167,6 +181,13 @@ export default function DashboardPage() {
         }
       } else {
         setRobot(null)
+      }
+
+      try {
+        const runs = await getRobotRuns(1)
+        setLatestRun(runs[0] ?? null)
+      } catch {
+        setLatestRun(null)
       }
 
       setError(null)
@@ -332,6 +353,42 @@ export default function DashboardPage() {
           />
           <Field name="Queue Progress" val={queueProgress} />
         </div>
+
+        <div style={card}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Latest Robot Run</div>
+          {latestRun ? (
+            <>
+              <Field
+                name="Run"
+                val={
+                  <Link
+                    href={`/robot/history/${latestRun.id}`}
+                    style={{ color: "#2563eb", textDecoration: "underline" }}
+                  >
+                    #{latestRun.id}
+                  </Link>
+                }
+              />
+              <Field name="Status" val={<Badge text={latestRun.status} />} />
+              <Field name="Score" val={latestRun.mission_score ?? "—"} />
+              <Field
+                name="Harvested"
+                val={`${latestRun.harvested_trees}/${latestRun.total_trees}`}
+              />
+              <Field name="Battery used" val={`${latestRun.battery_used_pct}%`} />
+            </>
+          ) : (
+            <Field name="Last run" val="None yet" />
+          )}
+          <div style={{ marginTop: 8 }}>
+            <Link
+              href="/robot/history"
+              style={{ color: "#2563eb", fontSize: 13 }}
+            >
+              View all runs →
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Charts */}
@@ -399,6 +456,14 @@ export default function DashboardPage() {
         }}
       >
         <DashboardFarmCard />
+        <RobotStatusCard
+          robot={sim.displayRobot}
+          sim={sim.sim}
+          currentTreeCode={currentTreeCode}
+          nextTreeCode={nextTreeCode}
+          distanceRemaining={null}
+          connection={sim.connection}
+        />
       </div>
 
       {/* Recent Activity */}

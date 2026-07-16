@@ -136,7 +136,8 @@ States: `IDLE`, `MOVING`, `CLIMBING`, `SCANNING`, `HARVESTING`, `RETURNING`, `ER
   > (`backend/robot/state_machine.py`) enforces the frozen explicit edge set
   > (`LEGAL_TRANSITIONS`) and rejects everything else with no hidden mutation. It
   > persists every transition to `robot_state_transitions` (previous/next/reason/
-  > ts) — the append-only source for later telemetry/playback. `POST /robot/state`
+  > ts) — the append-only source for later telemetry / Mission History & Analytics.
+  > `POST /robot/state`
   > commands a validated transition (illegal → HTTP 400); `GET /robot/state`
   > returns `available_transitions`; `GET /robot/state/history` lists the log. The
   > machine owns no timing, movement, battery, or telemetry.
@@ -203,8 +204,11 @@ Task Queue (ordered HarvestMissionItem list, §42)
         v
 Execution (RobotSimulationEngine advances time)
   IDLE -> MOVING (interpolate to tree) -> CLIMBING -> SCANNING
-       -> HARVESTING (writes post-harvest InventorySnapshot, §44.5) -> RETURNING -> IDLE
-  on task complete: advance() claims next; auto-COMPLETED when queue empty (§43.5)
+        -> HARVESTING (writes post-harvest InventorySnapshot, §44.5) -> RETURNING -> IDLE
+  on arrival+harvest the scheduler run loop calls the shared harvest.execution
+    service (complete_item / finalize_mission) so the HarvestMission, Inventory,
+    and Trees stay in lock-step with the robot; mission auto-COMPLETED on dock
+    return (§43.5). The manual advance endpoint delegates to the same service.
         |
         v
 Telemetry + Events (streamed via WebSocket, §6)
@@ -263,7 +267,8 @@ Three separated concerns (explicit requirement — route ≠ movement ≠ execut
 - Fixed `dt` steps (e.g. 100 ms sim-time); each tick = one pure `step(dt)`.
 - `RobotTicker` drives the clock (background task / simulator loop / WebSocket-ticked —
   driver-agnostic). The engine is **pure**, so it is trivially testable and replayable.
-- Determinism: same start + same commands + same `dt` → identical run (enables playback).
+- Determinism: same start + same commands + same `dt` → identical run (enables the
+  deterministic analytics in the Mission History & Analytics Operations Center).
 
 ## 6. Telemetry Pipeline
 
@@ -317,9 +322,9 @@ never import the consumers; a subscriber raising is isolated per-subscriber so i
 cannot stall the producer; events are delivered in engine-production order. The
 `WebSocketGateway` is strictly observe-only — it never calls any control endpoint
 and never mutates `Robot`/`Navigation`/`RobotStateMachine`; a dropped client is
-pruned and never affects the run. Persistence enables playback: a past mission is
-replayed by streaming its stored `RobotTelemetry`/`RobotEvent` through the same
-components (§8).
+ pruned and never affects the run. Persistence feeds the backend-owned Mission
+ History & Analytics (V3.7): each terminated run is summarised into a `RobotRun` row
+ from its stored `RobotTelemetry`/`RobotEvent` (§8).
 
 ## 8. Version 3 Milestones
 
@@ -331,8 +336,11 @@ components (§8).
 | **V3.3.1 State Machine Refinement** | allow faults into ERROR | Every operational state may transition → `ERROR` (operational failure can fault the robot); recovery unchanged (`ERROR`→`{RETURNING,IDLE}` only); `RobotStateMachine` stays the sole `robot.status` mutator. Minimal change to `LEGAL_TRANSITIONS` only. **(implemented, not committed)** |
 | **V3.4 Robot Simulation Engine** | Execute the plan over time | `backend/simulation/`: pure `SimulationClock` + `SimulationEngine` (`step(dt)`, linear movement, battery drain, transitions via `RobotStateMachine`, internal `SimulationEvent`s) + `SimulationScheduler` (thread driver, builds immutable `NavigationPlan`, persists to `Robot`/`RobotBattery`); `POST/GET /robot/simulation`. No WebSocket/telemetry/frontend/charging. **(implemented, not committed)** |
 | **V3.5 Telemetry & WebSocket** | Event + sample capture + live stream | `EventBus` (pub/sub decoupling); `TelemetryService` (append-only `RobotEvent`/`RobotTelemetry` writers — read-side, no mutation); `WebSocketGateway` (observe-only `/ws/robot` multi-client broadcast); `GET /robot/telemetry`, `GET /robot/telemetry/events`. Scheduler publishes engine events onto the bus each tick. **(implemented, not committed)** |
-| **V3.6 Visualization** | Frontend robot on twin | `RobotLayer` (marker + path + battery ring), `RobotStatusPanel`, `DashboardRobotCard`; WebSocket client. |
-| **V3.7 Playback** | Replay past missions | Feed stored telemetry through same components in `playback` mode; no second renderer. |
+| **V3.6 Visualization** | Frontend robot on twin | `RobotLayer` (marker + path + battery ring) inside `FarmViewer`'s transformed stage; `RobotMarker`/`RobotPathLayer` (counter-scaled); `RobotStatusCard`; `SimulationControls`; `useRobotSimulation` hook + `RobotWebSocketClient` (single WS, observe-only); `/map` + `/robot` + dashboard wire-in. **(implemented, not committed)** |
+| **V3.7 Mission History & Analytics** | Operations Center over finished runs | Backend-owned analytics (`analytics/mission_history.py`): one `RobotRun` row per terminated run written by `SimulationScheduler`; `GET /robot/runs` (+ `/{id}`, `/{id}/timeline`, `/{id}/tree-activity`, `/{id}/robot-log`); frontend `/robot/history` + detail page are **presentation-only** (no replay — read-only derived analytics). Supersedes the earlier "Playback" concept (Playback deferred to V4 — see `PROJECT_SPECIFICATION.md` §V3.7 Amendment). **(implemented, not committed)** |
+| **V3.7.1 Mission History Refinement** | Transparent analytics + twin wiring | No new architecture/features. `score_breakdown` (Text) on `RobotRun` + `_mission_score` `(final, breakdown)` exposing `completion`/`battery_economy`/`status_factor`/`safe_return`/`error_free`; `build_timeline` grouped **"Travelled X m"** segments; `build_robot_log` severity (INFO/WARNING/ERROR); tree-activity → **Open Tree** (`/trees/[id]`) + **Open Digital Twin** (`/map?tree=[id]`) via `FarmViewer.initialTreeId`. Frontend renders only. **(implemented, not committed)** |
+| **V3.7.2 Workflow Integration** | One synchronized workflow, no manual steps | Hardening/integration, no new features. `POST /harvest/missions/{id}/start` auto-starts the robot sim (`scheduler.start`); execution mutations factored into `backend/harvest/execution.py` (single source of truth) consumed by **both** the manual advance endpoint and the scheduler run loop — the robot now completes `HarvestMissionItem`s and writes post-harvest `InventorySnapshot`s as it harvests, and finalizes the mission on dock return; `get_permanent_trees` server-side paginated. **(implemented, not committed)** |
+| **V3.7.3 Speed & Battery Calibration** | Realistic defaults, no new features | Refinement only. `DEFAULT_SIMULATION_SPEED = 60` in `backend/simulation/config.py` (single source; was 3× hardcoded `1.0`); `GET /robot/simulation/config` exposes it, frontend auto-initialises; `BATTERY_DRAIN_PER_S = 1/DEFAULT_SIMULATION_SPEED` (%/sim-s) so ~1%/real-s at 60× — derived from simulated elapsed time, deterministic, recharge/return-to-dock unchanged. **(implemented, not committed)** |
 | **V3.8 Production Hardening** | Critical review + cleanup | Two-agent review; N+1/perf on telemetry; WebSocket reconnect/backpressure; dead-code removal; regression suite; docs sync. |
 
 ## 9. Future Extension Points

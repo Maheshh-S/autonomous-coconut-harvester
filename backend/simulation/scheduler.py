@@ -44,9 +44,15 @@ from robot.state_machine import RobotStateMachine, IllegalTransition
 from simulation.clock import SimulationClock
 from simulation.context import SimulationContext, SimulationEvent
 from simulation.engine import SimulationEngine
+from simulation.engine import (
+    EVENT_HARVEST_FINISHED,
+    EVENT_MISSION_COMPLETED,
+)
+from simulation.config import DEFAULT_SIMULATION_SPEED
 from navigation import build_navigation
 from telemetry.event_bus import event_bus, TOPIC_SIM_EVENTS
 from telemetry.service import telemetry_service
+from analytics.mission_history import record_run
 
 # Fixed real-time tick interval (seconds). One tick = one engine.step of
 # (real_tick * speed_factor) simulation seconds. Smaller = smoother but more DB
@@ -73,11 +79,12 @@ class SimulationScheduler:
         self._last_wall = 0.0
         self._error: Optional[str] = None
         self._robot_id: Optional[int] = None
+        self._run_started_at = None  # wall-clock when the current run began
 
     # -- public control ----------------------------------------------------
 
     def start(
-        self, mission_id: Optional[int] = None, speed_factor: float = 1.0
+        self, mission_id: Optional[int] = None, speed_factor: float = DEFAULT_SIMULATION_SPEED
     ) -> dict:
         with self._lock:
             if self._status == "running":
@@ -166,6 +173,7 @@ class SimulationScheduler:
             self._clock.start(time.monotonic(), speed_factor=speed_factor)
             self._last_wall = time.monotonic()
             self._status = "running"
+            self._run_started_at = _utcnow()
 
             # Persist the initial assignment (mission + task pointers) and launch.
             self._persist()
@@ -191,6 +199,53 @@ class SimulationScheduler:
             self._status = "running"
             return self.status()
 
+    def apply_external_battery(self, pct: float) -> None:
+        """Sync an external battery command (e.g. /robot/recharge) into the live run.
+
+        While a run is active, ``_ctx.battery_pct`` is the authoritative battery
+        value that ``_persist`` writes each tick; the persisted DB row is only a
+        mirror. Updating the DB row alone would be clobbered on the next tick, so
+        an external recharge must also update ``_ctx``. Clearing ``battery_low``
+        here means a manual recharge also cancels a pending low-battery divert.
+        No-op when no run is active (the command's REST handler already wrote the
+        DB row).
+        """
+        with self._lock:
+            if self._ctx is None:
+                return
+            self._ctx.battery_pct = max(0.0, min(100.0, float(pct)))
+            if self._ctx.battery_pct > self._ctx.battery_low_threshold:
+                self._ctx.battery_low = False
+
+    def return_to_dock(self) -> dict:
+        """Command the robot to abandon the current route and head home (Return to Dock).
+
+        Reuses the frozen state-machine edges and the engine's existing dock-divert
+        path (the same machinery the low-battery auto-divert uses), so this is an
+        additive control — no new architecture, no new navigation logic. From any
+        active operational state (MOVING / CLIMBING / SCANNING / HARVESTING) the
+        legal edge is → RETURNING; the engine then treats RETURNING as a move leg
+        to the final dock waypoint and finalizes at DOCKED on arrival. The mission
+        context (mission_id, completed_item_ids, stats) is preserved — this is a
+        graceful recall, NOT a stop/terminate. Idempotent if already RETURNING /
+        DOCKED, and a no-op when no run is active.
+        """
+        with self._lock:
+            if self._ctx is None or self._status not in ("running", "paused"):
+                return self.status()
+            status = self._ctx.status
+            if status in {"RETURNING", "DOCKED", "ERROR", "IDLE"}:
+                return self.status()
+            # Transition to RETURNING (legal from every active operational state),
+            # then re-target the current leg straight to the dock waypoint. Reuse
+            # the engine's dock-divert (single source of that logic) so operator
+            # recall and the low-battery auto-divert stay identical.
+            self._apply_transition("RETURNING", "operator return-to-dock")
+            self._engine._divert_to_dock(self._ctx)
+            if self._status == "running":
+                self._persist()
+            return self.status()
+
     def stop(self) -> dict:
         with self._lock:
             was_running = self._status in ("running", "paused")
@@ -208,6 +263,9 @@ class SimulationScheduler:
             self._events = []
             # Stop persisting telemetry (history is retained, append-only).
             telemetry_service.stop()
+            if was_running and self._ctx is not None:
+                # Operator aborted the run → record an ABORTED RobotRun.
+                self._record_run("ABORTED")
             if was_running and self._thread is not None:
                 # Do not join (daemon thread); just mark stopped. Persisted robot
                 # state is left as-is (caller may reset via /robot/reset).
@@ -318,6 +376,7 @@ class SimulationScheduler:
                         self._status = "finished"
                     self._persist()
                     telemetry_service.stop()
+                    self._record_run("COMPLETED")
                     break
                 time.sleep(REAL_TICK_INTERVAL_S)
                 continue
@@ -327,10 +386,32 @@ class SimulationScheduler:
                 # Simulation dt for this real tick (scaled, never negative).
                 dt = max(0.0, (now - self._last_wall) * self._clock.speed_factor)
                 self._last_wall = now
+                # Guard (V3.6.1): the wall clock includes time the scheduler
+                # thread was *blocked* on self._lock (e.g. while an external
+                # command such as POST /robot/recharge holds it) or stalled on a
+                # slow DB round-trip in _persist. An unclamped dt would make a
+                # single resumed tick simulate several seconds at once — which
+                # silently drains the battery and clobbers an external recharge.
+                # Cap dt to a few normal tick intervals so a stall never produces
+                # a runaway drain or a teleport. The robot simply pauses briefly
+                # during the stall instead of fast-forwarding.
+                max_dt = REAL_TICK_INTERVAL_S * self._clock.speed_factor * 4.0
+                if dt > max_dt:
+                    dt = max_dt
 
-            events = self._engine.step(
-                self._ctx, dt, self._transition_fn
-            )
+            try:
+                events = self._engine.step(
+                    self._ctx, dt, self._transition_fn
+                )
+            except Exception as exc:
+                # Fatal engine/transition error: terminate the run as FAILED and
+                # leave a recorded history row so the Operations Center can show it.
+                self._error = f"{self._error or ''}engine error: {exc}".strip(": ")
+                self._status = "finished"
+                self._persist()
+                telemetry_service.stop()
+                self._record_run("FAILED")
+                break
             self._events.extend(events)
             if len(self._events) > MAX_EVENTS:
                 self._events = self._events[-MAX_EVENTS:]
@@ -350,10 +431,49 @@ class SimulationScheduler:
 
             self._persist()
 
+            # V3.7.2: drive the Harvest Mission from simulation events through the
+            # shared execution service (single source of truth, identical to the
+            # manual advance endpoint). The robot sim is now a full executor — it
+            # completes each harvested tree (writing its post-harvest inventory
+            # snapshot) and finalises the mission on completion. Idempotent, so
+            # re-delivered events never double-harvest.
+            #
+            # ``SimulationEvent`` is a dataclass (``.type`` / ``.detail`` dict), not
+            # a dict. ``tree_id`` lives in ``event.detail``.
+            if self._mission_id is not None:
+                try:
+                    from harvest.execution import complete_item, finalize_mission
+
+                    mdb = SessionLocal()
+                    try:
+                        for ev in events:
+                            if ev.type == EVENT_HARVEST_FINISHED:
+                                item_id = ev.detail.get("tree_id")
+                                if item_id is not None:
+                                    complete_item(
+                                        mdb,
+                                        item_id,
+                                        self._mission_harvest_type(mdb),
+                                    )
+                            elif ev.type == EVENT_MISSION_COMPLETED:
+                                finalize_mission(mdb, self._mission_id)
+                        # Normal completion path: the engine returns to dock and
+                        # sets ``finished`` but only emits EVENT_MISSION_COMPLETED
+                        # on the battery-low branch. Roll up any remaining items
+                        # whenever the run ends, so the mission always reaches a
+                        # terminal COMPLETED state.
+                        if self._ctx.finished:
+                            finalize_mission(mdb, self._mission_id)
+                    finally:
+                        mdb.close()
+                except Exception as exc:  # non-fatal: sim must keep running
+                    self._error = f"harvest sync skipped: {exc}"
+
             if self._ctx.finished:
                 with self._lock:
                     self._status = "finished"
                 telemetry_service.stop()
+                self._record_run("COMPLETED")
                 break
 
             time.sleep(REAL_TICK_INTERVAL_S)
@@ -404,6 +524,40 @@ class SimulationScheduler:
             self._error = f"persist error: {exc}"
         finally:
             db.close()
+
+    def _mission_harvest_type(self, db) -> str:
+        """Resolve the active mission's harvest type for event-driven completion."""
+        from database.models import HarvestMission
+
+        mission = db.get(HarvestMission, self._mission_id)
+        return mission.harvest_type if mission else "all"
+
+    def _record_run(self, status: str) -> None:
+        """Persist a ``RobotRun`` row (V3.7) for a terminated run.
+
+        Called once when a run terminates: COMPLETED (finished naturally), ABORTED
+        (operator ``stop``), or FAILED (fatal engine/transition error). The run is
+        derived deterministically from the append-only telemetry + events by the
+        analytics service — the scheduler passes only the terminal status and the
+        wall-clock begin/end instants. Best-effort: a recording failure must never
+        crash the run thread or the control loop, so we swallow and log to
+        ``self._error`` only as a non-fatal note.
+        """
+        if self._ctx is None:
+            return
+        finished_at = _utcnow()
+        try:
+            record_run(
+                SessionLocal(),
+                robot_id=self._robot_id,
+                mission_id=self._mission_id,
+                status=status,
+                started_at=self._run_started_at,
+                finished_at=finished_at,
+                speed_factor=self._clock.speed_factor,
+            )
+        except Exception as exc:  # non-fatal: history must not break the run
+            self._error = f"run record skipped: {exc}"
 
 
 def _utcnow():

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import FarmMosaic, { MosaicTile } from "@/components/FarmMosaic"
 import OverlayLayer from "@/components/OverlayLayer"
 import TreeDetailsDrawer from "@/components/TreeDetailsDrawer"
-import type { TreeOverlay } from "@/lib/api/detection"
+import RobotLayer from "@/components/robot/RobotLayer"
+import type { TreeOverlay, RobotSnapshot, RobotPlanWaypoint } from "@/lib/api/detection"
 
 // V2.3 / V2.4 — Digital Twin Viewer (PROJECT_SPECIFICATION.md §V2.8 navigation
 // only; overlay added in §V2.4). Wraps the existing FarmMosaic (§V2.2) in a
@@ -54,21 +55,35 @@ export default function FarmViewer({
   // (§32) inside the viewer. Off on the small dashboard card, where selection
   // only highlights the box.
   enableDetailsPanel,
+  // V3.6 — optional robot simulation overlay (presentation only).
+  robot,
+  plan,
+  destinationTreeId,
+  harvestingTreeId,
+  completedTreeIds,
+  showRobotPath = true,
+  showRobotTarget = true,
+  // V3.7.1 — when set, the viewer opens focused on this tree (read-only twin
+  // focus, e.g. from the Mission History tree-activity "Open Digital Twin" link).
+  // Reuses the existing selection + details-panel machinery; no new lookup logic.
+  initialTreeId,
 }: {
   tiles: MosaicTile[]
   gap?: number
   apiBaseUrl?: string
   height?: string | number
   minHeight?: number
-  // When provided, an "expand" control is shown that navigates to this route
-  // (used by the smaller dashboard card → the full /map experience). Omitted on
-  // /map itself, where the viewer is already the full view.
   expandHref?: string
-  // Optional persisted tree overlays (V2.4). When supplied the viewer renders
-  // the interactive bounding-box overlay on top of the mosaic.
   trees?: TreeOverlay[]
-  // V2.5 — enable the Tree Details panel on selection.
   enableDetailsPanel?: boolean
+  robot?: RobotSnapshot | null
+  plan?: RobotPlanWaypoint[]
+  destinationTreeId?: number | null
+  harvestingTreeId?: number | null
+  completedTreeIds?: number[]
+  showRobotPath?: boolean
+  showRobotTarget?: boolean
+  initialTreeId?: number | null
 }) {
   const router = useRouter()
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -88,6 +103,16 @@ export default function FarmViewer({
   useEffect(() => {
     setSelectedTreeId(null)
   }, [tiles])
+
+  // V3.7.1 — focus the twin on a tree requested via `initialTreeId` (e.g. from the
+  // Mission History "Open Digital Twin" link). Seed the selection once the overlay
+  // metadata for that tree has arrived so the details panel can resolve it.
+  useEffect(() => {
+    if (initialTreeId == null) return
+    if (trees?.some((t) => t.tree_id === initialTreeId)) {
+      setSelectedTreeId(initialTreeId)
+    }
+  }, [initialTreeId, trees])
 
   // V2.5 — the overlay metadata for the currently selected tree, so the Tree
   // Details panel can read tree_code / gps / times_seen without a refetch
@@ -390,6 +415,25 @@ export default function FarmViewer({
               viewportWidth={viewportSize.w}
               viewportHeight={viewportSize.h}
               selectedTreeId={selectedTreeId}
+            />
+          )}
+
+          {/* V3.6 — Robot Layer shares the transformed stage (single transform,
+              no duplication of zoom/pan/fit). Rendered only when a live robot
+              snapshot is supplied by the parent. */}
+          {robot && (
+            <RobotLayer
+              robot={robot}
+              plan={plan ?? []}
+              trees={trees ?? []}
+              tiles={tiles}
+              gap={gap}
+              scale={view.scale}
+              destinationTreeId={destinationTreeId}
+              harvestingTreeId={harvestingTreeId}
+              completedTreeIds={completedTreeIds}
+              showPath={showRobotPath}
+              showTarget={showRobotTarget}
             />
           )}
         </div>

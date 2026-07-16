@@ -339,7 +339,17 @@ def reset_robot():
 
 @router.post("/robot/recharge")
 def recharge_robot():
-    """Restore the battery to 100%. Leaves the robot's lifecycle state untouched."""
+    """Restore the battery to 100%. Leaves the robot's lifecycle state untouched.
+
+    Root-cause fix (V3.6.1): while a simulation is *running*, the scheduler's
+    ``_persist`` copies ``SimulationContext.battery_pct`` back onto the battery row
+    every tick. Writing only the persisted row here would be overwritten on the
+    next tick, making recharge appear to do nothing mid-run. So we also push the
+    recharge into the live scheduler context (if a run is active) — the single
+    source of truth for battery during a run — so the restored 100% survives the
+    next persist. This is an additive sync, not a behavioural change: when no run
+    is active the context is absent and only the DB row is updated (unchanged).
+    """
     db = SessionLocal()
     try:
         robot = ensure_robot_domain(db)
@@ -356,6 +366,12 @@ def recharge_robot():
         battery.last_change_ts = _now()
         db.commit()
         db.refresh(battery)
+
+        # Sync the recharge into the live simulation context (no-op if stopped).
+        from simulation.scheduler import scheduler
+
+        scheduler.apply_external_battery(100.0)
+
         return _serialize_state(robot, battery)
     finally:
         db.close()

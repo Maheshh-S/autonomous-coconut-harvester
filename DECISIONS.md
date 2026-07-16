@@ -53,8 +53,9 @@
   `RobotNavigator`) ≠ execution (`RobotSimulationEngine`, a pure `step(dt)` driven by a
   `SimulationClock` with `sim = wall × speed_factor`); (4) **event-driven telemetry** —
   live state/position/battery stream over **WebSocket `/ws/robot`**, commands stay
-  HTTP, persisted `RobotEvent` (append-only) + `RobotTelemetry` (time-series) enable
-  playback; (5) **renderer freeze (Decision 6)** — the robot is an additive
+   HTTP, persisted `RobotEvent` (append-only) + `RobotTelemetry` (time-series) feed the
+   backend-owned Mission History & Analytics (V3.7); (5) **renderer freeze (Decision 6)**
+   — the robot is an additive
   `RobotLayer` sharing the `FarmViewer` transformed stage, never rewriting
   `FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer`; (6) **real-robot swap** — the
   contract boundary is the WebSocket telemetry frame + HTTP command set, so a real

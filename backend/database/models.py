@@ -653,6 +653,114 @@ class RobotEvent(Base):
     robot = relationship("Robot")
 
 
+class RobotRun(Base):
+    """One completed/aborted robot simulation run (Version 3.7 Mission History).
+
+    A run is the *execution* of a ``HarvestMission`` by the SimulationScheduler.
+    While the engine runs, it streams append-only ``RobotTelemetry`` /
+    ``RobotEvent`` rows (keyed by ``mission_id``); those are the raw time-series.
+    ``RobotRun`` is the **derived summary record** for that execution: its terminal
+    outcome (COMPLETED / FAILED / ABORTED), wall-clock start/finish, computed
+    duration, and the analytics the Operations Center displays (distance,
+    battery used, recharge count, mission score). It is written once, when the run
+    ends, by the scheduler (backend-owned — never computed in the UI).
+
+    The ``mission_id`` links back to the immutable ``HarvestMission`` whose items
+    the robot visited, so the history page can show the mission header + per-tree
+    activity without re-deriving anything in the frontend.
+    """
+
+    __tablename__ = "robot_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_id = Column(
+        Integer,
+        ForeignKey("robots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mission_id = Column(Integer, nullable=True, index=True)
+    # Terminal outcome of the run.
+    #   COMPLETED — engine reached MISSION_COMPLETED (all reachable trees done).
+    #   ABORTED   — operator issued stop() / return-to-dock before completion.
+    #   FAILED    — run ended in ERROR.
+    status = Column(String, default="COMPLETED", nullable=False, index=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    # Wall-clock duration in seconds (finished_at - started_at); None if still
+    # running (a run row is only written on termination).
+    duration_s = Column(Float, nullable=True)
+    # Analytics (all backend-computed from telemetry/events).
+    total_trees = Column(Integer, default=0, nullable=False)
+    harvested_trees = Column(Integer, default=0, nullable=False)
+    skipped_trees = Column(Integer, default=0, nullable=False)
+    distance_travelled = Column(Float, default=0.0, nullable=False)
+    battery_start_pct = Column(Float, nullable=True)
+    battery_end_pct = Column(Float, nullable=True)
+    battery_used_pct = Column(Float, default=0.0, nullable=False)
+    recharge_count = Column(Integer, default=0, nullable=False)
+    avg_harvest_time_s = Column(Float, nullable=True)
+    fastest_harvest_s = Column(Float, nullable=True)
+    slowest_harvest_s = Column(Float, nullable=True)
+    avg_speed = Column(Float, nullable=True)
+    idle_time_s = Column(Float, default=0.0, nullable=False)
+    efficiency = Column(Float, nullable=True)
+    mission_score = Column(Float, nullable=True)
+    # Transparent score breakdown (V3.7.1): the deterministic components the
+    # mission_score is computed from, stored as a JSON *string* (matches
+    # RobotEvent.detail). Lets the frontend render the breakdown without ever
+    # recomputing it. Keys: completion, battery_economy, status_factor, raw, final.
+    score_breakdown = Column(Text, nullable=True)
+    speed_factor = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    robot = relationship("Robot")
+
+    def to_dict(self) -> dict:
+        """Serialise the run (including its wall-clock instants) for the API."""
+        return {
+            "id": self.id,
+            "robot_id": self.robot_id,
+            "mission_id": self.mission_id,
+            "status": self.status,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
+            "duration_s": self.duration_s,
+            "total_trees": self.total_trees,
+            "harvested_trees": self.harvested_trees,
+            "skipped_trees": self.skipped_trees,
+            "distance_travelled": self.distance_travelled,
+            "battery_start_pct": self.battery_start_pct,
+            "battery_end_pct": self.battery_end_pct,
+            "battery_used_pct": self.battery_used_pct,
+            "recharge_count": self.recharge_count,
+            "avg_harvest_time_s": self.avg_harvest_time_s,
+            "fastest_harvest_s": self.fastest_harvest_s,
+            "slowest_harvest_s": self.slowest_harvest_s,
+            "avg_speed": self.avg_speed,
+            "idle_time_s": self.idle_time_s,
+            "efficiency": self.efficiency,
+            "mission_score": self.mission_score,
+            "score_breakdown": _parse_json(self.score_breakdown),
+            "speed_factor": self.speed_factor,
+        }
+
+
+def _parse_json(raw):
+    """Parse a JSON-string column back to a dict; None / malformed -> None."""
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    try:
+        import json
+
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 class SurveyMission(Base):
     __tablename__ = "survey_missions"
 

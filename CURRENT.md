@@ -24,7 +24,14 @@
     (decrementing only the harvested category), repoints `Tree.current_inventory_id`,
     and auto‑completes the mission when the queue is exhausted. Frontend survey page
     drives the flow with live queue progress and zero console errors (verified E2E).
-  - **Feature 12 — Final Dashboard & System Overview:** read‑only V1 dashboard at
+   - **Version 3.7.2 — Workflow Integration & End‑to‑End Synchronization (completed,
+     awaiting commit approval):** Harvest Mission start auto‑starts the robot
+     simulation; the run loop now executes the mission via a shared
+     `backend/harvest/execution.py` service (completing items + writing post‑harvest
+     inventory as the robot harvests, finalizing the mission on dock return); survey
+     Permanent‑Trees list is server‑side paginated. One synchronized workflow, no
+     manual steps. See the V3.7.2 section below for full detail.
+   - **Feature 12 — Final Dashboard & System Overview:** read‑only V1 dashboard at
     `/dashboard`. New `GET /dashboard/overview` aggregation endpoint (overview counts,
     farm summary from each tree's current inventory, survey latest/active/last‑scan,
     current harvest mission, harvested count, newest‑first recent‑activity timeline,
@@ -593,14 +600,18 @@
       - **Telemetry (A.6):** commands over HTTP (existing `HarvestMission` endpoints + new
         `Robot` commands); **live** state/position/battery over **WebSocket `/ws/robot`**
         (event-driven, no polling for live state); append-only `RobotEvent` +
-        time-series `RobotTelemetry` persisted for charts/playback.
-      - **Frontend (A.7):** additive `RobotLayer` (marker + path + battery ring) shares the
-        `FarmViewer` transformed stage; `RobotStatusPanel`, `DashboardRobotCard`; playback
-        replays stored telemetry through the same components. Renderer freeze (Decision 6)
-        preserved — `FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer` unchanged.
-      - **Milestones (A.8):** V3.1 Domain → V3.2 Navigation → V3.3 State Machine → V3.4
-        Telemetry → V3.5 Visualization → V3.6 Autonomous Behaviour (engine) → V3.7
-        Playback → V3.8 Production Hardening.
+         time-series `RobotTelemetry` persisted for the Operations Center (history, summary,
+         timeline, tree-activity, analytics, robot log).
+       - **Frontend (A.7):** additive `RobotLayer` (marker + path + battery ring) shares the
+         `FarmViewer` transformed stage; `RobotStatusPanel`, `DashboardRobotCard`. The
+         Mission History & Analytics page (`/robot/history`) is **presentation-only** — every
+         metric is computed backend-side in `analytics/mission_history.py`. (V3.7 supersedes
+         the earlier "Playback" concept: read-only analytics over completed runs, no replay.)
+         Renderer freeze (Decision 6) preserved — `FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer`
+         unchanged.
+       - **Milestones (A.8):** V3.1 Domain → V3.2 Navigation → V3.3 State Machine → V3.4
+         Telemetry → V3.5 Visualization → V3.6 Autonomous Behaviour (engine) → V3.7
+         Mission History & Analytics → V3.8 Production Hardening.
       - **Critical review (A.9):** flagged and mitigated coupling (single farm-pixel
         coord), duplication (`RobotTask`/`RobotMission` as adapters), polling (WebSocket),
         telemetry scaling (retention + `(robot_id,ts)` index + throttled sampling), and
@@ -760,10 +771,10 @@
       deterministic. Version 2 + V3.1 + V3.2 behaviour/endpoints are untouched.
       - **New model `RobotStateTransition`** (`database/models.py`): append-only
         history row — `robot_id`, `previous_state`, `next_state`, `reason`,
-        `created_at`. Never mutated; the single source for later telemetry/playback
-        (V3.4/V3.7). The state machine stays agnostic of WebSockets/telemetry — it
-        only writes these rows. Created by `Base.metadata.create_all` (new table,
-        no ALTER needed).
+        `created_at`. Never mutated; the single source for later telemetry / Mission
+        History & Analytics (V3.4/V3.7). The state machine stays agnostic of
+        WebSockets/telemetry — it only writes these rows. Created by
+        `Base.metadata.create_all` (new table, no ALTER needed).
       - **New module `backend/robot/state_machine.py`** (the V2.9-prepared
         `backend/robot/` package is now populated) + `backend/robot/__init__.py`.
         `RobotStateMachine` owns: current state, **transition validation**
@@ -1003,7 +1014,328 @@
          (no regression); **frontend untouched** (no frontend files changed); **no
          new dependencies**.
        - **NOT committed** — awaiting approval.
-      - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
+      - **VERSION 3.6 — Live Robot Visualization on the Digital Twin (completed; awaiting
+        approval, NOT committed):** the frontend **Live Robot Visualization layer** that
+        renders the V3.4–V3.5 simulation on the existing Digital Twin. **Presentation only
+        — no business logic, no prediction, no interpolation.** Every pixel comes from the
+        backend: the REST Simulation APIs (commands + `GET /robot/simulation`) and the
+        `WebSocket /ws/robot` frame. Frontend **never** simulates, estimates, or animates
+        robot motion; it renders exactly the latest backend snapshot. Scope matches the
+        frozen spec — the Mission History & Analytics (timeline/history/analytics)
+        over completed runs was added later in V3.7 as a separate, backend-owned
+        subsystem (see VERSION 3.7).
+        - **New frontend files (all inline-styled, no Tailwind, per repo convention):**
+          - `frontend/lib/api/detection.ts` — extended with the V3 robot contract:
+            `V3RobotState`, `RobotSnapshot`, `SimulationStatus`, `RobotFrame`,
+            `RobotNavPlan`, `RobotSimEvent`; REST helpers `startSimulation` /
+            `pauseSimulation` / `resumeSimulation` / `stopSimulation` / `rechargeRobot` /
+            `resetRobot` / `getSimulationStatus` / `getRobotNavPlan`; and
+            `RobotWebSocketClient` (auto-reconnect, de-dup, observe-only).
+          - `frontend/lib/useRobotSimulation.ts` — shared hook owning the single WS
+            connection, the latest snapshot, run status, and the (read-only) navigation
+            plan; issues commands via the backend APIs only. Both `/map` and `/robot`
+            reuse it so there is exactly **one** WS connection and one source of truth.
+          - `frontend/components/robot/RobotMarker.tsx` — robot icon, heading rotation,
+            conic battery ring, `ROBOT_STATE_COLORS` map, counter-scaled by `1/scale` so
+            it stays constant on screen under zoom/pan.
+          - `frontend/components/robot/RobotPathLayer.tsx` — visited/remaining path
+            polylines + waypoint dots + current-destination ring, counter-scaled.
+          - `frontend/components/robot/RobotLayer.tsx` — composes `RobotPathLayer` +
+            tree highlights (reuses `computeMosaicLayout` + `TreeOverlay`; does **not**
+            duplicate `OverlayLayer` box rendering) + `RobotMarker`; mounts **inside**
+            `FarmViewer`'s transformed stage (`data-testid="robot-layer"`).
+          - `frontend/components/robot/RobotStatusCard.tsx` — Robot State badge, Battery
+            bar, Mission, Current/Next Tree, Distance Remaining, Sim Time, Speed Factor,
+            WS connection indicator; responsive (stacks on narrow viewports).
+          - `frontend/components/robot/SimulationControls.tsx` — Start / Pause / Resume /
+            Stop / Recharge / Reset / Speed; **forwards intents only**, no business logic.
+          - `frontend/app/map/page.tsx` — `/map` hosts the twin (survey mission) + a
+            dedicated **Harvest Mission** selector (the robot executes a *harvest* mission,
+            a different entity from the survey mission that selects the mosaic) driving the
+            robot overlay + `SimulationControls` + `RobotStatusCard`.
+          - `frontend/app/robot/page.tsx` — `/robot` Control Centre keeps the **live legacy
+            V1 Task interface** (per AGENTS.md — must not be removed) and adds the V3.6
+            simulation control panel (harvest-mission selector + controls + twin + status).
+          - `frontend/app/dashboard/page.tsx` — `RobotStatusCard` added to the Digital Twin
+            grid (no controls; the dashboard is read-only by design).
+          - `frontend/components/FarmViewer.tsx` — optional `robot` / `plan` /
+            `destinationTreeId` / `harvestingTreeId` / `completedTreeIds` props; renders
+            `RobotLayer` inside the same transformed stage when a live snapshot is supplied.
+            No simulation logic in `FarmViewer`.
+        - **Architecture discipline (unchanged):** Navigation owns routing;
+          `RobotStateMachine` solely mutates `robot.status`; `SimulationEngine` executes
+          time; Telemetry/WebSocket observe only. Frontend adds a pure rendering layer
+          that consumes their outputs. Counter-scaling reuses the `1/scale` pattern already
+          used by tree labels; `RobotLayer` shares the `FarmViewer` stage (no second
+          transform) so zoom/pan/fit stay in sync.
+        - **Verification:** `tsc --noEmit` 0 errors; `next build` success (0 unresolved
+          imports); Playwright `verify_v36.js` **PASS with 0 console errors** — robot
+          marker renders on the twin and **moves** (farm-pixel position advances over the
+          run), state badge reflects live `MOVING`, battery drains live, Sim Time /
+          Speed Factor update, Pause/Resume/Stop/Reset all drive the backend; the marker is
+          bound to the live `/ws/robot` frame. `/dashboard` and `/robot` also render with 0
+          console errors (the slow `/dashboard/overview` query ~4.9 s is pre-existing,
+          unrelated to V3.6). No backend files changed; **no new dependencies**.
+        - **NOT committed** — awaiting approval.
+      - **VERSION 3.6.1 — Robot Visualization Polish & UX Refinement (completed;
+        awaiting approval, NOT committed):** refinement pass on top of V3.6 — smooth
+        marker motion, production-grade path visualization, marker polish, the
+        Return-to-Dock control, and a **backend simulation-correctness fix**. No
+        architecture or backend business-rule changes beyond the bug fix.
+        - **Backend fix (root cause):** `SimulationEngine` step `dt` was computed as
+          `(now - last_wall) * speed_factor`, measuring **wall-clock time including
+          periods the scheduler thread was blocked** — e.g. while an external command
+          (`POST /robot/recharge`) held `self._lock`, or while a slow Neon Postgres
+          round-trip stalled `_persist`. A resumed tick then simulated several seconds
+          at once: it drained the battery massively in a single tick (clobbering a
+          manual recharge — battery collapsed 100 → ~81 instead of holding 100) and
+          could teleport the robot. Fixed by clamping `dt` to
+          `REAL_TICK_INTERVAL_S * speed_factor * 4` in `scheduler._run_loop`, so a
+          stall only pauses the robot briefly instead of fast-forwarding. This also
+          makes the V3.6.1 `apply_external_battery` / `return_to_dock` commands land
+          correctly (they were correct in code but their effect was being instantly
+          overwritten by the inflated next tick). `CURRENT.md`/AGENTS.md note: Neon
+          first-query latency is ~0.7–5 s, so external commands can take a few seconds
+          to round-trip — verified, not a defect.
+        - **New backend commands (additive):** `POST /robot/recharge` now also calls
+          `scheduler.apply_external_battery(100.0)` (syncs the live `_ctx`, so the
+          recharge persists across ticks — the pre-fix version wrote the DB row only
+          and was clobbered); new `POST /robot/simulation/return-to-dock` reuses the
+          frozen `RETURNING` edge + `engine._divert_to_dock` (graceful recall, mission
+          context preserved — replaces the old Stop/terminate semantics).
+        - **Frontend (presentation only):** `useRobotSimulation.ts` adds a rAF
+          critically-damped **spring** for `displayRobot` (x/y/heading glide between
+          backend snapshots) — backend stays authoritative; **battery is taken
+          straight from the authoritative snapshot, never spring-smoothed** (a lagging
+          battery gauge is wrong for a status readout). `RobotMarker.tsx` polished
+          (halo, heading tip, low-battery red ring). `RobotPathLayer.tsx` rewritten:
+          faint full route + solid green travelled + dashed blue remaining.
+          `SimulationControls.tsx` Stop → **Return to Dock**. `/map` is now
+          visualization-only (no controls) + 3 toggles (Show Robot / Show Planned Path
+          / Show Current Target); `/robot` is the full control centre; `/dashboard` is
+          status-only. All inline-styled; **no new dependencies**.
+        - **Verification:** `tsc --noEmit` 0 errors; `next build` success; Playwright
+          `frontend/verify_v361.js` **PASS with 0 console errors** — `/map` viz-only +
+          toggles, robot moves, **recharge restores 100%** (authoritative backend peak
+          confirmed), recharge persists across ticks, **Return to Dock → RETURNING**
+           (recall without terminate). Backend recharge/return-to-dock also curl-verified.
+         - **NOT committed** — awaiting approval.
+      - **VERSION 3.7 — Mission History & Analytics (completed; awaiting commit
+        approval):** the backend-owned **Robot Operations Center** over completed
+        simulation runs. Replaces the earlier "Playback" concept (V3.7 Playback) with
+        **read-only, derived analytics** — no replay/replay UI. All metrics computed
+        server-side; the frontend renders only.
+        - **New persistent record (`RobotRun`, `robot_runs`):** one row per terminated
+          run, written **once** by `SimulationScheduler` via `analytics.record_run` on
+          run termination — `COMPLETED` (engine finished naturally), `ABORTED`
+          (operator `/robot/simulation/stop`), `FAILED` (fatal engine/transition error).
+          Carries wall-clock `started_at`/`finished_at`, `duration_s`, and the full
+          analytics block (trees harvested/skipped, `distance_travelled`, battery
+          start/end/used, `recharge_count`, avg/fastest/slowest harvest time, avg speed,
+          idle time, `efficiency`, deterministic `mission_score`, `speed_factor`).
+        - **Analytics service (`backend/analytics/mission_history.py`):** single source
+          of truth. `compute_run` derives every metric from append-only `RobotTelemetry`
+          + `RobotEvent` + immutable `HarvestMissionItem`/`Tree`/`Inspection` (no N+1 —
+          bulk loads). `build_timeline` synthesizes the higher-level milestones the
+          engine does not emit (Mission Started, Charging detected from a ≥25%-battery
+          jump, Returning To Dock). `build_tree_activity` joins per-tree visit/harvest/
+          battery/inventory/inspection. `build_robot_log` returns the raw event log.
+          `mission_score = 100·completion·(0.5+0.5·battery_econ)·status_factor`
+          (COMPLETED 1.0 / ABORTED 0.5 / FAILED 0.2), clamped [0,100].
+        - **Backend API (`backend/api/robot_history.py`, mounted in `main.py`):** GET
+          `/robot/runs`, `/robot/runs/{id}`, `/robot/runs/{id}/timeline`,
+          `/robot/runs/{id}/tree-activity`, `/robot/runs/{id}/robot-log`. Read-only;
+          history is append-only and written only by the scheduler.
+        - **Frontend (presentation only):** new `RobotRun`/`TimelineEntry`/
+          `TreeActivity`/`RobotLogEntry` types + fetch helpers in `detection.ts`;
+          `/robot/history` sortable run table; `/robot/history/[id]` detail page
+          (summary grid + timeline + tree-activity table + robot log, tabbed)
+          linking each tree to `/trees/[id]`; dashboard "Latest Robot Run" widget; nav
+          link "Mission History" in `layout.tsx`. All inline-styled; **no new
+          dependencies**; frontend computes **nothing** — every number comes from the API.
+        - **Verification:** `py_compile` OK; `init_db` creates `robot_runs`; analytics
+          unit-driven against synthetic telemetry/events (score/dist/battery/recharge
+          correct); live server curl on all 5 endpoints (200 + 404 path) OK; full
+          scheduler run auto-wrote `RobotRun` #3 (COMPLETED, with real distance/recharge/
+          mission_score); `tsc --noEmit` 0 errors; `next build` success. **Playwright
+          0-console-error pass still TODO** (reuse `verify_v361.js` flow + open
+          `/robot/history`).
+         - **NOT committed** — awaiting approval.
+       - **VERSION 3.7.1 — Mission History & Analytics Refinement (completed; awaiting
+         commit approval):** a refinement of V3.7 — **no new architecture, no new features,
+         no new APIs, no frontend business logic.** It makes the V3.7 analytics transparent
+         and easier to scan, and wires the tree-activity table into the Digital Twin. All
+         metrics remain backend-owned; the frontend only renders.
+         - **(1) Transparent Mission Score breakdown.** The score formula was opaque in V3.7
+           (only `mission_score` was shown). `analytics._mission_score` now returns
+           `(final, breakdown)` with explicit factors: `completion`, `battery_economy`,
+           `status_factor`, `raw`, `final`, plus two human-readable outcome flags
+           `safe_return` (1.0 if COMPLETED/ABORTED else 0.0) and `error_free` (1.0 if not
+           FAILED). `compute_run` stores `json.dumps(breakdown)` into the new `RobotRun.
+           score_breakdown` (Text) column; `RobotRun.to_dict` exposes it. `init_db.py` gained
+           an idempotent `ALTER TABLE robot_runs ADD COLUMN IF NOT EXISTS score_breakdown
+           TEXT` so existing tables evolve on boot. The frontend detail page now renders a
+           "Mission Score" panel showing the final 0–100 score and four progress bars
+           (Completion / Battery Efficiency / Safe Return / Error Free) — exactly the
+           backend-derived factors, no recomputation. Legacy runs were backfilled via
+           `compute_run` so the panel is populated on existing history.
+         - **(2) Grouped travel timeline.** `build_timeline` was rewritten so consecutive
+           tree visits are joined by a single synthesized **"Travelled X m"** segment
+           (`icon:"route"`, `distance_m` = telemetry position delta over the gap), instead of
+           emitting repetitive per-tick `Moving` rows. Movement is grouped; the timeline is
+           now chronological and scannable (Mission Started → Reached Tree → Harvest Completed
+           → … → Travelled → Reached Tree → Mission Completed → Returning To Dock). The
+           `TimelineEntry` type gained an optional `distance_m` field rendered as a small
+           badge on the frontend. Single-tree runs (genuinely one stop) correctly show no
+           travel segment.
+         - **(3) Severity-tagged robot log.** `build_robot_log` now tags every entry with a
+           `severity` via `_event_severity`: ERROR (Error / MissionFailed / EngineError, or
+           StateChanged → ERROR), WARNING (BatteryLow / StateChanged / ReturnedToDock), else
+           INFO. No logic duplication — the existing event-set handling is preserved. The
+           frontend robot-log renders a colored left-border per severity (INFO blue /
+           WARNING amber / ERROR red) for a clear visual hierarchy. `RobotLogEntry.severity`
+           + `LogSeverity` type added to `detection.ts`.
+         - **(4) Tree-activity → Digital Twin actions.** The V3.7 tree-activity table is now
+           actionable: each row exposes **"Open Tree"** (`/trees/[id]`) and **"Open Digital
+           Twin"** (`/map?tree=[id]`). `/map` was extended to read the `?tree=` query param
+           and focus the twin on that tree by passing a new `initialTreeId` prop to
+           `FarmViewer`, which seeds `selectedTreeId` once the tree's overlay metadata has
+           arrived — reusing the existing selection + `TreeDetailsDrawer` machinery, **no new
+           lookup logic**. The run detail page's tree-activity tab renders the two action
+           links inline.
+         - **Files changed:** `backend/analytics/mission_history.py` (`_mission_score`,
+           `compute_run` breakdown + `safe_return`/`error_free`, `build_timeline` travel
+           grouping, `build_robot_log` severity + `_event_severity`/`_parse_json`),
+           `backend/database/models.py` (`RobotRun.score_breakdown` + `_parse_json` +
+           `to_dict`), `backend/database/init_db.py` (idempotent ALTER), `frontend/lib/api/
+           detection.ts` (`ScoreBreakdown`, `LogSeverity`, updated `RobotRun`/`TimelineEntry`/
+           `RobotLogEntry`), `frontend/app/robot/history/[id]/page.tsx` (score panel, grouped
+           timeline badge, severity log, tree-activity actions), `frontend/components/
+           FarmViewer.tsx` (`initialTreeId` prop + focus effect), `frontend/app/map/page.tsx`
+           (`?tree=` read via `useSearchParams` wrapped in `<Suspense>`). `PROJECT_SPECIFICATION.md`
+           gained a non-invalidating "Version 3.7 Amendment" recording that **Playback is
+           superseded by Mission History & Analytics and deferred to Version 4** (V3.7/V3.7.1
+           are the final Operations-Center scope for this line).
+         - **Next.js 16 detail-fix:** `/robot/history/[id]` is a client page; in Next 16 route
+           `params` is async, so it now unwraps via `use(params)` (React) — without this the
+           id was `undefined` → `NaN` → 422 on every sub-endpoint. `useSearchParams` on `/map`
+           is wrapped in `<Suspense>` so the production build prerenders cleanly.
+         - **Verification:** `py_compile` OK; `init_db` ALTER applied live (existing
+           `robot_runs` gained `score_breakdown`); backend endpoints all 200 (legacy runs
+           backfilled with correct breakdown); `tsc --noEmit` 0 errors; `next build` success
+           (no unresolved imports, Suspense fix for `useSearchParams`); Playwright harness
+            (`verify_v371.js`) **0 console errors** across `/robot/history`,
+            `/robot/history/2` (score factors render, severity log shows INFO/WARNING,
+            timeline grouped), and `/map?tree=698` (twin focus, no crash). Servers stopped
+            after verification. **NOT committed** — awaiting approval.
+        - **VERSION 3.7.2 — Workflow Integration & End-to-End Synchronization (completed;
+          awaiting commit approval):** wires the existing V3 subsystems (Harvest Planner →
+          Robot Simulation → Inventory/Trees/Dashboard/History/Analytics) into **one
+          synchronized workflow with no manual steps in between** — a hardening/integration
+          release, **not a new feature milestone.** All business logic stays backend-owned;
+          the frontend only renders.
+          - **(1) Harvest Mission start now auto-starts the robot simulation.** Previously
+            `POST /harvest/missions/{id}/start` only flipped the mission to RUNNING and the
+            operator had to separately hit "Start Simulation" on `/robot`. It now calls
+            `scheduler.start(mission_id, speed_factor)` after the status flip, so the robot
+            run loop executes the mission end-to-end. `speed_factor` is an optional query
+            param (default 1.0). A sim failure does not roll back mission state (the mission
+            is still RUNNING so the operator can retry).
+          - **(2) Robot execution is now a full Harvest Mission executor.** The simulation
+            run loop previously emitted `EVENT_HARVEST_FINISHED` / `EVENT_MISSION_COMPLETED`
+            but never updated the Harvest Mission, Inventory, or Trees — only the manual
+            "Advance" button did. The execution mutations were **factored out** of
+            `api/harvest_mission_api.py` into a new single-source-of-truth service
+            `backend/harvest/execution.py` (`complete_item`, `advance_mission`,
+            `finalize_mission`, `_decrease_harvest`). The scheduler's run loop now consumes
+            `EVENT_HARVEST_FINISHED` (completing the harvested `HarvestMissionItem` and
+            writing its post-harvest `InventorySnapshot`) and finalizes the mission when the
+            run ends (the engine only emits `EVENT_MISSION_COMPLETED` on the battery-low
+            branch, so completion is also driven off `ctx.finished`). All functions are
+            idempotent (re-delivered events never double-harvest). The manual advance endpoint
+            now delegates to `advance_mission` — no duplicated logic.
+          - **(3) Live synchronization confirmed.** On a full run: items flip
+            IN_PROGRESS→COMPLETED as the robot harvests, post-harvest `InventorySnapshot`s are
+            written and `Tree.current_inventory_id` is repointed (old snapshots untouched),
+            the mission becomes COMPLETED on dock return, a `RobotRun` is recorded, and the
+            Dashboard `current_harvest_mission` reflects COMPLETED — all derived from the one
+            backend source of truth (HarvestMission + InventorySnapshot). Verified live
+            (mission #29: 2 trees, harvested 3+7, inventory decremented correctly, mission
+            COMPLETED, dashboard synced, RobotRun #14 recorded).
+          - **(4) Server-side pagination for Permanent Trees (survey list).** `GET
+            /mission/{id}/permanent-trees` now accepts `page` (1-based) and `page_size`
+            (default 20, max 100) and returns a single page slice plus `page`/`page_size`/
+            `total_pages`. The survey page renders a Previous/Next pager (no longer sending
+            the entire tree set in one client payload). The per-tree expandable inspection /
+            inventory history is unchanged.
+          - **(5) Robot-status de-duplication.** The survey page's "Robot Status" card is
+            already mission-scoped (`robotStatus.mission_id === selectedHarvest.id`) and
+            refreshes from the live harvest-mission state after every action, so it is not a
+            redundant copy of the dashboard's global Robot Status — it is the contextual
+            executor view for the mission being run. No second/duplicate panel remains on the
+            survey page.
+          - **Files changed:** `backend/harvest/__init__.py` + `backend/harvest/execution.py`
+            (new shared execution service), `backend/api/harvest_mission_api.py`
+            (`start_harvest_mission` auto-starts sim; `advance_harvest_mission` delegates to
+            `advance_mission`; removed duplicated `_decrease_harvest`/`_complete_item`),
+            `backend/simulation/scheduler.py` (run loop consumes sim events via the shared
+            service; imports `EVENT_HARVEST_FINISHED`/`EVENT_MISSION_COMPLETED`; `_mission_
+            harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
+            pagination), `frontend/lib/api/detection.ts` (`getPermanentTrees` pagination
+            params + `PermanentTrees` page fields), `frontend/app/survey/page.tsx`
+            (`permPage` state, pager UI, `PermanentTrees` type, page-scoped loads).
+          - **Root-cause note:** the first integration attempt silently failed because the
+            run loop treated `SimulationEvent` as a `dict` (`ev.get(...)`) — it is a dataclass
+            (`.type` / `.detail`). The swallowed `AttributeError` left the mission stuck
+            RUNNING with the item IN_PROGRESS. Fixed by reading `ev.type` / `ev.detail` and
+            driving finalize off `ctx.finished`.
+          - **Verification:** `py_compile` OK; backend imports OK; `tsc --noEmit` 0 errors;
+            `next build` success; live E2E start→sim→inventory→mission COMPLETED→dashboard
+            synced→RobotRun recorded; Playwright **0 console errors** across `/survey`,
+            `/dashboard`, `/robot`, `/robot/history`, `/robot/history/2`, `/map?tree=698`.
+            Servers stopped after verification. **NOT committed** — awaiting approval.
+        - **VERSION 3.7.3 — Simulation Speed & Battery Calibration (completed; awaiting
+          commit approval):** a refinement only — **no new architecture, no new features,
+          no duplicated logic.** Calibrates the default simulation speed and the battery
+          model so the robot feels realistic and the speed default is backend-owned.
+          - **(1) Configurable default simulation speed (60×).** Introduced one shared
+            constant `DEFAULT_SIMULATION_SPEED = 60.0` in the new
+            `backend/simulation/config.py`, the single source of truth. It replaces the
+            three hardcoded `1.0` defaults — `SimulationScheduler.start`,
+            `start_simulation` (API), and `start_harvest_mission` (API) now default to it.
+            A new `GET /robot/simulation/config` endpoint exposes it; the frontend fetches
+            it once on mount and initialises the speed input to that value automatically
+            (no hardcoded `60` on the client). Existing speed controls are unchanged — the
+            input `max` was raised from 50 to 500 so 120× (twice the default) is selectable,
+            and `onSpeedChange` still re-issues `startSimulation` with the chosen factor.
+          - **(2) Battery calibration (1%/real-s at 60×).** The drain rate was a hardcoded
+            `BATTERY_DRAIN_PER_S = 0.5` (%/sim-s) in `engine.py` — at 60× that was ~30%/real-s
+            (full drain in ~3 s). It now lives in `simulation/config.py` as
+            `BATTERY_DRAIN_PER_S = 1.0 / DEFAULT_SIMULATION_SPEED` (≈0.0167 %/sim-s), so at
+            the default 60× the robot loses ~1% per real second. The rate stays a pure
+            function of **simulated elapsed time** (`dt`), deterministic, with no wall-clock
+            hacks and no special cases — changing the default speed automatically retargets
+            the real-second calibration. Recharge and Return-to-Dock logic are untouched.
+          - **Files changed:** `backend/simulation/config.py` (new; `DEFAULT_SIMULATION_SPEED`,
+            `BATTERY_DRAIN_PER_S`), `backend/simulation/engine.py` (imports shared drain rate;
+            removed hardcoded `0.5`), `backend/simulation/scheduler.py` (`start` default +
+            import), `backend/api/robot_simulation.py` (`/config` endpoint; `start` default),
+            `backend/api/harvest_mission_api.py` (`start_harvest_mission` default + import),
+            `frontend/lib/api/detection.ts` (`getSimulationConfig` + `SimulationConfig` type),
+            `frontend/app/robot/page.tsx` (fetch config, pass `defaultSpeedFactor`),
+            `frontend/components/robot/SimulationControls.tsx` (sync to backend default when
+            idle; `max=500`).
+          - **Verification:** `py_compile` OK; `tsc --noEmit` 0 errors; `next build` success;
+            `GET /robot/simulation/config` → `{"default_speed_factor":60.0}`; deterministic
+            engine check: 60 active sim-s drains exactly 1.0% (1%/real-s @60× nominal), 120×
+            → 2.0%/real-s (exactly double); live run started at default 60× with no speed arg
+            and drained smoothly (battery 100→~85 over a 3-tree run, no premature zero);
+            recharge returns to 100.0; mission execution + Return-to-Dock unchanged; Playwright
+            **0 console errors** across `/robot` (speed input initialised to **60** — proving
+            the UI auto-syncs to the backend default), `/survey`, `/dashboard`, and
+            `verify_v371.js` (`/robot/history`, `/robot/history/2`, `/map?tree=698`). Servers
+            stopped after verification. **NOT committed** — awaiting approval.
+        - V2.5 is complete (read-only Tree Details panel). Optional future: a read-only
       "Locate on twin" pan-to-tree action in the panel (still no mutation); eventually
       supersede the sparse legacy `/trees/[treeId]` page with the panel.
      - **V2.6 (overlay performance) — observations recorded during V2.5.1 (no code change):**

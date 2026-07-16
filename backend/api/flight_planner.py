@@ -124,8 +124,8 @@ class FlightPlan:
 # configured — NOT derived from the image count. Top-left origin, boustrophedon
 # sweep, standard survey spacing. Deterministic.
 DEFAULT_PLANNER_CONFIG = PlannerConfig(
-    rows=5,
-    cols=2,
+    rows=2,
+    cols=4,
     origin=GridOrigin.TOP_LEFT,
     traversal_pattern=TraversalPattern.BOUSTROPHEDON,
     row_spacing=SPACING_DEG,

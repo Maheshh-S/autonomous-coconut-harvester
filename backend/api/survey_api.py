@@ -1060,13 +1060,22 @@ def get_survey_tile(tile_id: int):
 
 
 @router.get("/mission/{mission_id}/permanent-trees")
-def get_permanent_trees(mission_id: int):
-    """Permanent Trees touched by a mission (Feature 6).
+def get_permanent_trees(mission_id: int, page: int = 1, page_size: int = 20):
+    """Permanent Trees touched by a mission (Feature 6), server-side paginated.
 
     Summarises the digital-twin foundation for the selected mission: how many
     permanent Trees were first seen vs. re-observed, and the average matching
     confidence over re-observations. Stable Tree IDs are the core guarantee.
+    V3.7.2: paginated (``page`` 1-based, ``page_size`` default 20, max 100) so the
+    survey list no longer renders the entire tree set in one client payload.
     """
+    if page < 1:
+        page = 1
+    if page_size < 1:
+        page_size = 20
+    if page_size > 100:
+        page_size = 100
+
     db = SessionLocal()
     try:
         mission = (
@@ -1078,7 +1087,10 @@ def get_permanent_trees(mission_id: int):
             )
 
         observed = (
-            db.query(Tree).filter(Tree.last_seen_mission_id == mission_id).all()
+            db.query(Tree)
+            .filter(Tree.last_seen_mission_id == mission_id)
+            .order_by(Tree.id)
+            .all()
         )
         newly_created = [t for t in observed if t.first_seen_mission_id == mission_id]
         matched_existing = [
@@ -1091,9 +1103,16 @@ def get_permanent_trees(mission_id: int):
         ]
         avg_conf = round(sum(confs) / len(confs), 4) if confs else None
 
+        total = len(observed)
+        start = (page - 1) * page_size
+        page_trees = observed[start : start + page_size]
+
         return {
             "mission_id": mission_id,
-            "total": len(observed),
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size if total else 0,
             "newly_created": len(newly_created),
             "matched_existing": len(matched_existing),
             "avg_match_confidence": avg_conf,
@@ -1109,7 +1128,7 @@ def get_permanent_trees(mission_id: int):
                     "last_matching_confidence": t.last_matching_confidence,
                     "is_new": t.first_seen_mission_id == mission_id,
                 }
-                for t in observed
+                for t in page_trees
             ],
         }
     finally:

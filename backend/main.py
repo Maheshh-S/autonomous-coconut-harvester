@@ -30,6 +30,7 @@ from api.robot_domain import router as robot_domain_router
 from api.robot_navigation import router as robot_navigation_router
 from api.robot_simulation import router as robot_simulation_router
 from api.robot_telemetry import router as robot_telemetry_router
+from api.robot_history import router as robot_history_router
 from simulation.scheduler import scheduler
 from telemetry.event_bus import event_bus
 from telemetry.websocket_gateway import build_websocket_gateway
@@ -79,6 +80,7 @@ app.include_router(robot_domain_router)
 app.include_router(robot_navigation_router)
 app.include_router(robot_simulation_router)
 app.include_router(robot_telemetry_router)
+app.include_router(robot_history_router)
 
 
 # Version 3.5 — Robot Telemetry WebSocket. Live streaming of simulation state;

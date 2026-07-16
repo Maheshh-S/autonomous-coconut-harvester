@@ -52,6 +52,8 @@ export default function RootLayout({
 
 <Link href="/robot">Robot</Link>
 
+<Link href="/robot/history">Mission History</Link>
+
         </div>
 
 

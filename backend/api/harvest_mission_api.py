@@ -29,19 +29,16 @@ from database.models import (
     HarvestMissionItemStatus,
     ACTIVE_HARVEST_MISSION_STATUSES,
 )
+# V3.7.2: execution mutations live in one shared service consumed by both this
+# router and the robot simulation scheduler (no duplicated logic).
+from harvest.execution import (
+    HARVEST_TYPE_COLUMN,
+    advance_mission,
+)
+from simulation.config import DEFAULT_SIMULATION_SPEED
 
 router = APIRouter()
 
-
-# Valid harvest types. ``mature`` / ``potential`` / ``premature`` map 1:1 onto the
-# Inventory Snapshot count columns frozen in Feature 9; ``all`` uses total_coconuts
-# (any inventory). (PROJECT_SPECIFICATION.md §24, §40.2.)
-HARVEST_TYPE_COLUMN = {
-    "mature": "mature_count",
-    "potential": "potential_count",
-    "premature": "premature_count",
-    "all": "total_coconuts",
-}
 
 # A tree is observable/reachable only while ACTIVE (§16, §40.1). MISSING/INACTIVE
 # trees are never sent the robot.
@@ -417,78 +414,6 @@ def _require_no_other_active(db, mission_id: int):
         )
 
 
-def _decrease_harvest(snap: InventorySnapshot, harvest_type: str, amount: int):
-    """Reduce the harvested category of a (new) snapshot by ``amount`` (§25, §43).
-
-    ``harvest_type`` maps onto a snapshot column via the same rule the planner
-    uses (§40.2): mature/potential/premature decrease that single column; ``all``
-    harvests everything, so each category is reduced proportionally (and total is
-    recomputed). Counts are clamped at 0 — never negative.
-    """
-    amount = int(amount)
-    if harvest_type == "mature":
-        snap.mature_count = max(0, snap.mature_count - amount)
-    elif harvest_type == "potential":
-        snap.potential_count = max(0, snap.potential_count - amount)
-    elif harvest_type == "premature":
-        snap.premature_count = max(0, snap.premature_count - amount)
-    elif harvest_type == "all":
-        total = snap.mature_count + snap.potential_count + snap.premature_count
-        if total > 0:
-            snap.mature_count = max(
-                0, snap.mature_count - round(amount * snap.mature_count / total)
-            )
-            snap.potential_count = max(
-                0,
-                snap.potential_count - round(amount * snap.potential_count / total),
-            )
-            snap.premature_count = max(
-                0,
-                snap.premature_count
-                - round(amount * snap.premature_count / total),
-            )
-    snap.total_coconuts = (
-        snap.mature_count + snap.potential_count + snap.premature_count
-    )
-    return snap
-
-
-def _complete_item(db, item: HarvestMissionItem, harvest_type: str):
-    """Mark an item COMPLETED and write a post-harvest Inventory Snapshot (§44.5).
-
-    The tree's *current* snapshot is copied into a brand-new row with the
-    harvested category decreased; the old snapshot is never modified, so
-    Inventory History stays intact (§17, §18). ``Tree.current_inventory_id`` is
-    repointed at the new snapshot.
-    """
-    tree = item.tree or db.get(Tree, item.tree_id)
-    if tree is not None and tree.current_inventory_id is not None:
-        snap = db.get(InventorySnapshot, tree.current_inventory_id)
-        if snap is not None:
-            new_snap = InventorySnapshot(
-                tree_id=tree.id,
-                inspection_id=None,  # post-harvest: no originating inspection
-                created_at=_now(),
-                total_coconuts=snap.total_coconuts,
-                mature_count=snap.mature_count,
-                potential_count=snap.potential_count,
-                premature_count=snap.premature_count,
-            )
-            _decrease_harvest(new_snap, harvest_type, item.expected_coconuts)
-            db.add(new_snap)
-            db.commit()
-            db.refresh(new_snap)
-            # write-once public code (§11.2)
-            new_snap.snapshot_code = "INV-" + str(new_snap.id).zfill(4)
-            tree.current_inventory_id = new_snap.id
-            db.commit()
-    # Record the coconuts actually harvested (current F11 slice: equals the
-    # planned yield). Reserved for future field-verified yields (§43.4).
-    item.harvested = item.expected_coconuts
-    item.status = HarvestMissionItemStatus.COMPLETED.value
-    db.commit()
-
-
 def _robot_state(mission_status: str, has_current: bool) -> str:
     """Derive a coarse robot operational state for the dashboard (§45)."""
     if mission_status == HarvestMissionStatus.COMPLETED.value:
@@ -503,8 +428,12 @@ def _robot_state(mission_status: str, has_current: bool) -> str:
 
 
 @router.post("/harvest/missions/{mission_id}/start")
-def start_harvest_mission(mission_id: int):
-    """CREATED → RUNNING; claim the first ordered tree (PENDING→IN_PROGRESS)."""
+def start_harvest_mission(mission_id: int, speed_factor: float = DEFAULT_SIMULATION_SPEED):
+    """CREATED → RUNNING; claim the first ordered tree and auto-start the robot
+    simulation (V3.7.2 requirement #1: one synchronized workflow, no manual sim
+    start). The robot run loop drives item completion / inventory updates via the
+    shared execution service — the operator no longer advances manually.
+    """
     db = SessionLocal()
     try:
         mission = _get_mission_or_404(db, mission_id)
@@ -527,6 +456,19 @@ def start_harvest_mission(mission_id: int):
             mission.completed_at = _now()
         db.commit()
         db.refresh(mission)
+
+        # Auto-start the robot simulation so the mission executes end-to-end
+        # without a separate manual "start simulation" action.
+        if mission.status == HarvestMissionStatus.RUNNING.value:
+            try:
+                from simulation.scheduler import scheduler
+
+                scheduler.start(mission_id=mission_id, speed_factor=speed_factor)
+            except Exception as exc:  # never let sim start block mission state
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Harvest mission started but robot sim failed: {exc}",
+                )
         return _serialize_mission(mission, include_items=True)
     finally:
         db.close()
@@ -611,39 +553,16 @@ def cancel_harvest_mission(mission_id: int):
 def advance_harvest_mission(mission_id: int):
     """Advance the robot to the next tree (§43, §44).
 
-    Completes the current IN_PROGRESS item — writing its post-harvest Inventory
-    Snapshot — then claims the next PENDING tree (PENDING→IN_PROGRESS). When no
-    PENDING trees remain, the mission becomes COMPLETED (§43.5). Requires the
-    mission to be RUNNING (resume a paused mission first).
+    Delegates to the shared execution service so the manual advance and the
+    robot simulation drive identical completion / inventory logic. Completes the
+    current IN_PROGRESS item — writing its post-harvest Inventory Snapshot — then
+    claims the next PENDING tree (PENDING→IN_PROGRESS). When no PENDING trees
+    remain, the mission becomes COMPLETED (§43.5). Requires the mission to be
+    RUNNING (resume a paused mission first).
     """
     db = SessionLocal()
     try:
-        mission = _get_mission_or_404(db, mission_id)
-        if mission.status != HarvestMissionStatus.RUNNING.value:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f"Mission is {mission.status}; resume a paused mission "
-                    "before advancing"
-                ),
-            )
-
-        cur = _in_progress_item(db, mission_id)
-        if cur is not None:
-            # Harvest the current tree and update its inventory (§25, §44.5).
-            _complete_item(db, cur, mission.harvest_type)
-
-        nxt = _next_pending_item(db, mission_id)
-        if nxt is not None:
-            # Exactly one IN_PROGRESS at a time.
-            assert _in_progress_item(db, mission_id) is None
-            nxt.status = HarvestMissionItemStatus.IN_PROGRESS.value
-        else:
-            # Queue exhausted → mission complete (§43.5).
-            mission.status = HarvestMissionStatus.COMPLETED.value
-            mission.completed_at = _now()
-        db.commit()
-        db.refresh(mission)
+        mission = advance_mission(db, mission_id, _get_mission_or_404(db, mission_id).harvest_type)
         return _serialize_mission(mission, include_items=True)
     finally:
         db.close()

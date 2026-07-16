@@ -4000,3 +4000,50 @@ before any UI (V3.5), keeping the renderer freeze undisturbed.
   stage; it does **not** change `FarmMosaic`/`OverlayLayer`/`TreeDetailsDrawer`.
 
 *End of Appendix A — Version 3 Robot Simulation Architecture (FROZEN).*
+
+---
+
+# Version 3.7 Amendment — Mission History & Analytics (supersedes "Playback")
+
+> **This amendment is additive. It does NOT invalidate any previously frozen
+> requirement.** The original Appendix A §A.7 / §A.8 "V3.7 Playback" line remains
+> frozen as written; this amendment records the *actual* V3.7 scope that was
+> delivered and re-scopes Playback.
+
+## A.10.1 Playback intentionally superseded
+
+The frozen spec describes **V3.7 Playback** as "Replay past missions — feed stored
+`RobotTelemetry`/`RobotEvent` through the same components in `playback` mode; no
+second renderer." During implementation this was intentionally **superseded** by
+**Mission History & Analytics** (V3.7, delivered as `backend/analytics/mission_history.py`
++ `GET /robot/runs` endpoints + the `/robot/history` frontend).
+
+Rationale:
+
+- The Operations Center value is in **derived, read-only analytics** over a
+  terminated run (mission score, per-tree activity, timeline, robot log) — not in
+  re-driving the live renderer from stored samples.
+- Replay would require a `playback` mode flag threading through `FarmViewer` and the
+  simulation components, adding a second execution path that the "pure `step(dt)`"
+  simplicity principle (§A.9) was explicitly designed to avoid.
+- Backend remains the single source of truth: every metric is computed server-side
+  in `mission_history.py`; the frontend only renders.
+
+## A.10.2 Playback deferred to Version 4
+
+**Playback (true replay of stored telemetry through the twin) is deferred to
+Version 4.** It is NOT removed from the roadmap; it is rescheduled. If/when V4
+revisits it, it should reuse the existing `RobotRun` + `RobotTelemetry`/`RobotEvent`
+records as the replay source and keep `step(dt)` pure (no second code path).
+
+## A.10.3 What V3.7 delivered instead (non-invalidating)
+
+- `RobotRun` table: one immutable summary row per terminated run (COMPLETED /
+  ABORTED / FAILED), written once by `SimulationScheduler` on run termination.
+- Analytics: mission score (transparent, with breakdown), per-tree activity,
+  synthesized timeline (travel segments grouped), and a severity-tagged robot log.
+- Frontend: `/robot/history` (sortable run list) + `/robot/history/[id]` (summary /
+  timeline / tree-activity / robot-log tabs) + dashboard "Latest Robot Run" widget.
+  All presentation-only.
+
+*End of Version 3.7 Amendment.*

@@ -201,10 +201,17 @@ export async function getTileGeneration(missionId: number) {
   return res.json()
 }
 
-export async function getPermanentTrees(missionId: number) {
-  const res = await fetch(getApiUrl(`/mission/${missionId}/permanent-trees`), {
-    cache: "no-store",
-  })
+export async function getPermanentTrees(
+  missionId: number,
+  page: number = 1,
+  pageSize: number = 20
+) {
+  const res = await fetch(
+    getApiUrl(
+      `/mission/${missionId}/permanent-trees?page=${page}&page_size=${pageSize}`
+    ),
+    { cache: "no-store" }
+  )
   if (!res.ok) throw new Error("Failed to load permanent trees")
   return res.json()
 }
@@ -616,4 +623,380 @@ export async function getDashboardOverview() {
   })
   if (!res.ok) throw new Error("Failed to load dashboard overview")
   return res.json() as Promise<DashboardOverview>
+}
+
+// ---------------------------------------------------------------------------
+// Version 3 — Robot Simulation (V3.1–V3.6, presentation only).
+// These are thin clients over the existing backend Simulation + Robot APIs. The
+// UI never computes movement, navigation, state, or battery — it only sends
+// commands and renders the latest snapshot the backend streams.
+// ---------------------------------------------------------------------------
+
+// The 8-value RobotState (V3.3 / §A.3). The string union keeps the frontend
+// honest about which states it may display.
+export type V3RobotState =
+  | "IDLE"
+  | "MOVING"
+  | "CLIMBING"
+  | "SCANNING"
+  | "HARVESTING"
+  | "RETURNING"
+  | "ERROR"
+  | "DOCKED"
+
+// One simulation-engine event as broadcast over the WebSocket frame.
+export interface RobotSimEvent {
+  type: string
+  sim_time: number
+  detail: Record<string, unknown>
+}
+
+// Live robot snapshot delivered each tick over the WebSocket (mirrors the
+// backend `WebSocketGateway` frame's `robot` block exactly — read-only).
+export interface RobotSnapshot {
+  position: { x: number; y: number }
+  heading_deg: number
+  speed: number
+  battery_pct: number
+  state: V3RobotState
+  waypoint_index: number
+  waypoint_count: number
+  completed_item_ids: number[]
+  finished: boolean
+}
+
+// Simulation run status (the scheduler's `status()`).
+export interface SimulationStatus {
+  status: "stopped" | "running" | "paused" | "finished"
+  mission_id: number | null
+  sim_time: number
+  speed_factor: number
+  waypoint_index: number
+  waypoint_count: number
+  completed_item_ids: number[]
+  finished: boolean
+  error: string | null
+  recent_events: RobotSimEvent[]
+}
+
+// Full WebSocket frame (telemetry or snapshot).
+export interface RobotFrame {
+  type: "telemetry" | "snapshot"
+  sim_time: number
+  status: SimulationStatus["status"]
+  mission_id: number | null
+  robot: RobotSnapshot
+  events: RobotSimEvent[]
+  run: { status: SimulationStatus["status"]; finished: boolean; error: string | null }
+}
+
+// Navigation plan (read-only) used to draw the mission path. We reuse the same
+// farm-pixel coordinates the twin overlay uses — never recomputed in the UI.
+export interface RobotPlanWaypoint {
+  kind: "dock" | "tree"
+  x: number
+  y: number
+  tree_id: number | null
+  mission_item_id: number | null
+}
+export interface RobotNavPlan {
+  mission_id: number | null
+  total_distance: number
+  waypoints: RobotPlanWaypoint[]
+}
+
+// --- REST control helpers (commands only; no business logic) ----------------
+
+async function postRobot(path: string, body?: Record<string, unknown>) {
+  const res = await fetch(getApiUrl(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : JSON.stringify({}),
+  })
+  if (!res.ok) {
+    let detail = `Request to ${path} failed (${res.status})`
+    try {
+      const b = await res.json()
+      if (b?.detail) detail = b.detail
+    } catch {
+      /* no JSON body */
+    }
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
+export function startSimulation(missionId?: number, speedFactor = 1) {
+  const qs = new URLSearchParams()
+  if (missionId != null) qs.set("mission_id", String(missionId))
+  qs.set("speed_factor", String(speedFactor))
+  return postRobot(`/robot/simulation/start?${qs.toString()}`)
+}
+
+export function pauseSimulation() {
+  return postRobot("/robot/simulation/pause")
+}
+
+export function resumeSimulation() {
+  return postRobot("/robot/simulation/resume")
+}
+
+export function stopSimulation() {
+  return postRobot("/robot/simulation/stop")
+}
+
+export function returnRobotToDock() {
+  return postRobot("/robot/simulation/return-to-dock")
+}
+
+export function rechargeRobot() {
+  return postRobot("/robot/recharge")
+}
+
+export function resetRobot() {
+  return postRobot("/robot/reset")
+}
+
+export async function getSimulationStatus() {
+  const res = await fetch(getApiUrl("/robot/simulation"), { cache: "no-store" })
+  if (!res.ok) throw new Error("Failed to load simulation status")
+  return res.json() as Promise<SimulationStatus>
+}
+
+// V3.7.3 — backend-owned simulation defaults. The UI initialises its speed
+// control to `default_speed_factor` so the default lives in one place (backend).
+export type SimulationConfig = {
+  default_speed_factor: number
+}
+
+export async function getSimulationConfig(): Promise<SimulationConfig> {
+  const res = await fetch(getApiUrl("/robot/simulation/config"), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load simulation config")
+  return res.json() as Promise<SimulationConfig>
+}
+
+export async function getRobotNavPlan(missionId?: number) {
+  const qs = missionId != null ? `?mission_id=${missionId}` : ""
+  const res = await fetch(getApiUrl(`/robot/navigation/plan${qs}`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load navigation plan")
+  return res.json() as Promise<RobotNavPlan>
+}
+
+// --- WebSocket client (live, auto-reconnect, no duplicate frames) -----------
+
+type FrameHandler = (frame: RobotFrame) => void
+type StatusHandler = (conn: "connecting" | "open" | "closed") => void
+
+// Connects only to `/ws/robot`. Reconnects automatically with a capped backoff.
+// Never sends anything to the server (observe-only), so it can never restart the
+// simulation. Frames are delivered in arrival order; the gateway is a single
+// broadcaster per tick, so there is no application-level de-duplication needed —
+// we simply pass each parsed frame to the handler exactly once.
+export class RobotWebSocketClient {
+  private url: string
+  private ws: WebSocket | null = null
+  private frameHandler: FrameHandler | null = null
+  private statusHandler: StatusHandler | null = null
+  private shouldRun = false
+  private retry = 0
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private closedByUser = false
+
+  constructor() {
+    const base = API_BASE_URL.replace(/^http/, "ws")
+    this.url = `${base}/ws/robot`
+  }
+
+  onFrame(fn: FrameHandler) {
+    this.frameHandler = fn
+  }
+  onStatus(fn: StatusHandler) {
+    this.statusHandler = fn
+  }
+
+  connect() {
+    this.shouldRun = true
+    this.closedByUser = false
+    this.open()
+  }
+
+  private open() {
+    if (!this.shouldRun) return
+    this.statusHandler?.("connecting")
+    try {
+      this.ws = new WebSocket(this.url)
+    } catch {
+      this.scheduleReconnect()
+      return
+    }
+    this.ws.onopen = () => {
+      this.retry = 0
+      this.statusHandler?.("open")
+    }
+    this.ws.onmessage = (ev) => {
+      try {
+        const frame = JSON.parse(ev.data as string) as RobotFrame
+        this.frameHandler?.(frame)
+      } catch {
+        /* ignore malformed frame */
+      }
+    }
+    this.ws.onclose = () => {
+      this.statusHandler?.("closed")
+      this.scheduleReconnect()
+    }
+    this.ws.onerror = () => {
+      // onclose will follow and handle reconnect; close the socket so the
+      // browser does not leave it half-open.
+      try {
+        this.ws?.close()
+      } catch {
+        /* noop */
+      }
+    }
+  }
+
+  private scheduleReconnect() {
+    if (!this.shouldRun || this.closedByUser) return
+    this.retry = Math.min(this.retry + 1, 6)
+    const delay = Math.min(1000 * 2 ** (this.retry - 1), 15000)
+    if (this.retryTimer) clearTimeout(this.retryTimer)
+    this.retryTimer = setTimeout(() => this.open(), delay)
+  }
+
+  close() {
+    this.shouldRun = false
+    this.closedByUser = true
+    if (this.retryTimer) clearTimeout(this.retryTimer)
+    try {
+      this.ws?.close()
+    } catch {
+      /* noop */
+    }
+    this.ws = null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Version 3.7 — Mission History & Analytics (read-only, backend-computed).
+// The frontend renders these payloads and never recomputes any metric.
+// ---------------------------------------------------------------------------
+
+export type RunStatus = "COMPLETED" | "ABORTED" | "FAILED"
+
+export interface RobotRun {
+  id: number
+  robot_id: number
+  mission_id: number | null
+  status: RunStatus
+  started_at: string | null
+  finished_at: string | null
+  duration_s: number | null
+  total_trees: number
+  harvested_trees: number
+  skipped_trees: number
+  distance_travelled: number
+  battery_start_pct: number | null
+  battery_end_pct: number | null
+  battery_used_pct: number
+  recharge_count: number
+  avg_harvest_time_s: number | null
+  fastest_harvest_s: number | null
+  slowest_harvest_s: number | null
+  avg_speed: number | null
+  idle_time_s: number
+  efficiency: number | null
+  mission_score: number | null
+  score_breakdown: ScoreBreakdown | null
+  speed_factor: number | null
+}
+
+// Transparent Mission Score breakdown (backend-computed; frontend never derives).
+export interface ScoreBreakdown {
+  completion: number
+  battery_economy: number
+  status_factor: number
+  safe_return: number
+  error_free: number
+  raw: number
+  final: number
+}
+
+export interface TimelineEntry {
+  key: string
+  icon: string
+  color: string
+  title: string
+  sim_time: number
+  timestamp: string | null
+  description: string
+  tree_id?: number
+  distance_m?: number
+}
+
+export interface TreeActivity {
+  tree_id: number
+  tree_code: string | null
+  visit_time: number | null
+  harvest_duration_s: number | null
+  harvest_result: "harvested" | "skipped"
+  battery_at_visit: number | null
+  inventory_collected: number | null
+  inspection_id: number | null
+}
+
+export type LogSeverity = "INFO" | "WARNING" | "ERROR"
+
+export interface RobotLogEntry {
+  id: number
+  timestamp: string | null
+  sim_time: number
+  event_type: string
+  detail: Record<string, unknown> | null
+  severity: LogSeverity
+  mission_id: number | null
+}
+
+export async function getRobotRuns(limit = 100) {
+  const res = await fetch(getApiUrl(`/robot/runs?limit=${limit}`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load robot runs")
+  return res.json() as Promise<RobotRun[]>
+}
+
+export async function getRobotRun(runId: number) {
+  const res = await fetch(getApiUrl(`/robot/runs/${runId}`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load robot run")
+  return res.json() as Promise<RobotRun>
+}
+
+export async function getRobotRunTimeline(runId: number) {
+  const res = await fetch(getApiUrl(`/robot/runs/${runId}/timeline`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load run timeline")
+  return res.json() as Promise<TimelineEntry[]>
+}
+
+export async function getRobotRunTreeActivity(runId: number) {
+  const res = await fetch(getApiUrl(`/robot/runs/${runId}/tree-activity`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load run tree activity")
+  return res.json() as Promise<TreeActivity[]>
+}
+
+export async function getRobotRunLog(runId: number, limit = 500) {
+  const res = await fetch(getApiUrl(`/robot/runs/${runId}/robot-log?limit=${limit}`), {
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error("Failed to load robot run log")
+  return res.json() as Promise<RobotLogEntry[]>
 }

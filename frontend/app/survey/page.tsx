@@ -84,6 +84,9 @@ type PermanentTree = {
 type PermanentTrees = {
   mission_id: number
   total: number
+  page: number
+  page_size: number
+  total_pages: number
   newly_created: number
   matched_existing: number
   avg_match_confidence: number | null
@@ -115,6 +118,8 @@ export default function SurveyPage() {
   const [tileStats, setTileStats] = useState<TileStats | null>(null)
   const [tileGen, setTileGen] = useState<TileGeneration | null>(null)
   const [permTrees, setPermTrees] = useState<PermanentTrees | null>(null)
+  const [permPage, setPermPage] = useState(1)
+  const PERM_PAGE_SIZE = 20
   const [expandedTree, setExpandedTree] = useState<number | null>(null)
   const [treeInspections, setTreeInspections] = useState<Record<number, Inspection[]>>({})
   const [inspectionImages, setInspectionImages] = useState<Record<number, InspectionImage[]>>({})
@@ -197,14 +202,14 @@ export default function SurveyPage() {
     }
   }
 
-  async function loadPermanentTrees(missionId: number) {
+  async function loadPermanentTrees(missionId: number, page: number = 1) {
     // Guard against stale responses overwriting fresh data (e.g. a slow
     // pre-completion read resolving after the post-completion read). Only the
     // most recent load for a given mission is applied.
     const seq = ++loadSeq.current
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const data = await getPermanentTrees(missionId)
+        const data = await getPermanentTrees(missionId, page, PERM_PAGE_SIZE)
         if (seq === loadSeq.current) setPermTrees(data as PermanentTrees)
         return
       } catch (err) {
@@ -235,7 +240,8 @@ export default function SurveyPage() {
     if (selectedMissionId === null) return
     loadTileStats(selectedMissionId)
     loadTileGeneration(selectedMissionId)
-    loadPermanentTrees(selectedMissionId)
+    setPermPage(1)
+    loadPermanentTrees(selectedMissionId, 1)
   }, [selectedMissionId])
 
   // Reset completion state only when the selected mission changes (not on every
@@ -246,6 +252,7 @@ export default function SurveyPage() {
     setSuccess(null)
     setTileGen(null)
     setPermTrees(null)
+    setPermPage(1)
   }, [selectedMissionId])
 
   const canComplete =
@@ -1108,6 +1115,40 @@ export default function SurveyPage() {
                   )
                 })}
               </div>
+
+              {permTrees && permTrees.total_pages > 1 && (
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = Math.max(1, permPage - 1)
+                      setPermPage(p)
+                      if (selectedMissionId !== null)
+                        loadPermanentTrees(selectedMissionId, p)
+                    }}
+                    disabled={permPage <= 1}
+                    className="px-3 py-1.5 text-sm border rounded bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {permTrees.page} of {permTrees.total_pages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = Math.min(permTrees.total_pages, permPage + 1)
+                      setPermPage(p)
+                      if (selectedMissionId !== null)
+                        loadPermanentTrees(selectedMissionId, p)
+                    }}
+                    disabled={permPage >= permTrees.total_pages}
+                    className="px-3 py-1.5 text-sm border rounded bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </>
           )}
         </section>
