@@ -3,6 +3,19 @@
 import { useEffect, useState, use } from "react"
 import Link from "next/link"
 import {
+  Play,
+  Tree as TreeIcon,
+  Ladder,
+  Check,
+  BatteryWarning,
+  House,
+  Flag,
+  Lightning,
+  Path,
+  DotOutline,
+  type Icon,
+} from "@phosphor-icons/react"
+import {
   getRobotRun,
   getRobotRunTimeline,
   getRobotRunTreeActivity,
@@ -25,10 +38,39 @@ const statusColor: Record<RunStatus, string> = {
 const tabNames = ["summary", "timeline", "tree-activity", "robot-log"] as const
 type Tab = (typeof tabNames)[number]
 
-const SEVERITY: Record<LogSeverity, { color: string }> = {
-  INFO: { color: "#6cc6ff" },
-  WARNING: { color: "#f5c451" },
-  ERROR: { color: "#ff6b5e" },
+// Robot-log severities, mapped to on-palette tokens (WCAG-safe on the light
+// theme). `tone` is a low-alpha fill for the tag chip; `color` is the readable
+// text/rule colour.
+const SEVERITY: Record<LogSeverity, { color: string; tone: string }> = {
+  INFO: { color: "var(--color-text-dim)", tone: "var(--color-surface-2)" },
+  WARNING: { color: "var(--color-warn)", tone: "color-mix(in srgb, var(--color-warn) 12%, transparent)" },
+  ERROR: { color: "var(--color-crit)", tone: "color-mix(in srgb, var(--color-crit) 12%, transparent)" },
+}
+
+// Timeline event vocabulary. The backend emits a stable `icon` string per event;
+// we map each to one Phosphor glyph (single icon family) and an on-palette token
+// so the machine-log reads with the app's light-agri colour language rather than
+// the generic hex the backend ships as a fallback.
+type TimelineKind = {
+  glyph: Icon
+  color: string
+  tone: string
+}
+const TIMELINE_KIND: Record<string, TimelineKind> = {
+  play: { glyph: Play, color: "var(--color-accent)", tone: "var(--color-accent-weak)" },
+  tree: { glyph: TreeIcon, color: "var(--color-accent)", tone: "var(--color-accent-weak)" },
+  climb: { glyph: Ladder, color: "var(--color-text-dim)", tone: "var(--color-surface-2)" },
+  check: { glyph: Check, color: "var(--color-ok)", tone: "var(--color-accent-weak)" },
+  battery: { glyph: BatteryWarning, color: "var(--color-crit)", tone: "color-mix(in srgb, var(--color-crit) 12%, transparent)" },
+  home: { glyph: House, color: "var(--color-warn)", tone: "color-mix(in srgb, var(--color-warn) 12%, transparent)" },
+  flag: { glyph: Flag, color: "var(--color-ok)", tone: "var(--color-accent-weak)" },
+  bolt: { glyph: Lightning, color: "var(--color-warn)", tone: "color-mix(in srgb, var(--color-warn) 12%, transparent)" },
+  route: { glyph: Path, color: "var(--color-text-faint)", tone: "var(--color-surface-2)" },
+}
+const TIMELINE_FALLBACK: TimelineKind = {
+  glyph: DotOutline,
+  color: "var(--color-text-faint)",
+  tone: "var(--color-surface-2)",
 }
 
 // The four transparent score factors shown to the user (backend-derived order).
@@ -193,60 +235,7 @@ export default function RunDetailPage({
         </div>
       )}
 
-      {tab === "timeline" && (
-        <ol style={{ paddingLeft: 0, listStyle: "none", margin: 0 }}>
-          {timeline.length === 0 && <li style={{ color: "var(--color-text-dim)" }}>No events.</li>}
-          {timeline.map((e) => (
-            <li
-              key={e.key}
-              style={{
-                display: "flex",
-                gap: 14,
-                padding: "12px 0",
-                borderBottom: "1px solid var(--color-line)",
-              }}
-            >
-              <span
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  background: e.color,
-                  marginTop: 6,
-                  flexShrink: 0,
-                  boxShadow: `0 0 10px ${e.color}`,
-                }}
-              />
-              <div>
-                <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span>{e.title}</span>
-                  {e.tree_id != null && e.title !== "Travelled" ? (
-                    <span style={{ fontWeight: 400, color: "var(--color-accent)" }}>#{e.tree_id}</span>
-                  ) : null}
-                  {e.distance_m != null ? (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "var(--color-text-dim)",
-                        background: "var(--color-surface-2)",
-                        borderRadius: 99,
-                        padding: "1px 8px",
-                        border: "1px solid var(--color-line)",
-                      }}
-                    >
-                      {e.distance_m} m
-                    </span>
-                  ) : null}
-                </div>
-                <div style={{ color: "var(--color-text-dim)", fontSize: 13 }}>
-                  {e.description} · sim t={e.sim_time}s
-                </div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
+      {tab === "timeline" && <Timeline timeline={timeline} />}
 
       {tab === "tree-activity" && (
         <div className="panel" style={{ overflow: "hidden" }}>
@@ -321,55 +310,7 @@ export default function RunDetailPage({
         </div>
       )}
 
-      {tab === "robot-log" && (
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 13,
-            background: "var(--color-bg-elevated)",
-            color: "#cfe0d8",
-            borderRadius: 14,
-            padding: 14,
-            maxHeight: 480,
-            overflow: "auto",
-            border: "1px solid var(--color-line)",
-          }}
-        >
-          {log.length === 0 && <div style={{ color: "var(--color-text-faint)" }}>No events.</div>}
-          {log.map((e) => {
-            const sev = SEVERITY[e.severity] ?? SEVERITY.INFO
-            return (
-              <div
-                key={e.id}
-                style={{
-                  padding: "3px 0",
-                  borderLeft: `3px solid ${sev.color}`,
-                  paddingLeft: 8,
-                  marginBottom: 2,
-                }}
-              >
-                <span
-                  style={{
-                    color: sev.color,
-                    fontWeight: 700,
-                    fontSize: 11,
-                    marginRight: 8,
-                  }}
-                >
-                  {e.severity}
-                </span>
-                <span style={{ color: "#6cc6ff" }}>{e.event_type}</span>{" "}
-                <span style={{ color: "var(--color-text-faint)" }}>t={e.sim_time}</span>{" "}
-                {e.detail ? (
-                  <span style={{ color: "#b9ccc2" }}>
-                    {JSON.stringify(e.detail)}
-                  </span>
-                ) : null}
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {tab === "robot-log" && <RobotLog log={log} />}
     </div>
   )
 }
@@ -494,6 +435,359 @@ function ScoreBlock({ run }: { run: RobotRun }) {
           Breakdown not available for this run.
         </div>
       )}
+    </div>
+  )
+}
+
+// Machine-log timeline. A single vertical rail threads every event so the run
+// reads as a sequence (a real timeline, not a flat divider list). Each node is
+// a Phosphor glyph on the rail; the sim-clock is a monospace, tabular chip so
+// the times align like a robot log. Motion is a one-shot staggered reveal that
+// mirrors the order events actually happened; it is disabled under
+// prefers-reduced-motion (handled in the scoped block below).
+function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
+  if (timeline.length === 0) {
+    return (
+      <div
+        style={{
+          border: "1px dashed var(--color-line-strong)",
+          borderRadius: 12,
+          padding: "28px 20px",
+          textAlign: "center",
+          color: "var(--color-text-dim)",
+          fontSize: 14,
+        }}
+      >
+        No events recorded for this run.
+      </div>
+    )
+  }
+
+  return (
+    <div className="tl">
+      <ol className="tl-list">
+        {timeline.map((e, i) => {
+          const kind = TIMELINE_KIND[e.icon] ?? TIMELINE_FALLBACK
+          const Glyph = kind.glyph
+          return (
+            <li
+              key={e.key}
+              className="tl-row"
+              style={{ "--tl-i": i, "--tl-tone": kind.tone, "--tl-color": kind.color } as React.CSSProperties}
+            >
+              <div className="tl-node" aria-hidden="true">
+                <Glyph size={16} weight="bold" color={kind.color} />
+              </div>
+              <div className="tl-body">
+                <div className="tl-head">
+                  <span className="tl-title">{e.title}</span>
+                  {e.tree_id != null && e.title !== "Travelled" ? (
+                    <Link href={`/trees/${e.tree_id}`} className="tl-tree">
+                      #{e.tree_id}
+                    </Link>
+                  ) : null}
+                  {e.distance_m != null ? (
+                    <span className="tl-chip">{e.distance_m} m</span>
+                  ) : null}
+                  <span className="tl-clock">t+{e.sim_time}s</span>
+                </div>
+                <div className="tl-desc">{e.description}</div>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+
+      <style jsx>{`
+        .tl {
+          position: relative;
+        }
+        .tl-list {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+        }
+        .tl-row {
+          position: relative;
+          display: grid;
+          grid-template-columns: 34px 1fr;
+          gap: 14px;
+          padding: 4px 0 18px;
+        }
+        /* The rail: a continuous hairline behind the nodes, stopping at the
+           last node so it never dangles past the final event. */
+        .tl-row::before {
+          content: "";
+          position: absolute;
+          left: 16px;
+          top: 22px;
+          bottom: -4px;
+          width: 2px;
+          background: var(--color-line);
+        }
+        .tl-row:last-child::before {
+          display: none;
+        }
+        .tl-node {
+          position: relative;
+          z-index: 1;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          background: var(--tl-tone);
+          border: 1.5px solid var(--tl-color);
+          flex-shrink: 0;
+        }
+        .tl-body {
+          min-width: 0;
+          padding-top: 2px;
+        }
+        .tl-head {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .tl-title {
+          font-weight: 650;
+          font-size: 15px;
+          letter-spacing: -0.01em;
+        }
+        .tl-tree {
+          font-family: var(--font-mono);
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--color-accent);
+          text-decoration: none;
+          font-variant-numeric: tabular-nums;
+          border-bottom: 1px solid var(--color-accent-dim);
+          transition: border-color 0.15s var(--ease-out);
+        }
+        .tl-tree:hover {
+          border-bottom-color: var(--color-accent);
+        }
+        .tl-tree:active {
+          transform: translateY(1px);
+        }
+        .tl-chip {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--color-text-dim);
+          background: var(--color-surface-2);
+          border: 1px solid var(--color-line);
+          border-radius: 8px;
+          padding: 1px 8px;
+          font-variant-numeric: tabular-nums;
+        }
+        .tl-clock {
+          margin-left: auto;
+          font-family: var(--font-mono);
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--color-text-faint);
+          font-variant-numeric: tabular-nums;
+          letter-spacing: 0.02em;
+        }
+        .tl-desc {
+          margin-top: 3px;
+          color: var(--color-text-dim);
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        /* Motivated motion: events reveal in the order they occurred, so the
+           list reads as a playback of the run. One-shot, capped stagger. */
+        @media (prefers-reduced-motion: no-preference) {
+          .tl-row {
+            opacity: 0;
+            transform: translateY(6px);
+            animation: tl-in 0.4s var(--ease-out) forwards;
+            animation-delay: calc(min(var(--tl-i), 12) * 45ms);
+          }
+        }
+        @keyframes tl-in {
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        @media (max-width: 560px) {
+          .tl-clock {
+            margin-left: 0;
+          }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+// Flattens a log-entry `detail` object into aligned key=value tokens so the log
+// reads as a machine record rather than a raw JSON blob.
+function fmtDetail(detail: Record<string, unknown>): { k: string; v: string }[] {
+  return Object.entries(detail).map(([k, v]) => ({
+    k,
+    v: typeof v === "object" && v !== null ? JSON.stringify(v) : String(v),
+  }))
+}
+
+// Robot log. A terminal-styled, monospace record with aligned columns
+// (clock · severity · event · detail) so entries scan like a real machine log.
+// Colours are on-palette and WCAG-safe on the light theme (the previous
+// near-white text on a white surface was unreadable). Presentation only — the
+// RobotLogEntry shape and ordering are untouched.
+function RobotLog({ log }: { log: RobotLogEntry[] }) {
+  return (
+    <div className="rl">
+      <div className="rl-bar">
+        <span className="rl-dot" aria-hidden="true" />
+        <span className="rl-name">robot.log</span>
+        <span className="rl-count">
+          {log.length} {log.length === 1 ? "entry" : "entries"}
+        </span>
+      </div>
+      <div className="rl-body">
+        {log.length === 0 ? (
+          <div className="rl-empty">No log entries recorded for this run.</div>
+        ) : (
+          log.map((e) => {
+            const sev = SEVERITY[e.severity] ?? SEVERITY.INFO
+            const detail = e.detail ? fmtDetail(e.detail) : []
+            return (
+              <div key={e.id} className="rl-row" style={{ "--rl-color": sev.color, "--rl-tone": sev.tone } as React.CSSProperties}>
+                <span className="rl-clock">t+{e.sim_time}</span>
+                <span className="rl-sev">{e.severity}</span>
+                <span className="rl-event">{e.event_type}</span>
+                {detail.length > 0 ? (
+                  <span className="rl-detail">
+                    {detail.map((d) => (
+                      <span key={d.k} className="rl-kv">
+                        <span className="rl-k">{d.k}</span>
+                        <span className="rl-eq">=</span>
+                        <span className="rl-v">{d.v}</span>
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      <style jsx>{`
+        .rl {
+          border: 1px solid var(--color-line);
+          border-radius: 14px;
+          overflow: hidden;
+          background: var(--color-bg-elevated);
+        }
+        .rl-bar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 9px 14px;
+          background: var(--color-surface-2);
+          border-bottom: 1px solid var(--color-line);
+        }
+        .rl-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: var(--color-accent);
+          flex-shrink: 0;
+        }
+        .rl-name {
+          font-family: var(--font-mono);
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--color-text-dim);
+          letter-spacing: 0.02em;
+        }
+        .rl-count {
+          margin-left: auto;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--color-text-faint);
+          font-variant-numeric: tabular-nums;
+        }
+        .rl-body {
+          font-family: var(--font-mono);
+          font-size: 12.5px;
+          line-height: 1.65;
+          max-height: 480px;
+          overflow: auto;
+          padding: 8px 0;
+        }
+        .rl-empty {
+          padding: 20px 14px;
+          color: var(--color-text-faint);
+          font-size: 13px;
+        }
+        .rl-row {
+          display: grid;
+          grid-template-columns: 62px 74px auto 1fr;
+          gap: 10px;
+          align-items: baseline;
+          padding: 3px 14px 3px 11px;
+          border-left: 3px solid var(--rl-color);
+        }
+        .rl-row:hover {
+          background: var(--color-surface-2);
+        }
+        .rl-clock {
+          color: var(--color-text-faint);
+          font-variant-numeric: tabular-nums;
+          text-align: right;
+        }
+        .rl-sev {
+          color: var(--rl-color);
+          background: var(--rl-tone);
+          font-weight: 700;
+          font-size: 10.5px;
+          letter-spacing: 0.04em;
+          text-align: center;
+          border-radius: 6px;
+          padding: 0 4px;
+        }
+        .rl-event {
+          color: var(--color-text);
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .rl-detail {
+          display: inline-flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          min-width: 0;
+        }
+        .rl-kv {
+          display: inline-flex;
+          align-items: baseline;
+        }
+        .rl-k {
+          color: var(--color-text-faint);
+        }
+        .rl-eq {
+          color: var(--color-line-strong);
+          margin: 0 1px;
+        }
+        .rl-v {
+          color: var(--color-text-dim);
+          font-variant-numeric: tabular-nums;
+        }
+        @media (max-width: 560px) {
+          .rl-row {
+            grid-template-columns: 54px 66px 1fr;
+          }
+          .rl-detail {
+            grid-column: 1 / -1;
+            padding-left: 64px;
+          }
+        }
+      `}</style>
     </div>
   )
 }

@@ -1565,7 +1565,95 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
        8 pages**; `verify_v371.js` (history list/detail + twin tree-focus) — 0 errors
        (harness updated from stale run id `2` → existing run `1`). **Not committed** —
        awaiting approval.
-   - **Optional future work (not scheduled):**
+    - **Navigation Redesign — ARECA rail + mobile bottom nav (completed; awaiting commit
+      approval):** a focused, premium redesign of the navigation experience only — **no
+      backend / API / route / schema / business-logic / IA / page-content changes.** Restyles
+      `components/AppShell.tsx` chrome exclusively; the 7 destinations and their descriptive
+      labels (Overview, Mission Control, Survey & Harvest, Digital Twin, Robot Ops, Mission
+      History, Tree Registry) are unchanged.
+      - **Desktop rail (240px):** ARECA wordmark identity (no logo/icon — typography only),
+        refined density (14px labels on 44px targets, 9px radius, tighter brand block),
+        single icon family (Phosphor, `weight="fill"` on active / `regular` otherwise),
+        calm active state (accent-weak fill + accent text + 3px accent bar), hover gated
+        behind `@media (hover: hover) and (pointer: fine)`, tactile `:active` scale. The
+        previous infinite pulsing status dot was replaced with a **static** 6px dot (nav
+        chrome is used dozens of times/day — no always-on motion).
+      - **Mobile (≤900px):** replaced the top-drawer with a **bottom navigation bar** —
+        5 primary destinations (Home, Control, Twin, Robot, Trees) + a **More** button that
+        opens a bottom **sheet** (`role="dialog"`, scrim, `--ease-drawer` slide-up) holding
+        the 2 overflow destinations (Survey & Harvest, Mission History). The More tab shows
+        active when the current route is an overflow route. All targets ≥52px; `env(safe-area-
+        inset-bottom)` respected; content padded for the bar. Text-glyph burger (`≡`/`✕`)
+        replaced by Phosphor icons (`DotsThreeOutline`, `X`) with `aria-label`s.
+      - **Motion & a11y:** all transitions `transform`/`opacity` only, <300ms `--ease-out`;
+        full `prefers-reduced-motion` fallback (no transitions/animations); `aria-current`,
+        `aria-expanded`, and icon `aria-label`s throughout.
+      - **Root-cause bug fixed (pre-existing):** the nav's styled-jsx link rules never
+        applied because `next/link` `<Link>` does not receive styled-jsx's compile-time scope
+        hash — so `.rail-link` font-size/min-height/radius/active styling silently fell back
+        to defaults (16px, `auto`, `0`). **Fix:** the AppShell `<style jsx>` block is now
+        `<style jsx global>` (link class names are uniquely namespaced `rail-*`/`botnav-*`/
+        `sheet-*`, so no leakage) and active state is driven by a `data-active` attribute
+        (`[data-active="true"]`) instead of a conditional class. Verified: links now compute
+        14px / 44px / 9px radius, active = accent-weak bg + accent text.
+      - **Verification:** `tsc --noEmit` — 0 errors; `next build` — success (10 routes);
+        Playwright at 1440 / 1024 (desktop rail) and 390 (bottom nav + More sheet) — rail
+        width + content margin correct, bottom nav 5+More with correct active states, sheet
+        opens/closes + navigates + closes on route change, **0 console errors**, no horizontal
+        overflow at any breakpoint. **Not committed** — awaiting approval.
+    - **Run Detail Timeline Redesign — machine-log rail (completed; awaiting commit
+      approval):** a presentation-only restyle of the **timeline tab** on
+      `/robot/history/[id]` — **no backend / API / route / schema / business-logic / IA /
+      data-shape changes.** Restyles `app/robot/history/[id]/page.tsx` timeline markup
+      exclusively; the `TimelineEntry` shape, tab state, and event vocabulary are unchanged.
+      - **From flat list to real timeline:** the previous `<ol>` of divider rows (each with a
+        neon glowing dot, `box-shadow: 0 0 10px`) is replaced by a `Timeline` component with a
+        single continuous **vertical rail** (2px `--color-line`) threading Phosphor icon nodes,
+        so the run reads as a sequence. The rail is suppressed on the last row (no dangling
+        tail). Empty state is a dashed placeholder card.
+      - **Machine-log character:** each event's backend `icon` key (`play/tree/climb/check/
+        battery/home/flag/bolt/route`) maps to one Phosphor glyph (single icon family) and an
+        **on-palette** semantic token (`--color-accent`/`--color-ok`/`--color-warn`/
+        `--color-crit`/sage neutrals) instead of the generic Tailwind hex the backend ships as
+        fallback. The sim clock renders as a monospace `t+Ns` chip (`--font-mono`,
+        `tabular-nums`); tree id and distance are mono tabular chips; `#treeId` is a tactile
+        link to `/trees/[id]`.
+      - **Motion & a11y:** one motivated, one-shot **staggered reveal** (events fade/slide in
+        the order they occurred, capped 45ms × ≤12 stagger, `--ease-out`), fully disabled under
+        `prefers-reduced-motion`; icon nodes are `aria-hidden` (titles carry meaning); the
+        neon-glow AI-tell is removed. Clock chip wraps below at ≤560px (no mobile overflow).
+      - **Verification:** `tsc --noEmit` — 0 errors (fixed a bad import: `PathArrows` →
+        `Path`); `next build` — success (10 routes); Playwright on `/robot/history/1` timeline
+        tab at 1024 + 390 — 4 rows with SVG glyphs, rail 2px on-palette + last-row suppressed,
+        no node glow, clock mono/tabular, reveal settled to opacity 1, `#treeId` link present
+        when applicable, **0 console errors**, no horizontal overflow, clock margin collapses to
+        0 on mobile. **Not committed** — awaiting approval.
+    - **Run Detail Robot-Log Redesign — terminal record (completed; awaiting commit
+      approval):** a presentation-only restyle of the **robot-log tab** on
+      `/robot/history/[id]` — **no backend / API / route / schema / business-logic / IA /
+      data-shape changes.** Restyles the log markup exclusively; the `RobotLogEntry` shape,
+      severity vocabulary, and ordering are unchanged.
+      - **Root-cause fix (contrast bug):** the old log rendered near-white text (`#cfe0d8`,
+        `#6cc6ff`, `#b9ccc2`) on the light `--color-bg-elevated` surface — effectively
+        unreadable (fails WCAG). Replaced with on-palette, WCAG-safe tokens; severities now map
+        to `--color-text-dim` (INFO) / `--color-warn` (WARNING) / `--color-crit` (ERROR) with
+        low-alpha tag chips.
+      - **From blob to record:** a new `RobotLog` component renders a terminal-styled frame (a
+        `robot.log · N entries` header bar) over a monospace, **column-aligned** grid — clock
+        (`t+Ns`, tabular) · severity tag · event · detail. Raw `JSON.stringify(detail)` is
+        replaced by flattened `key=value` tokens (`fmtDetail`) that wrap cleanly, so entries
+        scan like a real machine log. A severity-coloured left rule and a hover row highlight
+        aid scanning; empty state is a readable placeholder.
+      - **Responsive & a11y:** at ≤560px the grid collapses to 3 columns and detail wraps to its
+        own indented line (no mobile overflow). No animation added (a scrolling log doesn't
+        warrant motion); all colour is token-based.
+      - **Verification:** `tsc --noEmit` — 0 errors; `next build` — success (10 routes);
+        Playwright on `/robot/history/1` robot-log tab at 1024 + 390 — 6 rows, header
+        `robot.log · 6 entries`, aligned clock/severity/event columns, detail flattened to
+        `from=MOVING` (no JSON blob), body text `rgb(29,38,27)` (near-black, WCAG-safe),
+        Geist Mono, tabular clock, **0 console errors**, no horizontal overflow, 3-column
+        collapse on mobile. **Not committed** — awaiting approval.
+    - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`
       page with the drawer.
