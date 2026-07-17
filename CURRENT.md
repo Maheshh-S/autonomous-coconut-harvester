@@ -1,6 +1,6 @@
 # CURRENT.md
 
-- **Project Version:** 3.8.6 (Version 3 line; V3.8 Production Hardening in progress)
+- **Project Version:** 3.8.7 (Version 3 line; V3.8 Production Hardening in progress)
 - **Current Status:** Version 3 pipeline complete through V3.7.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics). All V1–V3 work is implemented and verified but **not yet committed** — awaiting explicit approval.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
@@ -1138,10 +1138,10 @@ speed_factor` + `RobotTicker` driver).
     - **Verification:** `py_compile` OK; `init_db` creates `robot_runs`; analytics
       unit-driven against synthetic telemetry/events (score/dist/battery/recharge
       correct); live server curl on all 5 endpoints (200 + 404 path) OK; full
-      scheduler run auto-wrote `RobotRun` #3 (COMPLETED, with real distance/recharge/
-      mission_score); `tsc --noEmit` 0 errors; `next build` success. **Playwright
-      0-console-error pass still TODO** (reuse `verify_v361.js` flow + open
-      `/robot/history`).
+       scheduler run auto-wrote `RobotRun` #3 (COMPLETED, with real distance/recharge/
+       mission_score); `tsc --noEmit` 0 errors; `next build` success. Playwright
+       0-console-error pass is now DONE (V3.8.7 final audit: all 8 pages render with
+       zero console errors after the Trees list hydration fix).
     - **NOT committed** — awaiting approval.
   - **VERSION 3.7.1 — Mission History & Analytics Refinement (completed; awaiting
     commit approval):** a refinement of V3.7 — **no new architecture, no new features,
@@ -1462,8 +1462,53 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
       mission/item/run all id=1, empty robot history + analytics) could NOT be
       executed here** — this environment has no PostgreSQL server and no backend deps
       (`sqlalchemy`/`fastapi`) installed. The reset is a one-command procedure
-      (`python backend/reset_runtime.py`) to run on a configured machine. **NOT
-      committed** — awaiting approval.
+       (`python backend/reset_runtime.py`) to run on a configured machine. **NOT
+       committed** — awaiting approval.
+  - **VERSION 3.8.7 — Final QA, Release Audit & Version 3 Freeze (completed; awaiting
+    commit approval):** a complete release audit of the entire application from startup
+    to mission completion — **no new features, no redesign, no speculative changes.**
+    Only bugs discovered during verification were fixed.
+    - **Build verification (all pass):** `py_compile` on every backend module (incl.
+      `reset_runtime.py`) — OK; `tsc --noEmit` — 0 errors; `next build` — success
+      (10 routes); backend boots clean; frontend boots clean; Playwright console-error
+      scan across all 8 pages — **0 console errors**.
+    - **Live backend audit (root venv, real Neon DB):** ran the full end-to-end workflow
+      on a freshly reset database — Survey upload (8 images) → Tile generation + YOLO
+      detection (243 detections, 8 tiles) → Digital Twin permanent-tree generation (243
+      trees, all newly-created, idempotent reuse confirmed) → Tree Inspection (YOLO
+      ripeness: 32 coconuts = 3 mature / 2 potential / 27 premature) → Inventory Snapshot
+      (INV-0001, tree repointed) → Harvest Mission generation (HM-0001, 1 eligible tree,
+      3 expected) → Mission Start (auto robot simulation) → Robot navigation → Harvest →
+      Return to Dock → Mission Completion (harvested 3) → Robot Run history (timeline,
+      tree-activity, robot-log, analytics payload). WebSocket `/ws/robot` verified: pushes
+      an immediate snapshot on connect and drains client frames. All 62 routes reachable.
+    - **Reset utility executed live:** `python backend/reset_runtime.py` ran successfully
+      against Neon — all 18 runtime tables cleared, identity sequences restarted (next
+      survey/tree/inspection/snapshot/mission/item/run = id 1), the 4 singleton tables
+      (robot/dock/battery/config) preserved and re-seeded by `init_db`.
+    - **Bug found & fixed (root cause → fix):**
+      - **Trees list page hydration mismatch** (`app/trees/page.tsx`): it was a Server
+        Component that fetched `getTreesSummary()` at request time, producing a
+        server/client render divergence that threw a React hydration error in the browser
+        console (violated the 0-console-error bar). **Root cause:** SSR-ed data page
+        without a hydration-stable render path. **Fix:** converted `app/trees/page.tsx`
+        to a Client Component that fetches on mount via `useEffect` (the same convention
+        already used by `app/trees/[treeId]/page.tsx`), eliminating the mismatch. No
+        architecture or API change. `tsc --noEmit` and `next build` still pass; Playwright
+        re-scan shows 0 console errors on `/trees`.
+    - **Non-bugs confirmed during verification (no change needed):**
+      - Dashboard "Loading…" persisted in early automated checks only because the poll
+        cadence (5 s) plus a short wait made the first render look stuck; the page fully
+        renders all live data with 0 console errors on a realistic load.
+      - `POST /inspection/{id}/complete` requires a JSON body (`InspectionComplete`); the
+        frontend sends `{ inspection_image_count }` correctly — an earlier empty-body
+        curl was a test artifact, not a defect.
+      - `tree/{id}` has no standalone GET route by design; the Tree Detail UI uses
+        `/tree/{id}/inventory` etc. and `getTreesSummary()` — verified correct.
+    - **Repository hygiene:** removed stale `__pycache__` `.pyc` files of the already-
+      deleted V3.8.2 modules (`planner_api`/`map_api`/`harvest_planner`); no source
+      references to removed modules remain. `requirements.txt` is a complete manifest;
+      `.gitignore` hardened (V3.8.5). **NOT committed** — awaiting approval.
   - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`
@@ -1475,10 +1520,10 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
     - Backend unit tests for task-generation / ripeness logic.
     - Real geotagging of drone images (currently GPS is derived from the box position).
     - Model versioning / distribution strategy (weights are gitignored).
-  - **Known Issues / Decisions:**
+   - **Known Issues / Decisions:**
   - Database is **PostgreSQL (Neon)**, not SQLite (early documentation said SQLite).
-  - `requirements.txt` currently lists backend dependencies but is not a complete pinned
-    manifest; the README documents the actual required packages.
+  - `requirements.txt` is a complete backend dependency manifest (fixed in V3.8.4); the
+    README documents setup. Install with `pip install -r requirements.txt`.
   - Model weights (`*.pt`) and `.env` are gitignored; they are local‑only.
   - Navigation is rendered inline in `layout.tsx` (the old `Navbar.tsx` component was removed).
     Nav exposes Home, Dashboard, Survey, Digital Twin, Robot, Mission History; the
