@@ -1,0 +1,28 @@
+- generic [active] [ref=f12e1]:
+  - generic [ref=f12e2]:
+    - complementary [ref=f12e3]:
+      - link "Areca — home" [ref=f12e4] [cursor=pointer]:
+        - /url: /
+        - text: ARECAHarvest Intelligence
+      - navigation "Primary" [ref=f12e5]:
+        - link "Overview" [ref=f12e6] [cursor=pointer]:
+          - /url: /
+        - link "Mission Control" [ref=f12e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Survey & Harvest" [ref=f12e14] [cursor=pointer]:
+          - /url: /survey
+        - link "Digital Twin" [ref=f12e18] [cursor=pointer]:
+          - /url: /map
+        - link "Robot Ops" [ref=f12e22] [cursor=pointer]:
+          - /url: /robot
+        - link "Mission History" [ref=f12e26] [cursor=pointer]:
+          - /url: /robot/history
+        - link "Tree Registry" [ref=f12e30] [cursor=pointer]:
+          - /url: /trees
+      - generic [ref=f12e34]: All systems online
+    - main [ref=f12e38]:
+      - generic [ref=f12e39]:
+        - generic [ref=f12e40]: Inventory
+        - heading "Tree Registry" [level=1] [ref=f12e41]
+  - button "Open Next.js Dev Tools" [ref=f12e54] [cursor=pointer]
+  - alert [ref=f12e58]

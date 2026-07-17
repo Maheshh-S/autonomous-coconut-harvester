@@ -1,0 +1,151 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary [ref=f1e3]:
+      - navigation "Primary" [ref=f1e4]:
+        - generic [ref=f1e5]: Menu
+        - link "Overview" [ref=f1e6] [cursor=pointer]:
+          - /url: /
+        - link "Mission Control" [ref=f1e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Survey & Harvest" [ref=f1e14] [cursor=pointer]:
+          - /url: /survey
+        - link "Digital Twin" [ref=f1e18] [cursor=pointer]:
+          - /url: /map
+        - link "Robot Ops" [ref=f1e22] [cursor=pointer]:
+          - /url: /robot
+        - link "Mission History" [ref=f1e26] [cursor=pointer]:
+          - /url: /robot/history
+        - link "Tree Registry" [ref=f1e30] [cursor=pointer]:
+          - /url: /trees
+      - generic [ref=f1e34]:
+        - generic [ref=f1e35]: System Online
+        - generic [ref=f1e38]: v3.8 · Control Build
+    - main [ref=f1e39]:
+      - generic [ref=f1e40]:
+        - region "Product film" [ref=f1e41]:
+          - generic [ref=f1e42]:
+            - generic [ref=f1e46]:
+              - paragraph [ref=f1e47]: Areca · Autonomous Coconut Harvesting
+              - heading "The farm that harvests itself." [level=1] [ref=f1e48]
+              - paragraph [ref=f1e49]: Drone intelligence, a living Digital Twin, and a tree-climbing robot — one precision-agriculture operating system.
+              - generic [ref=f1e50]:
+                - link "Enter Mission Control" [ref=f1e51] [cursor=pointer]:
+                  - /url: /dashboard
+                - link "See the system" [ref=f1e52] [cursor=pointer]:
+                  - /url: "#story"
+            - generic [ref=f1e53]: Scroll
+        - region "How it works" [ref=f1e54]:
+          - generic [ref=f1e56]:
+            - text: 01 · The Challenge
+            - heading [level=2] [ref=f1e57]:
+              - generic [ref=f1e58]: Tall trees.
+              - generic [ref=f1e59]: Manual harvest.
+            - paragraph [ref=f1e60]: Coconut palms reach 25 metres. Climbing them by hand is slow, dangerous, and unscalable. The world's harvest depends on a vanishing skill.
+          - generic [ref=f1e62]:
+            - text: 02 · Aerial Survey
+            - heading [level=2] [ref=f1e63]:
+              - generic [ref=f1e64]: A drone maps
+              - generic [ref=f1e65]: every tree.
+            - paragraph [ref=f1e66]: An autonomous flight planner sweeps the plantation. Computer vision detects each palm and assigns a permanent Tree ID — no tree left uncounted.
+          - generic [ref=f1e68]:
+            - text: 03 · Digital Twin
+            - heading [level=2] [ref=f1e69]:
+              - generic [ref=f1e70]: The farm,
+              - generic [ref=f1e71]: rebuilt in silicon.
+            - paragraph [ref=f1e72]: Survey tiles assemble into a living Digital Twin. Every tree, its GPS, and its detection geometry become queryable, actionable intelligence.
+          - generic [ref=f1e74]:
+            - text: 04 · Ripeness Intelligence
+            - heading [level=2] [ref=f1e75]:
+              - generic [ref=f1e76]: AI reads
+              - generic [ref=f1e77]: each coconut.
+            - paragraph [ref=f1e78]: Close-up inspection classifies every fruit as mature, potential, or premature. An immutable inventory snapshot is written for the record.
+          - generic [ref=f1e80]:
+            - text: 05 · Mission Planning
+            - heading [level=2] [ref=f1e81]:
+              - generic [ref=f1e82]: Optimal routes,
+              - generic [ref=f1e83]: computed.
+            - paragraph [ref=f1e84]: The Harvest Planner builds a frozen, nearest-neighbour mission from the latest inventory — a precise, auditable work order for the field.
+          - generic [ref=f1e86]:
+            - text: 06 · The Robot
+            - heading [level=2] [ref=f1e87]:
+              - generic [ref=f1e88]: It climbs.
+              - generic [ref=f1e89]: It harvests.
+            - paragraph [ref=f1e90]: A tree-climbing harvester navigates the twin, ascends the trunk, and plucks only the mature coconuts — safely, repeatedly, autonomously.
+          - generic [ref=f1e92]:
+            - text: 07 · Mission Analytics
+            - heading [level=2] [ref=f1e93]:
+              - generic [ref=f1e94]: Every run,
+              - generic [ref=f1e95]: measured.
+            - paragraph [ref=f1e96]: "Each mission closes with a scored analytics record: distance, battery economy, yield, and efficiency. The operation improves with every pass."
+        - generic [ref=f1e98]:
+          - generic [ref=f1e99]:
+            - generic [ref=f1e100]: "0"
+            - generic [ref=f1e101]: Trees surveyed / mission
+          - generic [ref=f1e102]:
+            - generic [ref=f1e103]: "0"
+            - generic [ref=f1e104]: Autonomous routing
+          - generic [ref=f1e105]:
+            - generic [ref=f1e106]: "0"
+            - generic [ref=f1e107]: Maturity classes detected
+          - generic [ref=f1e108]:
+            - generic [ref=f1e109]: "0"
+            - generic [ref=f1e110]: Missions, replayed & scored
+        - generic [ref=f1e111]:
+          - paragraph [ref=f1e112]: The belief
+          - heading "Precision agriculture should be autonomous, observable, and accountable." [level=2] [ref=f1e113]
+          - paragraph [ref=f1e114]: Areca turns a dangerous, manual craft into a measured, repeatable system — without losing the intelligence of the people who know the land.
+        - region "Capabilities" [ref=f1e115]:
+          - generic [ref=f1e116]:
+            - paragraph [ref=f1e117]: One platform
+            - heading "Every layer of the harvest, engineered." [level=2] [ref=f1e118]
+          - generic [ref=f1e119]:
+            - generic [ref=f1e120]:
+              - heading "Drone Survey" [level=3] [ref=f1e121]
+              - paragraph [ref=f1e122]: Autonomous flight planning and tile capture across the whole plantation.
+            - generic [ref=f1e123]:
+              - heading "Tree Intelligence" [level=3] [ref=f1e124]
+              - paragraph [ref=f1e125]: Permanent Tree IDs from GPS + computer-vision matching across surveys.
+            - generic [ref=f1e126]:
+              - heading "Digital Twin" [level=3] [ref=f1e127]
+              - paragraph [ref=f1e128]: A seamless mosaic of the farm with live YOLO detection overlays.
+            - generic [ref=f1e129]:
+              - heading "Ripeness AI" [level=3] [ref=f1e130]
+              - paragraph [ref=f1e131]: "Per-coconut maturity classification: mature, potential, premature."
+            - generic [ref=f1e132]:
+              - heading "Harvest Planning" [level=3] [ref=f1e133]
+              - paragraph [ref=f1e134]: Frozen, nearest-neighbour missions built from the latest inventory.
+            - generic [ref=f1e135]:
+              - heading "Robot Execution" [level=3] [ref=f1e136]
+              - paragraph [ref=f1e137]: A climbing harvester navigates, ascends, and harvests autonomously.
+            - generic [ref=f1e138]:
+              - heading "Mission Control" [level=3] [ref=f1e139]
+              - paragraph [ref=f1e140]: Live state, battery, and position streamed over a real-time channel.
+            - generic [ref=f1e141]:
+              - heading "Analytics" [level=3] [ref=f1e142]
+              - paragraph [ref=f1e143]: Every run scored on yield, battery economy, and efficiency.
+        - generic [ref=f1e144]:
+          - heading "Open the Control Center." [level=2] [ref=f1e145]
+          - paragraph [ref=f1e146]: Survey a plantation, watch the twin build, and send the robot to work.
+          - generic [ref=f1e147]:
+            - link "Start a Survey" [ref=f1e148] [cursor=pointer]:
+              - /url: /survey
+            - link "View the Digital Twin" [ref=f1e149] [cursor=pointer]:
+              - /url: /map
+        - generic [ref=f1e150]:
+          - generic [ref=f1e151]:
+            - generic [ref=f1e152]: ARECA
+            - generic [ref=f1e153]: Autonomous Coconut Harvesting Platform · Control Build v3.8
+          - generic [ref=f1e154]:
+            - link "Mission Control" [ref=f1e155] [cursor=pointer]:
+              - /url: /dashboard
+            - link "Survey" [ref=f1e156] [cursor=pointer]:
+              - /url: /survey
+            - link "Digital Twin" [ref=f1e157] [cursor=pointer]:
+              - /url: /map
+            - link "Robot Ops" [ref=f1e158] [cursor=pointer]:
+              - /url: /robot
+            - link "History" [ref=f1e159] [cursor=pointer]:
+              - /url: /robot/history
+          - paragraph [ref=f1e160]: A precision-agriculture concept. All system imagery procedurally generated.
+  - button "Open Next.js Dev Tools" [ref=f1e166] [cursor=pointer]
+  - alert [ref=f1e170]

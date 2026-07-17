@@ -1,0 +1,47 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - complementary [ref=f2e3]:
+      - navigation "Primary" [ref=f2e4]:
+        - generic [ref=f2e5]: Menu
+        - link "Overview" [ref=f2e6] [cursor=pointer]:
+          - /url: /
+        - link "Mission Control" [ref=f2e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Survey & Harvest" [ref=f2e14] [cursor=pointer]:
+          - /url: /survey
+        - link "Digital Twin" [ref=f2e18] [cursor=pointer]:
+          - /url: /map
+        - link "Robot Ops" [ref=f2e22] [cursor=pointer]:
+          - /url: /robot
+        - link "Mission History" [ref=f2e26] [cursor=pointer]:
+          - /url: /robot/history
+        - link "Tree Registry" [ref=f2e30] [cursor=pointer]:
+          - /url: /trees
+      - generic [ref=f2e34]:
+        - generic [ref=f2e35]: System Online
+        - generic [ref=f2e38]: v3.8 · Control Build
+    - main [ref=f2e39]:
+      - generic [ref=f2e40]:
+        - generic [ref=f2e42]:
+          - generic [ref=f2e43]: Digital Twin · Mosaic
+          - heading "Farm Digital Twin" [level=1] [ref=f2e44]
+          - paragraph [ref=f2e45]: A living reconstruction of the surveyed plantation — tile mosaic, tree detections, and the live robot overlaid in one shared coordinate space.
+        - generic [ref=f2e46]:
+          - generic [ref=f2e47]:
+            - generic [ref=f2e48]: Mission
+            - combobox "Mission" [ref=f2e49] [cursor=pointer]
+          - generic [ref=f2e50]:
+            - generic [ref=f2e51]: Seam gap · 2px
+            - slider "Seam gap · 2px" [ref=f2e52]: "2"
+          - generic [ref=f2e54] [cursor=pointer]:
+            - checkbox "Show Robot" [checked]
+            - text: Show Robot
+          - generic [ref=f2e57] [cursor=pointer]:
+            - checkbox "Show Planned Path" [checked]
+            - text: Show Planned Path
+          - generic [ref=f2e60] [cursor=pointer]:
+            - checkbox "Show Current Target" [checked]
+            - text: Show Current Target
+        - generic [ref=f2e63]: No tiles found for this mission.
+  - button "Open Next.js Dev Tools" [ref=f2e69] [cursor=pointer]
+  - alert [ref=f2e73]

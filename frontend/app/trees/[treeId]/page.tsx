@@ -141,17 +141,7 @@ export default function TreePage({ params }: Props) {
           <select
             value={harvestType}
             onChange={(e) => setHarvestType(e.target.value)}
-            style={{
-              background: "var(--color-surface-2)",
-              color: "var(--color-text)",
-              border: "1px solid var(--color-line-strong)",
-              borderRadius: 10,
-              padding: "10px 14px",
-              fontSize: 14,
-              fontFamily: "var(--font-sans)",
-              minWidth: 220,
-              cursor: "pointer",
-            }}
+            className="select"
           >
             <option value="mature">Mature only</option>
             <option value="potential">Potential only</option>

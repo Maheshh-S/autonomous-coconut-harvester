@@ -1,0 +1,29 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary [ref=f4e3]:
+      - navigation "Primary" [ref=f4e4]:
+        - generic [ref=f4e5]: Menu
+        - link "Overview" [ref=f4e6] [cursor=pointer]:
+          - /url: /
+        - link "Mission Control" [ref=f4e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Survey & Harvest" [ref=f4e14] [cursor=pointer]:
+          - /url: /survey
+        - link "Digital Twin" [ref=f4e18] [cursor=pointer]:
+          - /url: /map
+        - link "Robot Ops" [ref=f4e22] [cursor=pointer]:
+          - /url: /robot
+        - link "Mission History" [ref=f4e26] [cursor=pointer]:
+          - /url: /robot/history
+        - link "Tree Registry" [ref=f4e30] [cursor=pointer]:
+          - /url: /trees
+      - generic [ref=f4e34]:
+        - generic [ref=f4e35]: System Online
+        - generic [ref=f4e38]: v3.8 · Control Build
+    - main [ref=f4e39]:
+      - generic [ref=f4e40]:
+        - generic [ref=f4e41]: Inventory
+        - heading "Trees" [level=1] [ref=f4e42]
+        - paragraph [ref=f4e43]: Loading…
+  - button "Open Next.js Dev Tools" [ref=f4e49] [cursor=pointer]
+  - alert [ref=f4e53]

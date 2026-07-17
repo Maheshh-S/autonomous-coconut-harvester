@@ -286,6 +286,13 @@ export default function Landing() {
           text-align: center;
           padding: 0 24px;
           max-width: 880px;
+          color: #f3f6ee;
+        }
+        .film-cap .kicker {
+          color: rgba(220, 230, 210, 0.82);
+        }
+        .film-cap h1 {
+          color: #f6f8f2;
         }
         .cap-open h1 {
           font-size: clamp(40px, 7vw, 96px);
@@ -296,7 +303,7 @@ export default function Landing() {
         .film-sub {
           margin: 22px auto 0;
           max-width: 540px;
-          color: var(--color-text-dim);
+          color: rgba(226, 234, 218, 0.9);
           font-size: clamp(15px, 1.5vw, 19px);
           line-height: 1.6;
         }

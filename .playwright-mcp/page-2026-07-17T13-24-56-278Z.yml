@@ -1,0 +1,31 @@
+- generic [active] [ref=f11e1]:
+  - generic [ref=f11e2]:
+    - complementary [ref=f11e3]:
+      - link "Areca — home" [ref=f11e4] [cursor=pointer]:
+        - /url: /
+        - text: ARECAHarvest Intelligence
+      - navigation "Primary" [ref=f11e5]:
+        - link "Overview" [ref=f11e6] [cursor=pointer]:
+          - /url: /
+        - link "Mission Control" [ref=f11e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Survey & Harvest" [ref=f11e14] [cursor=pointer]:
+          - /url: /survey
+        - link "Digital Twin" [ref=f11e18] [cursor=pointer]:
+          - /url: /map
+        - link "Robot Ops" [ref=f11e22] [cursor=pointer]:
+          - /url: /robot
+        - link "Mission History" [ref=f11e26] [cursor=pointer]:
+          - /url: /robot/history
+        - link "Tree Registry" [ref=f11e30] [cursor=pointer]:
+          - /url: /trees
+      - generic [ref=f11e34]: All systems online
+    - main [ref=f11e38]:
+      - generic [ref=f11e39]:
+        - generic [ref=f11e41]:
+          - generic [ref=f11e42]: Analytics
+          - heading "Mission History & Analytics" [level=1] [ref=f11e43]
+          - paragraph [ref=f11e44]: Every completed robot run, with the backend-computed summary, score, and per-tree activity. All metrics are derived server-side.
+        - paragraph [ref=f11e45]: Loading runs…
+  - button "Open Next.js Dev Tools" [ref=f11e51] [cursor=pointer]
+  - alert [ref=f11e55]

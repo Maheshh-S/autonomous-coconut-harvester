@@ -213,7 +213,7 @@ export default function RobotPage() {
             <select
               value={harvestMissionId ?? ""}
               onChange={(e) => setHarvestMissionId(Number(e.target.value))}
-              style={selectStyle}
+              className="select"
             >
               {harvestMissions.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -319,18 +319,6 @@ export default function RobotPage() {
       `}</style>
     </div>
   )
-}
-
-const selectStyle: React.CSSProperties = {
-  background: "var(--color-surface-2)",
-  color: "var(--color-text)",
-  border: "1px solid var(--color-line-strong)",
-  borderRadius: 10,
-  padding: "9px 12px",
-  fontSize: 13,
-  fontFamily: "var(--font-sans)",
-  minWidth: 220,
-  cursor: "pointer",
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {

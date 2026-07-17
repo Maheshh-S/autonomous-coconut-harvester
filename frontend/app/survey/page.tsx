@@ -960,15 +960,8 @@ export default function SurveyPage() {
         .hint { margin-top: 10px; font-size: 13px; color: var(--color-text-dim); }
         .hint.ok { color: var(--color-accent); }
 
-        .select, .input, .num {
-          background: var(--color-bg-elevated); border: 1px solid var(--color-line-strong);
-          border-radius: 10px; color: var(--color-text); padding: 11px 14px; font-size: 14px;
-          font-family: var(--font-sans);
-        }
-        .select { min-width: 220px; }
-        .input { flex: 1; min-width: 180px; }
-        .num { width: 90px; }
         .file { width: 100%; color: var(--color-text-dim); font-size: 13px; }
+        .row .input { flex: 1; min-width: 180px; }
         .file.sm { width: auto; flex: 1; }
 
         .progress { margin-top: 18px; }

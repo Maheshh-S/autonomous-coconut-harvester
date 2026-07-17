@@ -33,8 +33,22 @@ export default function TreesPage() {
     return (
       <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
         <div className="kicker">Inventory</div>
-        <h1 className="font-display" style={{ fontSize: 36, fontWeight: 700, margin: "8px 0 16px" }}>Trees</h1>
-        <p style={{ color: "var(--color-text-dim)" }}>Loading…</p>
+        <h1 className="font-display" style={{ fontSize: 36, fontWeight: 700, margin: "8px 0 16px", letterSpacing: "-0.03em" }}>Tree Registry</h1>
+        <div className="panel" style={{ overflow: "hidden" }}>
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              style={{
+                height: 48,
+                borderTop: i === 0 ? "none" : "1px solid var(--color-line)",
+                background: "var(--color-surface-2)",
+                opacity: 0.5,
+                animation: "pulse 1.4s ease-in-out infinite",
+                animationDelay: `${i * 0.08}s`,
+              }}
+            />
+          ))}
+        </div>
       </div>
     )
   }
@@ -75,44 +89,31 @@ export default function TreesPage() {
 
       <div className="panel" style={{ overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <table className="tree-table">
             <thead>
-              <tr style={{ background: "var(--color-surface-2)", textAlign: "left" }}>
+              <tr>
                 <Th>ID</Th>
-                <Th>Latitude</Th>
-                <Th>Longitude</Th>
-                <Th>Coconuts</Th>
-                <Th>Tasks</Th>
-                <Th>Open</Th>
+                <Th align="right">Latitude</Th>
+                <Th align="right">Longitude</Th>
+                <Th align="right">Coconuts</Th>
+                <Th align="right">Tasks</Th>
+                <Th align="right">Open</Th>
               </tr>
             </thead>
             <tbody>
               {trees.map((t: TreeSummary) => (
-                <tr key={t.tree_id} style={{ borderTop: "1px solid var(--color-line)" }}>
-                  <Td style={{ fontWeight: 600 }}>#{t.tree_id}</Td>
-                  <Td style={{ color: "var(--color-text-dim)" }}>{t.gps_lat}</Td>
-                  <Td style={{ color: "var(--color-text-dim)" }}>{t.gps_lon}</Td>
-                  <Td>{t.coconuts_detected}</Td>
-                  <Td>
-                    <span
-                      style={{
-                        padding: "2px 10px",
-                        borderRadius: 99,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: t.tasks_remaining > 0 ? "#f5c451" : "#4fe39a",
-                        background: t.tasks_remaining > 0 ? "rgba(245,196,81,0.14)" : "rgba(79,227,154,0.14)",
-                        border: `1px solid ${t.tasks_remaining > 0 ? "rgba(245,196,81,0.4)" : "rgba(79,227,154,0.4)"}`,
-                      }}
-                    >
-                      {t.tasks_remaining}
+                <tr key={t.tree_id}>
+                  <Td className="tab" style={{ fontWeight: 600, fontFamily: "var(--font-mono)" }}>#{t.tree_id}</Td>
+                  <Td align="right" className="tab" style={{ color: "var(--color-text-dim)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{t.gps_lat.toFixed(6)}</Td>
+                  <Td align="right" className="tab" style={{ color: "var(--color-text-dim)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{t.gps_lon.toFixed(6)}</Td>
+                  <Td align="right" className="tab" style={{ fontWeight: 600 }}>{t.coconuts_detected}</Td>
+                  <Td align="right">
+                    <span className={`task-pill ${t.tasks_remaining > 0 ? "pending" : "done"}`}>
+                      {t.tasks_remaining > 0 ? t.tasks_remaining : "Clear"}
                     </span>
                   </Td>
-                  <Td>
-                    <Link
-                      href={`/trees/${t.tree_id}`}
-                      style={{ color: "var(--color-accent)", textDecoration: "none", fontWeight: 600, borderBottom: "1px solid var(--color-accent-dim)" }}
-                    >
+                  <Td align="right">
+                    <Link href={`/trees/${t.tree_id}`} className="tree-open">
                       Open →
                     </Link>
                   </Td>
@@ -120,8 +121,14 @@ export default function TreesPage() {
               ))}
               {trees.length === 0 && (
                 <tr>
-                  <Td colSpan={6} style={{ color: "var(--color-text-dim)", padding: 24 }}>
-                    No trees registered yet.
+                  <Td colSpan={6} style={{ padding: 0 }}>
+                    <div className="tree-empty">
+                      <div className="tree-empty-title">No trees registered yet</div>
+                      <p className="tree-empty-sub">
+                        Run a drone survey to resolve permanent trees. They will appear
+                        here with GPS fixes and harvest tasks.
+                      </p>
+                    </div>
                   </Td>
                 </tr>
               )}
@@ -129,15 +136,83 @@ export default function TreesPage() {
           </table>
         </div>
       </div>
+
+      <style jsx>{`
+        .tree-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+        }
+        .tree-table thead tr {
+          background: var(--color-surface-2);
+        }
+        .tree-table tbody tr {
+          border-top: 1px solid var(--color-line);
+          transition: background 0.14s var(--ease-out);
+        }
+        .tree-table tbody tr:hover {
+          background: var(--color-surface-sunken);
+        }
+        .tree-table :global(td.tab) {
+          font-variant-numeric: tabular-nums;
+        }
+        .task-pill {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 11px;
+          border-radius: 99px;
+          font-size: 12px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          border: 1px solid;
+        }
+        .task-pill.pending {
+          color: var(--color-gold-dim);
+          background: rgba(201, 138, 46, 0.12);
+          border-color: rgba(201, 138, 46, 0.32);
+        }
+        .task-pill.done {
+          color: var(--color-accent);
+          background: var(--color-accent-weak);
+          border-color: var(--color-accent-dim);
+        }
+        .tree-open {
+          color: var(--color-accent);
+          text-decoration: none;
+          font-weight: 600;
+          border-bottom: 1px solid transparent;
+          transition: border-color 0.16s var(--ease-out);
+        }
+        .tree-open:hover {
+          border-bottom-color: var(--color-accent-dim);
+        }
+        .tree-empty {
+          padding: 48px 24px;
+          text-align: center;
+        }
+        .tree-empty-title {
+          font-family: var(--font-display);
+          font-size: 17px;
+          font-weight: 600;
+          color: var(--color-text);
+        }
+        .tree-empty-sub {
+          margin: 8px auto 0;
+          max-width: 380px;
+          color: var(--color-text-dim);
+          font-size: 13.5px;
+          line-height: 1.5;
+        }
+      `}</style>
     </div>
   )
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children, align = "left" }: { children: React.ReactNode; align?: "left" | "right" }) {
   return (
-    <th style={{ padding: "12px 16px", fontWeight: 600, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-faint)" }}>{children}</th>
+    <th style={{ padding: "12px 16px", fontWeight: 600, fontSize: 11.5, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-faint)", textAlign: align }}>{children}</th>
   )
 }
-function Td({ children, style, colSpan }: { children: React.ReactNode; style?: React.CSSProperties; colSpan?: number }) {
-  return <td colSpan={colSpan} style={{ padding: "12px 16px", verticalAlign: "middle", ...style }}>{children}</td>
+function Td({ children, style, colSpan, align = "left", className }: { children: React.ReactNode; style?: React.CSSProperties; colSpan?: number; align?: "left" | "right"; className?: string }) {
+  return <td colSpan={colSpan} className={className} style={{ padding: "13px 16px", verticalAlign: "middle", textAlign: align, ...style }}>{children}</td>
 }

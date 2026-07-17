@@ -1,0 +1,71 @@
+- generic [active] [ref=f10e1]:
+  - generic [ref=f10e2]:
+    - complementary [ref=f10e3]:
+      - link "Areca — home" [ref=f10e4] [cursor=pointer]:
+        - /url: /
+        - text: ARECAHarvest Intelligence
+      - navigation "Primary" [ref=f10e5]:
+        - link "Overview" [ref=f10e6] [cursor=pointer]:
+          - /url: /
+        - link "Mission Control" [ref=f10e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Survey & Harvest" [ref=f10e14] [cursor=pointer]:
+          - /url: /survey
+        - link "Digital Twin" [ref=f10e18] [cursor=pointer]:
+          - /url: /map
+        - link "Robot Ops" [ref=f10e22] [cursor=pointer]:
+          - /url: /robot
+        - link "Mission History" [ref=f10e26] [cursor=pointer]:
+          - /url: /robot/history
+        - link "Tree Registry" [ref=f10e30] [cursor=pointer]:
+          - /url: /trees
+      - generic [ref=f10e34]: All systems online
+    - main [ref=f10e38]:
+      - main [ref=f10e39]:
+        - generic [ref=f10e41]:
+          - paragraph [ref=f10e42]: Pipeline · Survey → Harvest
+          - heading "Survey & Harvest Control" [level=1] [ref=f10e43]
+        - generic [ref=f10e44]:
+          - generic [ref=f10e45]:
+            - generic [ref=f10e46]: "01"
+            - heading "Select or create a mission" [level=2] [ref=f10e47]
+          - generic [ref=f10e48]:
+            - combobox [ref=f10e49] [cursor=pointer]:
+              - option "— choose mission —" [disabled] [selected]
+            - textbox "new folder name" [ref=f10e50]
+            - button "Create mission" [ref=f10e51] [cursor=pointer]
+        - generic [ref=f10e52]:
+          - generic [ref=f10e53]:
+            - generic [ref=f10e54]: "02"
+            - heading "Select folder of drone imagery" [level=2] [ref=f10e55]
+          - button "Choose File" [ref=f10e56]
+          - paragraph [ref=f10e57]: "Total images selected: 0"
+        - generic [ref=f10e58]:
+          - generic [ref=f10e59]:
+            - generic [ref=f10e60]: "03"
+            - heading "Upload & activate" [level=2] [ref=f10e61]
+          - generic [ref=f10e62]:
+            - button "Upload images" [disabled] [ref=f10e63]
+            - button "Complete Survey Mission" [disabled] [ref=f10e64]
+          - generic [ref=f10e67]:
+            - generic [ref=f10e68]: Uploaded 0
+            - generic [ref=f10e69]: Remaining 0
+            - generic [ref=f10e70]: Total 0
+        - generic [ref=f10e71]:
+          - heading "Uploaded images (0)" [level=2] [ref=f10e72]
+          - paragraph [ref=f10e73]: No images uploaded yet.
+        - generic [ref=f10e74]:
+          - generic [ref=f10e75]:
+            - generic [ref=f10e76]: "04"
+            - heading "Harvest Planner" [level=2] [ref=f10e77]
+          - paragraph [ref=f10e78]: Generate a Harvest Mission from the latest Inventory Snapshots. Eligible trees are ordered by a Nearest-Neighbour route. Execute it below to drive the robot through the queue and update Inventory History.
+          - generic [ref=f10e79]:
+            - generic [ref=f10e80]: Harvest type
+            - combobox "Harvest type" [ref=f10e81] [cursor=pointer]:
+              - option "Mature" [selected]
+              - option "Potential"
+              - option "Premature"
+              - option "All"
+            - button "Generate Harvest Mission" [ref=f10e82] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f10e88] [cursor=pointer]
+  - alert [ref=f10e92]

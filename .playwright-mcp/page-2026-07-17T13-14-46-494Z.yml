@@ -1,0 +1,48 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - complementary [ref=f3e3]:
+      - navigation "Primary" [ref=f3e4]:
+        - generic [ref=f3e5]: Menu
+        - link "Overview" [ref=f3e6] [cursor=pointer]:
+          - /url: /
+        - link "Mission Control" [ref=f3e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Survey & Harvest" [ref=f3e14] [cursor=pointer]:
+          - /url: /survey
+        - link "Digital Twin" [ref=f3e18] [cursor=pointer]:
+          - /url: /map
+        - link "Robot Ops" [ref=f3e22] [cursor=pointer]:
+          - /url: /robot
+        - link "Mission History" [ref=f3e26] [cursor=pointer]:
+          - /url: /robot/history
+        - link "Tree Registry" [ref=f3e30] [cursor=pointer]:
+          - /url: /trees
+      - generic [ref=f3e34]:
+        - generic [ref=f3e35]: System Online
+        - generic [ref=f3e38]: v3.8 · Control Build
+    - main [ref=f3e39]:
+      - generic [ref=f3e40]:
+        - generic [ref=f3e42]:
+          - generic [ref=f3e43]: Telemetry · Control
+          - heading "Robot Control Centre" [level=1] [ref=f3e44]
+          - paragraph [ref=f3e45]: Command the harvester simulation, watch live telemetry, and trace its route across the twin. Mission logic is owned by the backend.
+        - generic [ref=f3e46]:
+          - generic [ref=f3e47]:
+            - heading "Simulation Control Centre" [level=2] [ref=f3e48]
+            - generic [ref=f3e49]:
+              - generic [ref=f3e50]: Harvest Mission
+              - combobox "Harvest Mission" [ref=f3e51] [cursor=pointer]
+          - generic [ref=f3e52]:
+            - button "Start" [ref=f3e53] [cursor=pointer]
+            - button "Pause" [disabled] [ref=f3e54] [cursor=pointer]
+            - button "Resume" [disabled] [ref=f3e55] [cursor=pointer]
+            - button "Return to Dock" [disabled] [ref=f3e56] [cursor=pointer]
+            - button "Recharge" [ref=f3e57] [cursor=pointer]
+            - button "Reset" [ref=f3e58] [cursor=pointer]
+            - generic [ref=f3e59]:
+              - text: Speed
+              - spinbutton "Speed ×" [ref=f3e60]: "60"
+              - text: ×
+        - heading "Legacy Task Queue" [level=2] [ref=f3e62]
+  - button "Open Next.js Dev Tools" [ref=f3e68] [cursor=pointer]
+  - alert [ref=f3e72]

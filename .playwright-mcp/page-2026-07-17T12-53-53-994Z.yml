@@ -1,0 +1,13 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - banner [ref=f4e3]:
+      - generic [ref=f4e4]: Areca
+      - button "Toggle navigation" [ref=f4e5] [cursor=pointer]: ≡
+    - main [ref=f4e6]:
+      - generic [ref=f4e8]:
+        - generic [ref=f4e12]: Error 404
+        - heading "This path isn’t on the farm" [level=1] [ref=f4e13]
+        - paragraph [ref=f4e14]: The page you were looking for doesn’t exist or may have been moved. Head back to the control centre to continue.
+        - link "Back to Home" [ref=f4e15] [cursor=pointer]:
+          - /url: /
+  - alert [ref=f4e18]

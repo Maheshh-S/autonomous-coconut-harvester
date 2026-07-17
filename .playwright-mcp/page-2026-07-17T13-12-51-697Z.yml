@@ -1,0 +1,25 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - navigation "Primary" [ref=e4]:
+        - generic [ref=e5]: Menu
+        - link "Overview" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - link "Mission Control" [ref=e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Survey & Harvest" [ref=e14] [cursor=pointer]:
+          - /url: /survey
+        - link "Digital Twin" [ref=e18] [cursor=pointer]:
+          - /url: /map
+        - link "Robot Ops" [ref=e22] [cursor=pointer]:
+          - /url: /robot
+        - link "Mission History" [ref=e26] [cursor=pointer]:
+          - /url: /robot/history
+        - link "Tree Registry" [ref=e30] [cursor=pointer]:
+          - /url: /trees
+      - generic [ref=e34]:
+        - generic [ref=e35]: System Online
+        - generic [ref=e38]: v3.8 · Control Build
+    - main [ref=e39]:
+      - main [ref=e40]
+  - alert [ref=e49]

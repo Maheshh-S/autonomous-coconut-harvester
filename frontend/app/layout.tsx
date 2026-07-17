@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 import AppShell from "@/components/AppShell";
 
-const display = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-});
-const sans = Inter({
+// Single precision-instrument family (docs/design/03 §1.2): Geist for display + UI
+// sans, Geist Mono for data/coordinates. No serif, no Inter default.
+const sans = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
@@ -32,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
         <SmoothScroll>
           <AppShell>{children}</AppShell>

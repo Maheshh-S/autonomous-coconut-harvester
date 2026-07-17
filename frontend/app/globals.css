@@ -51,9 +51,10 @@
   --color-crit: #c0492f;
   --color-info: #3f7d34;
 
-  /* Fonts */
-  --font-display: var(--font-display), "Space Grotesk", system-ui, sans-serif;
-  --font-sans: var(--font-sans), "Inter", system-ui, sans-serif;
+  /* Fonts — single precision-instrument family (docs/design/03 §1.2).
+     Geist for display + UI sans, Geist Mono for data/coordinates. */
+  --font-display: var(--font-sans), "Geist", system-ui, sans-serif;
+  --font-sans: var(--font-sans), "Geist", system-ui, sans-serif;
   --font-mono: var(--font-mono), "Geist Mono", ui-monospace, monospace;
 
   /* Radii — one locked scale (cards 12 / inputs 8 / buttons pill) */
@@ -253,11 +254,73 @@ body::after {
   flex: none;
 }
 
+/* Select / dropdown — one consistent treatment (shape lock: inputs 8px).
+   Native <select> keeps OS-level keyboard + large-dataset scroll behaviour. */
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--color-surface-2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23586153' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: var(--color-text);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  padding: 11px 38px 11px 14px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.2;
+  min-width: 200px;
+  max-width: 100%;
+  cursor: pointer;
+  transition: border-color 0.18s ease-out, box-shadow 0.18s ease-out, background-color 0.18s ease-out;
+}
+.select:hover {
+  border-color: var(--color-accent-dim);
+}
+.select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+.select option {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+}
+.input,
+.num {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.2;
+  transition: border-color 0.18s ease-out, box-shadow 0.18s ease-out, background-color 0.18s ease-out;
+}
+.input::placeholder {
+  color: var(--color-text-faint);
+}
+.input:hover,
+.num:hover {
+  border-color: var(--color-accent-dim);
+}
+.input:focus-visible,
+.num:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+@media (max-width: 620px) {
+  .select { min-width: 0; width: 100%; }
+}
+
 /* Reveal-on-scroll base (driven by IntersectionObserver / GSAP) */
 [data-reveal] {
   opacity: 0;
-  transform: translateY(26px);
-  transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out);
+  transform: translateY(14px);
+  transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
   will-change: opacity, transform;
 }
 [data-reveal].in {
@@ -308,12 +371,18 @@ html.lenis body {
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
   padding: 20px 22px;
-  box-shadow: 0 1px 3px rgba(28, 38, 27, 0.05);
-  transition: border-color 0.3s, transform 0.3s var(--ease-out), box-shadow 0.3s;
+  box-shadow: 0 1px 2px rgba(28, 38, 27, 0.05);
+  transition: border-color 0.2s ease-out, transform 0.2s var(--ease-out), box-shadow 0.2s ease-out;
 }
-.tile:hover {
-  border-color: var(--color-accent-dim);
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover {
+    border-color: var(--color-accent-dim);
+    box-shadow: 0 6px 18px rgba(28, 38, 27, 0.08);
+    transform: translateY(-1px);
+  }
+}
+.tile:active {
+  transform: scale(0.99);
 }
 .tile-label {
   font-size: 11px;
@@ -326,6 +395,7 @@ html.lenis body {
   font-weight: 700;
   margin-top: 8px;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 .tile-val .accent {
   color: var(--color-accent);
