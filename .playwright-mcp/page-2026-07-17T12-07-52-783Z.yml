@@ -1,0 +1,212 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - banner [ref=f3e3]:
+      - generic [ref=f3e4]: Areca
+      - button "Toggle navigation" [ref=f3e5] [cursor=pointer]: ≡
+    - main [ref=f3e6]:
+      - main [ref=f3e7]:
+        - generic [ref=f3e17]:
+          - generic [ref=f3e18]:
+            - paragraph [ref=f3e19]: Mission Control
+            - heading "System Dashboard" [level=1] [ref=f3e20]
+          - generic [ref=f3e21]: Connecting…
+        - region "Farm overview" [ref=f3e24]:
+          - generic [ref=f3e25]:
+            - paragraph [ref=f3e26]: Live Operations
+            - heading "One calm view of the whole plantation" [level=2] [ref=f3e27]
+            - paragraph [ref=f3e28]: Survey, digital twin, robot and harvest — unified into a single situational-awareness surface.
+        - generic [ref=f3e29]:
+          - heading "Overview" [level=2] [ref=f3e30]
+          - generic [ref=f3e31]:
+            - generic [ref=f3e32]:
+              - generic [ref=f3e33]: Survey Missions
+              - generic [ref=f3e34]: "1"
+            - generic [ref=f3e35]:
+              - generic [ref=f3e36]: Permanent Trees
+              - generic [ref=f3e37]: "243"
+            - generic [ref=f3e38]:
+              - generic [ref=f3e39]: Trees Inspected
+              - generic [ref=f3e40]: "1"
+            - generic [ref=f3e41]:
+              - generic [ref=f3e42]: Inventory Snapshots
+              - generic [ref=f3e43]: "2"
+            - generic [ref=f3e44]:
+              - generic [ref=f3e45]: Harvest Missions
+              - generic [ref=f3e46]: "1"
+            - generic [ref=f3e47]:
+              - generic [ref=f3e48]: Robot Status
+              - generic [ref=f3e49]: COMPLETED
+        - generic [ref=f3e52]:
+          - heading "Farm Summary" [level=2] [ref=f3e53]
+          - generic [ref=f3e54]:
+            - generic [ref=f3e55]:
+              - generic [ref=f3e56]: Total Trees
+              - generic [ref=f3e57]: "243"
+            - generic [ref=f3e58]:
+              - generic [ref=f3e59]: Total Coconuts
+              - generic [ref=f3e60]: "29"
+            - generic [ref=f3e61]:
+              - generic [ref=f3e62]: Mature
+              - generic [ref=f3e63]: "0"
+            - generic [ref=f3e64]:
+              - generic [ref=f3e65]: Potential
+              - generic [ref=f3e66]: "2"
+            - generic [ref=f3e67]:
+              - generic [ref=f3e68]: Premature
+              - generic [ref=f3e69]: "27"
+            - generic [ref=f3e70]:
+              - generic [ref=f3e71]: Harvested
+              - generic [ref=f3e72]: "3"
+        - generic [ref=f3e74]:
+          - generic [ref=f3e75]:
+            - heading "Survey" [level=3] [ref=f3e76]
+            - generic [ref=f3e77]:
+              - generic [ref=f3e78]: Latest Survey
+              - generic [ref=f3e79]: "#1 · COMPLETED"
+            - generic [ref=f3e80]:
+              - generic [ref=f3e81]: Active Survey
+              - generic [ref=f3e82]: "#1"
+            - generic [ref=f3e83]:
+              - generic [ref=f3e84]: Last Scan
+              - generic [ref=f3e85]: 17 Jul 2026, 2:21 am
+          - generic [ref=f3e86]:
+            - heading "Harvest" [level=3] [ref=f3e87]
+            - generic [ref=f3e88]:
+              - generic [ref=f3e89]: Current Mission
+              - generic [ref=f3e90]: HM-0001
+            - generic [ref=f3e91]:
+              - generic [ref=f3e92]: Status
+              - generic [ref=f3e93]: COMPLETED
+            - generic [ref=f3e96]:
+              - generic [ref=f3e97]: Queue
+              - generic [ref=f3e98]: 1/1
+            - generic [ref=f3e99]:
+              - generic [ref=f3e100]: Trees Remaining
+              - generic [ref=f3e101]: "0"
+            - generic [ref=f3e102]:
+              - generic [ref=f3e103]: Expected Harvest
+              - generic [ref=f3e104]: "3"
+          - generic [ref=f3e105]:
+            - heading "Robot" [level=3] [ref=f3e106]
+            - generic [ref=f3e107]:
+              - generic [ref=f3e108]: State
+              - generic [ref=f3e109]: COMPLETED
+            - generic [ref=f3e112]:
+              - generic [ref=f3e113]: Mission
+              - generic [ref=f3e114]: HM-0001
+            - generic [ref=f3e115]:
+              - generic [ref=f3e116]: Current Tree
+              - generic [ref=f3e117]: —
+            - generic [ref=f3e118]:
+              - generic [ref=f3e119]: Queue
+              - generic [ref=f3e120]: 1/1
+          - generic [ref=f3e121]:
+            - heading "Latest Run" [level=3] [ref=f3e122]
+            - generic [ref=f3e123]:
+              - generic [ref=f3e124]: Last run
+              - generic [ref=f3e125]: None yet
+        - generic [ref=f3e126]:
+          - heading "Analytics" [level=2] [ref=f3e127]
+          - generic [ref=f3e128]:
+            - generic [ref=f3e129]:
+              - heading "Ripeness Distribution" [level=3] [ref=f3e130]
+              - generic [ref=f3e131]:
+                - generic [ref=f3e132]:
+                  - 'generic "Potential: 2" [ref=f3e133]'
+                  - 'generic "Premature: 27" [ref=f3e134]'
+                - generic [ref=f3e135]:
+                  - generic [ref=f3e136]:
+                    - text: "Mature:"
+                    - generic [ref=f3e138]: "0"
+                  - generic [ref=f3e139]:
+                    - text: "Potential:"
+                    - generic [ref=f3e141]: "2"
+                  - generic [ref=f3e142]:
+                    - text: "Premature:"
+                    - generic [ref=f3e144]: "27"
+            - generic [ref=f3e145]:
+              - heading "Inspection Coverage" [level=3] [ref=f3e146]
+              - generic [ref=f3e147]:
+                - generic [ref=f3e148]:
+                  - 'generic "Inspected: 1" [ref=f3e149]'
+                  - 'generic "Remaining: 242" [ref=f3e150]'
+                - generic [ref=f3e151]:
+                  - generic [ref=f3e152]:
+                    - text: "Inspected:"
+                    - generic [ref=f3e154]: "1"
+                  - generic [ref=f3e155]:
+                    - text: "Remaining:"
+                    - generic [ref=f3e157]: "242"
+            - generic [ref=f3e158]:
+              - heading "Harvest Progress" [level=3] [ref=f3e159]
+              - generic [ref=f3e160]:
+                - 'generic "Completed: 1" [ref=f3e162]'
+                - generic [ref=f3e163]:
+                  - generic [ref=f3e164]:
+                    - text: "Completed:"
+                    - generic [ref=f3e166]: "1"
+                  - generic [ref=f3e167]:
+                    - text: "Remaining:"
+                    - generic [ref=f3e169]: "0"
+        - generic [ref=f3e171]:
+          - generic [ref=f3e172]:
+            - generic [ref=f3e173]: Digital Twin — Farm Mosaic
+            - paragraph [ref=f3e175]: Loading…
+          - generic [ref=f3e176]:
+            - generic [ref=f3e177]:
+              - generic [ref=f3e178]: Robot Status
+              - generic [ref=f3e179]: stopped
+            - generic [ref=f3e180]: Battery 100.0%
+            - generic [ref=f3e184]:
+              - generic [ref=f3e185]: Mission
+              - generic [ref=f3e186]: —
+            - generic [ref=f3e187]:
+              - generic [ref=f3e188]: Current Tree
+              - generic [ref=f3e189]: —
+            - generic [ref=f3e190]:
+              - generic [ref=f3e191]: Next Tree
+              - generic [ref=f3e192]: Tree 1
+            - generic [ref=f3e193]:
+              - generic [ref=f3e194]: Distance Remaining
+              - generic [ref=f3e195]: —
+            - generic [ref=f3e196]:
+              - generic [ref=f3e197]: Simulation Time
+              - generic [ref=f3e198]: 0.0 s
+            - generic [ref=f3e199]:
+              - generic [ref=f3e200]: Speed Factor
+              - generic [ref=f3e201]: 1×
+            - generic [ref=f3e202]:
+              - generic [ref=f3e203]: WS
+              - generic [ref=f3e204]: open
+        - generic [ref=f3e205]:
+          - heading "Recent Activity" [level=2] [ref=f3e206]
+          - list [ref=f3e208]:
+            - listitem [ref=f3e209]:
+              - generic [ref=f3e211]:
+                - generic [ref=f3e212]: Harvest Mission HM-0001 completed
+                - generic [ref=f3e213]: 17 Jul 2026, 2:27 am
+            - listitem [ref=f3e214]:
+              - generic [ref=f3e216]:
+                - generic [ref=f3e217]: Inventory INV-0002 created (29 coconuts)
+                - generic [ref=f3e218]: 17 Jul 2026, 2:27 am
+            - listitem [ref=f3e219]:
+              - generic [ref=f3e221]:
+                - generic [ref=f3e222]: Harvest Mission HM-0001 created
+                - generic [ref=f3e223]: 17 Jul 2026, 2:26 am
+            - listitem [ref=f3e224]:
+              - generic [ref=f3e226]:
+                - generic [ref=f3e227]: Inventory INV-0001 created (32 coconuts)
+                - generic [ref=f3e228]: 17 Jul 2026, 2:25 am
+            - listitem [ref=f3e229]:
+              - generic [ref=f3e231]:
+                - generic [ref=f3e232]: Inspection INSP-0001 completed
+                - generic [ref=f3e233]: 17 Jul 2026, 2:25 am
+            - listitem [ref=f3e234]:
+              - generic [ref=f3e236]:
+                - generic [ref=f3e237]: Inspection INSP-0001 created
+                - generic [ref=f3e238]: 17 Jul 2026, 2:24 am
+            - listitem [ref=f3e239]:
+              - generic [ref=f3e241]:
+                - generic [ref=f3e242]: "Survey Mission #1 completed"
+                - generic [ref=f3e243]: 17 Jul 2026, 2:21 am
+  - alert [ref=f3e16]

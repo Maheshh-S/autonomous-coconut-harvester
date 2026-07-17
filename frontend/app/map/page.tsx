@@ -13,6 +13,7 @@ import FarmViewer from "@/components/FarmViewer"
 import { MosaicTile } from "@/components/FarmMosaic"
 import { useRobotSimulation } from "@/lib/useRobotSimulation"
 import RobotStatusCard from "@/components/robot/RobotStatusCard"
+import AmbientClip from "@/components/AmbientClip"
 
 type MissionSummary = {
   id: number
@@ -45,13 +46,48 @@ function Toggle({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 6,
+        gap: 8,
         fontSize: 13,
+        color: "var(--color-text-dim)",
         cursor: "pointer",
         userSelect: "none",
       }}
     >
-      <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />
+      <span
+        onClick={(e) => {
+          e.preventDefault()
+          set(!on)
+        }}
+        style={{
+          position: "relative",
+          width: 36,
+          height: 20,
+          borderRadius: 99,
+          background: on ? "var(--color-accent-dim)" : "var(--color-surface-3)",
+          border: "1px solid var(--color-line-strong)",
+          transition: "background 0.2s var(--ease-out)",
+          flex: "none",
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: 1,
+            left: on ? 15 : 1,
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            background: on ? "var(--color-accent-bright)" : "var(--color-text-faint)",
+            transition: "left 0.2s var(--ease-out), background 0.2s",
+          }}
+        />
+      </span>
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => set(e.target.checked)}
+        style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
+      />
       {label}
     </label>
   )
@@ -61,7 +97,7 @@ function Toggle({
 // render bailout; wrap in Suspense so the production build can still prerender it.
 export default function FarmPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 24 }}>Loading farm…</div>}>
+    <Suspense fallback={<div style={{ padding: 24, color: "var(--color-text-dim)" }}>Loading farm…</div>}>
       <FarmPageInner />
     </Suspense>
   )
@@ -153,23 +189,61 @@ function FarmPageInner() {
   )
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Farm Digital Twin — Mosaic</h1>
-
-      <div
+    <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
+      <header
         style={{
-          display: "flex",
-          gap: 16,
-          alignItems: "center",
-          marginBottom: 12,
-          flexWrap: "wrap",
+          position: "relative",
+          marginBottom: 22,
+          borderRadius: 16,
+          overflow: "hidden",
+          border: "1px solid var(--color-line)",
+          padding: "30px clamp(20px,3vw,40px)",
         }}
       >
-        <label>
-          Mission:{" "}
+        <AmbientClip src="/clips/4.mp4" opacity={0.22} once />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(90deg, rgba(14,18,13,0.84), rgba(14,18,13,0.45) 55%, transparent), radial-gradient(120% 140% at 0% 0%, rgba(14,18,13,0.5), transparent)",
+            pointerEvents: "none",
+          }}
+        />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="kicker">Digital Twin · Mosaic</div>
+          <h1
+            className="font-display"
+            style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 700, margin: "8px 0 4px", letterSpacing: "-0.03em" }}
+          >
+            Farm <span className="lede-accent">Digital Twin</span>
+          </h1>
+          <p style={{ color: "var(--color-text-dim)", margin: 0, maxWidth: 640 }}>
+            A living reconstruction of the surveyed plantation — tile mosaic, tree
+            detections, and the live robot overlaid in one shared coordinate space.
+          </p>
+        </div>
+      </header>
+
+      <div
+        className="panel-2"
+        style={{
+          display: "flex",
+          gap: 18,
+          alignItems: "center",
+          marginBottom: 20,
+          flexWrap: "wrap",
+          padding: "14px 18px",
+        }}
+      >
+        <label style={{ display: "inline-flex", flexDirection: "column", gap: 5 }}>
+          <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--color-text-faint)", fontFamily: "var(--font-mono)" }}>
+            Mission
+          </span>
           <select
             value={missionId ?? ""}
             onChange={(e) => setMissionId(Number(e.target.value))}
+            style={selectStyle}
           >
             {missions.map((m) => (
               <option key={m.id} value={m.id}>
@@ -181,18 +255,21 @@ function FarmPageInner() {
           </select>
         </label>
 
-        <label>
-          Seam gap: {gap}px{" "}
+        <label style={{ display: "inline-flex", flexDirection: "column", gap: 5, minWidth: 200 }}>
+          <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--color-text-faint)", fontFamily: "var(--font-mono)" }}>
+            Seam gap · {gap}px
+          </span>
           <input
             type="range"
             min={0}
             max={24}
             value={gap}
             onChange={(e) => setGap(Number(e.target.value))}
+            style={{ accentColor: "var(--color-accent)", width: "100%" }}
           />
         </label>
 
-        <span style={{ width: 1, height: 22, background: "#e5e7eb" }} />
+        <span style={{ width: 1, height: 30, background: "var(--color-line)" }} />
 
         {/* V3.6.1 — visualization-only toggles (no robot controls on this page) */}
         <Toggle label="Show Robot" on={showRobot} set={setShowRobot} />
@@ -200,25 +277,29 @@ function FarmPageInner() {
         <Toggle label="Show Current Target" on={showTarget} set={setShowTarget} />
       </div>
 
-      {loading && <p>Loading tiles…</p>}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {loading && <p style={{ color: "var(--color-text-dim)" }}>Loading tiles…</p>}
+      {error && <p style={{ color: "var(--color-crit)" }}>{error}</p>}
       {!loading && !error && tiles.length === 0 && (
-        <p>No tiles found for this mission.</p>
+        <div className="panel-2" style={{ padding: 24, color: "var(--color-text-dim)" }}>
+          No tiles found for this mission.
+        </div>
       )}
 
       {!loading && !error && isPreV2 && (
         <div
           style={{
-            border: "1px solid #5a3a1a",
-            background: "#2a1c10",
-            color: "#e8c89a",
-            borderRadius: 8,
-            padding: 16,
+            border: "1px solid var(--color-gold-dim)",
+            background: "rgba(245, 196, 81, 0.07)",
+            color: "var(--color-gold)",
+            borderRadius: 14,
+            padding: 18,
             maxWidth: 560,
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Digital Twin not available</h2>
-          <p style={{ fontSize: 14, lineHeight: 1.5 }}>
+          <h2 className="font-display" style={{ marginTop: 0, fontSize: 18 }}>
+            Digital Twin not available
+          </h2>
+          <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--color-text-dim)" }}>
             This mission was surveyed before <strong>Version 2</strong> and has no
             persisted tile-grid metadata (<code>grid_row</code> /{" "}
             <code>grid_col</code>).
@@ -228,26 +309,28 @@ function FarmPageInner() {
 
       {!loading && !error && !isPreV2 && v2Tiles.length > 0 && (
         <>
-          <p style={{ color: "#6b7d6b", fontSize: 13 }}>
+          <p style={{ color: "var(--color-text-faint)", fontSize: 13, margin: "0 0 12px" }}>
             {v2Tiles.length} tiles · grid reconstructed from persisted Version 2
             metadata.
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 320px", gap: 16, alignItems: "start" }}>
-            <FarmViewer
-              tiles={v2Tiles}
-              gap={gap}
-              apiBaseUrl={API_BASE_URL}
-              trees={trees}
-              enableDetailsPanel
-              robot={showRobot ? sim.displayRobot : null}
-              plan={sim.plan}
-              destinationTreeId={sim.destinationTreeId}
-              harvestingTreeId={sim.harvestingTreeId}
-              completedTreeIds={sim.completedTreeIds}
-              showRobotPath={showPath}
-              showRobotTarget={showTarget}
-              initialTreeId={initialTreeId}
-            />
+          <div className="map-layout">
+            <div className="panel" style={{ padding: 10, overflow: "hidden" }}>
+              <FarmViewer
+                tiles={v2Tiles}
+                gap={gap}
+                apiBaseUrl={API_BASE_URL}
+                trees={trees}
+                enableDetailsPanel
+                robot={showRobot ? sim.displayRobot : null}
+                plan={sim.plan}
+                destinationTreeId={sim.destinationTreeId}
+                harvestingTreeId={sim.harvestingTreeId}
+                completedTreeIds={sim.completedTreeIds}
+                showRobotPath={showPath}
+                showRobotTarget={showTarget}
+                initialTreeId={initialTreeId}
+              />
+            </div>
             <RobotStatusCard
               robot={sim.displayRobot}
               sim={sim.sim}
@@ -259,6 +342,39 @@ function FarmPageInner() {
           </div>
         </>
       )}
+
+      <style jsx>{`
+        .map-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 320px;
+          gap: 18px;
+          align-items: start;
+        }
+        @media (max-width: 900px) {
+          .map-layout {
+            grid-template-columns: 1fr;
+            gap: 14px;
+          }
+          .map-layout :global(.panel) {
+            order: 0;
+          }
+          .map-layout > :global(div:last-child) {
+            order: 1;
+          }
+        }
+      `}</style>
     </div>
   )
+}
+
+const selectStyle: React.CSSProperties = {
+  background: "var(--color-surface-2)",
+  color: "var(--color-text)",
+  border: "1px solid var(--color-line-strong)",
+  borderRadius: 10,
+  padding: "9px 12px",
+  fontSize: 13,
+  fontFamily: "var(--font-sans)",
+  minWidth: 220,
+  cursor: "pointer",
 }

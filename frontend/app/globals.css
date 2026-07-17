@@ -1,26 +1,447 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================================
+   ARECA — Autonomous Coconut Harvesting Platform
+   Design System: timeless premium dark "mission control"
+   Single identity. No light mode, no theme switcher.
+   ============================================================ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ===== Fresh agriculture light theme =====
+     Soft whites, warm light gray, muted sage, natural leaf green, earth tones.
+     No neon, no dark olive, no cyberpunk. Premium + environmentally friendly. */
+
+  /* Surfaces — airy, warm off-white with a faint green undertone */
+  --color-bg: #f6f8f2;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef1e9;
+  --color-surface-3: #e4e9dc;
+  --color-surface-sunken: #f0f3ea;
+  --color-line: #dde2d6;
+  --color-line-strong: #c6cdbd;
+
+  /* Text — deep green-tinted ink (never pure black) */
+  --color-text: #1d261b;
+  --color-text-dim: #586153;
+  --color-text-faint: #8b9383;
+
+  /* Accent — natural leaf green. Functional: primary action / live / active.
+     Calm, not neon. */
+  --color-accent: #3f7d34;
+  --color-accent-bright: #4f9a3f;
+  --color-accent-dim: #b9d6ad;
+  --color-accent-weak: #e7f0e2;
+  --color-accent-glow: rgba(63, 125, 52, 0.12);
+
+  /* Leaf green — health / positive / mature (semantic status) */
+  --color-leaf: #5a9e3f;
+  --color-leaf-dim: #3f6e2c;
+
+  /* Husk / earth — warmth, secondary highlight */
+  --color-husk: #a9824a;
+
+  /* Harvest gold / amber — attention, selected tree (NOT a red alert) */
+  --color-gold: #c98a2e;
+  --color-gold-dim: #9a6a24;
+
+  /* Status */
+  --color-ok: #4f8a3d;
+  --color-warn: #c98a2e;
+  --color-crit: #c0492f;
+  --color-info: #3f7d34;
+
+  /* Fonts */
+  --font-display: var(--font-display), "Space Grotesk", system-ui, sans-serif;
+  --font-sans: var(--font-sans), "Inter", system-ui, sans-serif;
+  --font-mono: var(--font-mono), "Geist Mono", ui-monospace, monospace;
+
+  /* Radii — one locked scale (cards 12 / inputs 8 / buttons pill) */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Easing — custom, not defaults (emil-design-eng) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-inout: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  scroll-behavior: auto; /* Lenis owns scrolling */
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Ambient atmosphere — soft, airy, faint leaf wash. No neon. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(1200px 800px at 50% -12%, rgba(90, 158, 63, 0.08), transparent 60%),
+    radial-gradient(1000px 700px at 100% 110%, rgba(63, 125, 52, 0.06), transparent 60%),
+    var(--color-bg);
+  pointer-events: none;
+}
+
+/* Soft paper grain veil — barely-there, light only */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.012) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, black, transparent 85%);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+::selection {
+  background: var(--color-accent-weak);
+  color: var(--color-accent);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 99px;
+  border: 2px solid var(--color-bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-dim);
+}
+
+/* Focus — accessible, on-brand */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Reusable type utilities */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+.font-mono {
+  font-family: var(--font-mono);
+}
+.tracking-tightest {
+  letter-spacing: -0.04em;
+}
+.tracking-mega {
+  letter-spacing: 0.42em;
+}
+
+/* Eyebrow / kicker — used sparingly (max 1 per 3 sections, taste-skill §4.7).
+    Muted sage tone, not the accent. */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+/* No gradient text utility — banned per design constitution §10.
+    Emphasis via weight + color of the same family instead. */
+.lede-accent {
+  color: var(--color-accent);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  padding: 13px 26px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: transform 0.16s ease-out, background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(28, 38, 27, 0.04);
+}
+.btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-accent-dim);
+  background: var(--color-surface-2);
+  box-shadow: 0 4px 12px rgba(28, 38, 27, 0.08);
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-primary {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: transparent;
+}
+.btn-primary:hover {
+  background: var(--color-accent-bright);
+  transform: translateY(-1px);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: var(--color-line-strong);
+  color: var(--color-text-dim);
+  box-shadow: none;
+}
+.btn-ghost:hover {
+  color: var(--color-text);
+  border-color: var(--color-accent-dim);
+  background: var(--color-surface-2);
+}
+
+/* Card surface — soft, airy, subtle elevation (taste-skill §4.4) */
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(28, 38, 27, 0.05);
+}
+.panel-2 {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(28, 38, 27, 0.04);
+}
+
+/* Status dot */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  display: inline-block;
+  flex: none;
+}
+
+/* Reveal-on-scroll base (driven by IntersectionObserver / GSAP) */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out);
+  will-change: opacity, transform;
+}
+[data-reveal].in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------------------------
+   Dashboard sub-component styles.
+   These class names are rendered by child components (StatTile, Badge,
+   MiniBar, ActivityItem, ...), which styled-jsx does not scope, so they must
+   live in global CSS to take effect. Class names are dashboard-specific; the
+   shared `.dot` already lives above.
+---------------------------------------------------------------------------- */
+.tile {
+  background: linear-gradient(180deg, var(--color-surface), var(--color-bg-elevated));
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  box-shadow: 0 1px 3px rgba(28, 38, 27, 0.05);
+  transition: border-color 0.3s, transform 0.3s var(--ease-out), box-shadow 0.3s;
+}
+.tile:hover {
+  border-color: var(--color-accent-dim);
+  transform: translateY(-2px);
+}
+.tile-label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+.tile-val {
+  font-size: clamp(26px, 2.4vw, 38px);
+  font-weight: 700;
+  margin-top: 8px;
+  line-height: 1;
+}
+.tile-val .accent {
+  color: var(--color-accent);
+}
+.tile-sub {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  padding: 4px 11px;
+  border-radius: 99px;
+  border: 1px solid;
+  text-transform: uppercase;
+}
+.minibar {
+  margin-top: 4px;
+}
+.minibar-track {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--color-surface-3);
+}
+.minibar-seg {
+  height: 100%;
+}
+.minibar-empty {
+  margin: auto;
+  font-size: 11px;
+  color: var(--color-text-faint);
+}
+.minibar-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.minibar-leg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+.feed {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.feed-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.feed-item:last-child {
+  border-bottom: none;
+}
+.feed-body {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: baseline;
+  gap: 12px;
+}
+.feed-label {
+  font-size: 14px;
+  color: var(--color-text);
+}
+.feed-ts {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  white-space: nowrap;
+}
+.muted {
+  color: var(--color-text-faint);
+  font-size: 14px;
+}
+.errpanel {
+  padding: 40px;
+}
+.errmsg {
+  color: var(--color-crit);
+  margin-top: 10px;
+}
+.skeleton-head {
+  height: 40px;
+  width: 320px;
+  border-radius: 10px;
+  background: var(--color-surface-2);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  margin-top: 30px;
+}
+.skeleton-tile {
+  height: 110px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@media (max-width: 640px) {
+  .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
 }

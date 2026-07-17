@@ -125,6 +125,27 @@ The repository stays the single source of truth: docs describe the code, not int
 
 Project work automatically follows the globally configured **Automatic Skill Discovery & Routing** behaviour: the agent selects the most relevant installed skill for the task at hand (brainstorming, feature-dev, code-review, frontend-design, senior-* specialisms, etc.) and applies it without being re-prompted. This policy is not duplicated here; the global routing governs skill selection.
 
+### Design & frontend-craft skills (cross-agent)
+
+The following premium design/UX skills are installed and available to **every agent tool** (opencode, Claude Code, Codex, etc.). They were added to raise frontend design quality after the v1 redesign was rejected (rating 3/10).
+
+| Skill | Purpose |
+|---|---|
+| `impeccable` (pbakaus) | Production-grade frontend design, critique, audit, polish, animate. |
+| `taste-skill` (Leonxlnx) | Anti-slop frontend; design-read, 3 dials, bans, pre-flight checks. |
+| `emil-design-eng` (emilkowalski) | UI polish, animation decision framework, invisible details. |
+| `apple-design` (emilkowalski) | Fluid/physical motion, springs, interruptibility, depth. |
+| `animation-vocabulary` (emilkowalski) | Names motion effects precisely for prompting. |
+
+Locations (all point at the same source via symlinks — edit once in `.claude/skills/`):
+- **Claude Code:** `.claude/skills/<name>/SKILL.md`
+- **opencode:** registered in `~/.config/opencode/skills/<name>` (symlinked) and loadable via the `skill` tool.
+- **Any `.agents/`-convention tool:** `.agents/skills/<name>` (symlinked to `.claude/skills/<name>`).
+
+When a task is design/frontend/UX-related, load the relevant skill(s) **before** producing output (e.g. `impeccable` for a critique/polish pass, `taste-skill` for anti-slop layout discipline, `emil-design-eng` + `apple-design` for motion). Their bans (gradient text, hand-rolled SVG icons, eyebrow-on-every-section, generic card grids, AI-purple glow, etc.) are authoritative for this repo's UI work.
+
+**Hard UI constraint:** regardless of skill guidance, never change backend APIs, routes, schemas, `detection.ts` exports, the `computeMosaicLayout` farm-pixel transform, Playwright `data-testid`s, or user flows. Restyle presentation only.
+
 ## 9. Version Policy
 
 - **Major versions** introduce genuinely new capabilities or architecture shifts.

@@ -12,18 +12,19 @@ const btn = (
   kind: "primary" | "default" | "danger" | "warn"
 ): React.CSSProperties => {
   const base: React.CSSProperties = {
-    padding: "8px 12px",
-    borderRadius: 6,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#111827",
+    padding: "11px 16px",
+    borderRadius: 10,
+    border: "1px solid var(--color-line-strong)",
+    background: "var(--color-surface-2)",
+    color: "var(--color-text)",
     fontWeight: 600,
-    fontSize: 13,
+    fontSize: 14,
     cursor: "pointer",
+    minHeight: 44,
   }
-  if (kind === "primary") return { ...base, background: "#16a34a", color: "#fff", borderColor: "#16a34a" }
-  if (kind === "danger") return { ...base, background: "#ef4444", color: "#fff", borderColor: "#ef4444" }
-  if (kind === "warn") return { ...base, background: "#f59e0b", color: "#111827", borderColor: "#f59e0b" }
+  if (kind === "primary") return { ...base, background: "var(--color-accent)", color: "#06201e", borderColor: "transparent" }
+  if (kind === "danger") return { ...base, background: "var(--color-crit)", color: "#fff", borderColor: "transparent" }
+  if (kind === "warn") return { ...base, background: "var(--color-amber)", color: "#231a07", borderColor: "transparent" }
   return base
 }
 
@@ -75,13 +76,14 @@ export default function SimulationControls({
       style={{
         display: "flex",
         flexWrap: "wrap",
-        gap: 8,
+        gap: 10,
         alignItems: "center",
-        padding: 12,
-        border: "1px solid #e5e7eb",
-        borderRadius: 10,
-        background: "#fff",
+        padding: 14,
+        border: "1px solid var(--color-line)",
+        borderRadius: 12,
+        background: "var(--color-surface)",
         width: "100%",
+        boxShadow: "0 1px 2px rgba(28, 38, 27, 0.04)",
       }}
     >
       <button
@@ -140,7 +142,7 @@ export default function SimulationControls({
         Reset
       </button>
 
-      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginLeft: 4 }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginLeft: 4, color: "var(--color-text-dim)" }}>
         Speed
         <input
           type="number"
@@ -149,7 +151,7 @@ export default function SimulationControls({
           step={0.5}
           value={localSpeed}
           data-testid="input-speed"
-          style={{ width: 64, padding: "4px 6px", borderRadius: 6, border: "1px solid #d1d5db" }}
+          style={{ width: 64, padding: "4px 6px", borderRadius: 6, border: "1px solid var(--color-line-strong)", background: "var(--color-surface-2)", color: "var(--color-text)" }}
           onChange={(e) => {
             const v = Math.max(0.1, Number(e.target.value) || defaultSpeedFactor)
             setLocalSpeed(v)
@@ -160,7 +162,7 @@ export default function SimulationControls({
       </label>
 
       {error && (
-        <span data-testid="controls-error" style={{ color: "#ef4444", fontSize: 12 }}>
+        <span data-testid="controls-error" style={{ color: "var(--color-crit)", fontSize: 12 }}>
           {error}
         </span>
       )}

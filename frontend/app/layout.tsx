@@ -1,9 +1,29 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Space_Grotesk, Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import SmoothScroll from "@/components/SmoothScroll";
+import AppShell from "@/components/AppShell";
+
+const display = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+const sans = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const mono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "Autonomous Coconut Harvesting",
+  title: "Areca — Autonomous Coconut Harvesting Platform",
+  description:
+    "AI-powered precision agriculture. Drone surveying, digital-twin plantation intelligence, and autonomous robotic coconut harvesting in one control system.",
 };
 
 export default function RootLayout({
@@ -11,60 +31,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-
   return (
-
-    <html lang="en">
-
+    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <body>
-
-        {/* NAVBAR */}
-
-        <div
-          style={{
-            padding: 10,
-            background: "#111",
-            color: "white",
-            display: "flex",
-            gap: 20,
-          }}
-        >
-
-          <Link href="/">
-            Home
-          </Link>
-
-          <Link href="/dashboard">
-            Dashboard
-          </Link>
-
-          <Link href="/survey">
-            Survey
-          </Link>
-
-          <Link href="/map">
-            Digital Twin
-          </Link>
-
-          <Link href="/robot">Robot</Link>
-
-          <Link href="/robot/history">History</Link>
-
-        </div>
-
-
-        {/* PAGE */}
-
-        <div>
-
-          {children}
-
-        </div>
-
+        <SmoothScroll>
+          <AppShell>{children}</AppShell>
+        </SmoothScroll>
       </body>
-
     </html>
-
   );
-
 }

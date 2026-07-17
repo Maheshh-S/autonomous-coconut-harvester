@@ -1,0 +1,77 @@
+- generic [active] [ref=f6e1]:
+  - generic [ref=f6e2]:
+    - banner [ref=f6e3]:
+      - generic [ref=f6e4]: Areca
+      - button "Toggle navigation" [ref=f6e5] [cursor=pointer]: ≡
+    - main [ref=f6e6]:
+      - generic [ref=f6e7]:
+        - generic [ref=f6e9]:
+          - generic [ref=f6e10]: Digital Twin · Mosaic
+          - heading "Farm Digital Twin" [level=1] [ref=f6e11]
+          - paragraph [ref=f6e12]: A living reconstruction of the surveyed plantation — tile mosaic, tree detections, and the live robot overlaid in one shared coordinate space.
+        - generic [ref=f6e13]:
+          - generic [ref=f6e14]:
+            - generic [ref=f6e15]: Mission
+            - combobox "Mission" [ref=f6e16] [cursor=pointer]:
+              - option "#1 (COMPLETED) — audit-01" [selected]
+          - generic [ref=f6e17]:
+            - generic [ref=f6e18]: Seam gap · 2px
+            - slider "Seam gap · 2px" [ref=f6e19]: "2"
+          - generic [ref=f6e21] [cursor=pointer]:
+            - checkbox "Show Robot" [checked]
+            - text: Show Robot
+          - generic [ref=f6e24] [cursor=pointer]:
+            - checkbox "Show Planned Path" [checked]
+            - text: Show Planned Path
+          - generic [ref=f6e27] [cursor=pointer]:
+            - checkbox "Show Current Target" [checked]
+            - text: Show Current Target
+        - paragraph [ref=f6e32]: 8 tiles · grid reconstructed from persisted Version 2 metadata.
+        - generic [ref=f6e33]:
+          - generic [ref=f6e35]:
+            - generic [ref=f6e36]:
+              - button "+" [ref=f6e37] [cursor=pointer]
+              - button "–" [ref=f6e38] [cursor=pointer]
+              - button "Fit" [ref=f6e39] [cursor=pointer]
+            - generic [ref=f6e40]:
+              - generic [ref=f6e42]:
+                - img "tile 1" [ref=f6e43]
+                - img "tile 2" [ref=f6e44]
+                - img "tile 3" [ref=f6e45]
+                - img "tile 4" [ref=f6e46]
+                - img "tile 5" [ref=f6e47]
+                - img "tile 6" [ref=f6e48]
+                - img "tile 7" [ref=f6e49]
+                - img "tile 8" [ref=f6e50]
+              - generic: 4%
+            - generic:
+              - generic:
+                - generic: "Tree #"
+                - button "×"
+          - generic [ref=f6e294]:
+            - generic [ref=f6e295]:
+              - generic [ref=f6e296]: Robot Status
+              - generic [ref=f6e297]: stopped
+            - generic [ref=f6e298]: Battery 100.0%
+            - generic [ref=f6e302]:
+              - generic [ref=f6e303]: Mission
+              - generic [ref=f6e304]: —
+            - generic [ref=f6e305]:
+              - generic [ref=f6e306]: Current Tree
+              - generic [ref=f6e307]: —
+            - generic [ref=f6e308]:
+              - generic [ref=f6e309]: Next Tree
+              - generic [ref=f6e310]: TREE-0001
+            - generic [ref=f6e311]:
+              - generic [ref=f6e312]: Distance Remaining
+              - generic [ref=f6e313]: —
+            - generic [ref=f6e314]:
+              - generic [ref=f6e315]: Simulation Time
+              - generic [ref=f6e316]: 0.0 s
+            - generic [ref=f6e317]:
+              - generic [ref=f6e318]: Speed Factor
+              - generic [ref=f6e319]: 1×
+            - generic [ref=f6e320]:
+              - generic [ref=f6e321]: WS
+              - generic [ref=f6e322]: open
+  - alert [ref=f6e31]

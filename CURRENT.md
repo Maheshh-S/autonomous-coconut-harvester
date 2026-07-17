@@ -1509,7 +1509,63 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
       deleted V3.8.2 modules (`planner_api`/`map_api`/`harvest_planner`); no source
       references to removed modules remain. `requirements.txt` is a complete manifest;
       `.gitignore` hardened (V3.8.5). **NOT committed** — awaiting approval.
-  - **Optional future work (not scheduled):**
+   - **Frontend UI Redesign — ARECA "mission control" (completed; awaiting commit
+     approval):** a master restyle of the entire frontend into a cohesive, premium
+     dark "mission-control" product surface (Apple / NVIDIA / Boston Dynamics grade),
+     **without any feature / route / API / schema change, and without touching backend
+     logic.** The goal was visual & UX coherence only; every number and action still
+     comes from the existing APIs.
+     - **Design system (single, timeless dark identity — no light mode, no theme
+       switcher):** `app/globals.css` rewritten with design tokens — forest-tinted
+       near-black surfaces (`--color-bg` #080c09 …), living-green phosphor accent
+       (`--color-accent` #4fe39a), warm harvest gold (`--color-gold` #f5c451), status
+       colors, Space Grotesk / Inter / Geist Mono font roles (wired via `next/font` in
+       `layout.tsx`), and reusable utilities (`.panel`, `.btn`, `.kicker`, `.text-gradient`,
+       reveal, reduced-motion, Lenis CSS). Ambient radial glow + subtle grid veil sit
+       behind all pages. Motion is purpose-driven: `SmoothScroll.tsx` (Lenis on the
+       `gsap.ticker` clock, reduced-motion aware) and `lib/useReveal.ts` (Intersection
+       Observer reveal). `gsap@3.12.5` + `lenis@1.1.13` added.
+     - **Navigation chrome:** `AppShell.tsx` — a fixed left rail (logo "ARECA / Harvest
+       OS") + responsive mobile topbar/mobnav — wraps every page; `layout.tsx` mounts it
+       around `SmoothScroll`. Preserves the existing 9 routes and their nav entries.
+     - **Pages redesigned (logic 100% preserved):**
+       - `/` (`app/page.tsx`): cinematic scroll-driven landing — GSAP-pinned hero film
+         (procedural SVG `BrandArt` PalmRobot / SurveyGrid; frame-scrub upgrade path if
+         Higgsfield stills land in `public/frames/areca/`), 7 chapter beats, stat
+         count-up, manifesto, capability grid, CTA, footer. Self-contained.
+       - `/dashboard`: mission-control dashboard, all prior fields preserved, 3 hand-rolled
+         `MiniBar` charts, `DashboardFarmCard` + `RobotStatusCard`, 5 s poll.
+       - `/survey`: restyled; all handlers + every Playwright `data-testid`
+         (harvest-planner / mission / queue / start / pause / resume / cancel / advance /
+         robot-state …) + folder upload + inspection/inventory + harvest planner/exec
+         preserved.
+       - `/map` (Digital Twin): wrapper + `Toggle` restyled into dark theme; the shared
+         `FarmViewer` / `OverlayLayer` / `RobotLayer` and the single `computeMosaicLayout`
+         farm-pixel transform are UNTOUCHED; `data-testid`s (tree-details-drawer,
+         zoom-readout, robot-layer, robot-path-layer, robot-marker, robot-status-card)
+         preserved.
+       - `/robot`: control-centre wrapper; `SimulationControls` + `RobotStatusCard` +
+         FarmViewer unchanged; all sim `data-testid`s preserved; legacy task queue kept.
+       - `/robot/history` + `/robot/history/[id]`: dark sortable run table, tabbed detail
+         (summary score breakdown / timeline / tree-activity / robot log), all links +
+         backend-derived metrics preserved.
+       - `/trees` + `/trees/[treeId]`: dark registry table + tree detail; `CoconutUploader`
+         and `TreeDetailsDrawer` (which already owned the dark theme) unchanged; all logic
+         + testids preserved.
+     - **Hard constraints honored:** no feature/path/API/schema changes; `detection.ts`
+       exports unchanged; Playwright `data-testid` hooks + user flows preserved; 60fps
+       intent (CSS transforms, no per-frame React re-render in navigation); reduced-motion
+       path.
+     - **Higgsfield context:** the AI still/clip frame generation is **blocked** (account
+       `403 not_enough_credits`); the landing uses procedural SVG and will auto-upgrade to
+       real scrubbed frames only if credits are topped up and frames are generated into
+       `public/frames/areca/`. This is an asset-swap, not a code change.
+     - **Verification:** `tsc --noEmit` — 0 errors; `next build` — success (10 routes);
+       Playwright console-error scan (`verify_console.js`) — **0 console errors across all
+       8 pages**; `verify_v371.js` (history list/detail + twin tree-focus) — 0 errors
+       (harness updated from stale run id `2` → existing run `1`). **Not committed** —
+       awaiting approval.
+   - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`
       page with the drawer.

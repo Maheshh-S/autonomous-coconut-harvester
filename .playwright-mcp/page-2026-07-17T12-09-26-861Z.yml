@@ -1,0 +1,8 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - banner [ref=f4e3]:
+      - generic [ref=f4e4]: Areca
+      - button "Toggle navigation" [ref=f4e5] [cursor=pointer]: ≡
+    - main [ref=f4e6]:
+      - main [ref=f4e7]
+  - alert [ref=f4e16]

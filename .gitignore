@@ -117,3 +117,6 @@ playwright/.cache/
 # Uploaded Survey Mission images (Feature 2)
 # -----------------------------
 uploads/
+
+.claude
+.agents

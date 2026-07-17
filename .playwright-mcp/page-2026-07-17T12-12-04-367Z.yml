@@ -1,0 +1,76 @@
+- generic [active] [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - banner [ref=f7e3]:
+      - generic [ref=f7e4]: Areca
+      - button "Toggle navigation" [ref=f7e5] [cursor=pointer]: ≡
+    - main [ref=f7e6]:
+      - generic [ref=f7e7]:
+        - generic [ref=f7e9]:
+          - generic [ref=f7e10]: Telemetry · Control
+          - heading "Robot Control Centre" [level=1] [ref=f7e11]
+          - paragraph [ref=f7e12]: Command the harvester simulation, watch live telemetry, and trace its route across the twin. Mission logic is owned by the backend.
+        - generic [ref=f7e13]:
+          - generic [ref=f7e14]:
+            - heading "Simulation Control Centre" [level=2] [ref=f7e15]
+            - generic [ref=f7e16]:
+              - generic [ref=f7e17]: Harvest Mission
+              - combobox "Harvest Mission" [ref=f7e18] [cursor=pointer]:
+                - option "HM-0001 (COMPLETED)" [selected]
+          - generic [ref=f7e19]:
+            - button "Start" [ref=f7e20] [cursor=pointer]
+            - button "Pause" [disabled] [ref=f7e21] [cursor=pointer]
+            - button "Resume" [disabled] [ref=f7e22] [cursor=pointer]
+            - button "Return to Dock" [disabled] [ref=f7e23] [cursor=pointer]
+            - button "Recharge" [ref=f7e24] [cursor=pointer]
+            - button "Reset" [ref=f7e25] [cursor=pointer]
+            - generic [ref=f7e26]:
+              - text: Speed
+              - spinbutton "Speed ×" [ref=f7e27]: "60"
+              - text: ×
+          - generic [ref=f7e31]:
+            - generic [ref=f7e33]:
+              - generic [ref=f7e34]:
+                - button "+" [ref=f7e35] [cursor=pointer]
+                - button "–" [ref=f7e36] [cursor=pointer]
+                - button "Fit" [ref=f7e37] [cursor=pointer]
+              - generic [ref=f7e38]:
+                - generic [ref=f7e40]:
+                  - img "tile 1" [ref=f7e41]
+                  - img "tile 2" [ref=f7e42]
+                  - img "tile 3" [ref=f7e43]
+                  - img "tile 4" [ref=f7e44]
+                  - img "tile 5" [ref=f7e45]
+                  - img "tile 6" [ref=f7e46]
+                  - img "tile 7" [ref=f7e47]
+                  - img "tile 8" [ref=f7e48]
+                - generic: 3%
+            - generic [ref=f7e292]:
+              - generic [ref=f7e293]:
+                - generic [ref=f7e294]: Robot Status
+                - generic [ref=f7e295]: stopped
+              - generic [ref=f7e296]: Battery 100.0%
+              - generic [ref=f7e300]:
+                - generic [ref=f7e301]: Mission
+                - generic [ref=f7e302]: —
+              - generic [ref=f7e303]:
+                - generic [ref=f7e304]: Current Tree
+                - generic [ref=f7e305]: —
+              - generic [ref=f7e306]:
+                - generic [ref=f7e307]: Next Tree
+                - generic [ref=f7e308]: TREE-0001
+              - generic [ref=f7e309]:
+                - generic [ref=f7e310]: Distance Remaining
+                - generic [ref=f7e311]: —
+              - generic [ref=f7e312]:
+                - generic [ref=f7e313]: Simulation Time
+                - generic [ref=f7e314]: 0.0 s
+              - generic [ref=f7e315]:
+                - generic [ref=f7e316]: Speed Factor
+                - generic [ref=f7e317]: 1×
+              - generic [ref=f7e318]:
+                - generic [ref=f7e319]: WS
+                - generic [ref=f7e320]: open
+        - generic [ref=f7e28]:
+          - heading "Legacy Task Queue" [level=2] [ref=f7e29]
+          - paragraph [ref=f7e321]: no pending tasks
+  - alert [ref=f7e30]

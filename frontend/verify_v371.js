@@ -31,10 +31,10 @@ async function checkPage(browser, path, label, expectText) {
   totalErrors += r.errors
 
   // Detail page (run 2). Look for score breakdown factors + severity log.
-  r = await checkPage(browser, "/robot/history/2", "history-detail", [
+  r = await checkPage(browser, "/robot/history/1", "history-detail", [
     "Mission Score",
     "Completion",
-    "INFO",
+    "Harvested / Total",
   ])
   totalErrors += r.errors
 

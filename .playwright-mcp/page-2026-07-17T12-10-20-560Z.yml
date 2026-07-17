@@ -1,0 +1,314 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - banner [ref=f5e3]:
+      - generic [ref=f5e4]: Areca
+      - button "Toggle navigation" [ref=f5e5] [cursor=pointer]: ≡
+    - main [ref=f5e6]:
+      - main [ref=f5e7]:
+        - generic [ref=f5e9]:
+          - paragraph [ref=f5e10]: Pipeline · Survey → Harvest
+          - heading "Survey & Harvest Control" [level=1] [ref=f5e11]
+        - generic [ref=f5e12]:
+          - generic [ref=f5e13]:
+            - generic [ref=f5e14]: "01"
+            - heading "Select or create a mission" [level=2] [ref=f5e15]
+          - generic [ref=f5e16]:
+            - combobox [ref=f5e17]:
+              - option "— choose mission —" [disabled]
+              - option "#1 — audit-01 (COMPLETED)" [selected]
+            - textbox "new folder name" [ref=f5e18]
+            - button "Create mission" [ref=f5e19] [cursor=pointer]
+          - paragraph [ref=f5e52]: "Selected mission #1"
+        - generic [ref=f5e20]:
+          - generic [ref=f5e21]:
+            - generic [ref=f5e22]: "02"
+            - heading "Select folder of drone imagery" [level=2] [ref=f5e23]
+          - button "Choose File" [ref=f5e24]
+          - paragraph [ref=f5e25]: "Total images selected: 0"
+        - generic [ref=f5e26]:
+          - generic [ref=f5e27]:
+            - generic [ref=f5e28]: "03"
+            - heading "Upload & activate" [level=2] [ref=f5e29]
+          - generic [ref=f5e30]:
+            - button "Upload images" [disabled] [ref=f5e31]
+            - button "Complete Survey Mission" [disabled] [ref=f5e32]
+          - generic [ref=f5e35]:
+            - generic [ref=f5e36]: Uploaded 8
+            - generic [ref=f5e37]: Remaining 0
+            - generic [ref=f5e38]: Total 0
+        - generic [ref=f5e39]:
+          - heading "Uploaded images (8)" [level=2] [ref=f5e53]
+          - generic [ref=f5e54]:
+            - generic [ref=f5e55]:
+              - img "farm_view_01.png" [ref=f5e56]
+              - paragraph [ref=f5e57]: farm_view_01.png
+            - generic [ref=f5e58]:
+              - img "farm_view_02.png" [ref=f5e59]
+              - paragraph [ref=f5e60]: farm_view_02.png
+            - generic [ref=f5e61]:
+              - img "farm_view_03.png" [ref=f5e62]
+              - paragraph [ref=f5e63]: farm_view_03.png
+            - generic [ref=f5e64]:
+              - img "farm_view_04.png" [ref=f5e65]
+              - paragraph [ref=f5e66]: farm_view_04.png
+            - generic [ref=f5e67]:
+              - img "farm_view_05.png" [ref=f5e68]
+              - paragraph [ref=f5e69]: farm_view_05.png
+            - generic [ref=f5e70]:
+              - img "farm_view_06.png" [ref=f5e71]
+              - paragraph [ref=f5e72]: farm_view_06.png
+            - generic [ref=f5e73]:
+              - img "farm_view_07.png" [ref=f5e74]
+              - paragraph [ref=f5e75]: farm_view_07.png
+            - generic [ref=f5e76]:
+              - img "farm_view_08.png" [ref=f5e77]
+              - paragraph [ref=f5e78]: farm_view_08.png
+        - generic [ref=f5e79]:
+          - heading "Survey Tiles" [level=2] [ref=f5e80]
+          - generic [ref=f5e81]:
+            - generic [ref=f5e82]:
+              - generic [ref=f5e83]: "8"
+              - generic [ref=f5e84]: Total Survey Tiles
+            - generic [ref=f5e85]:
+              - generic [ref=f5e86]: "0"
+              - generic [ref=f5e87]: Pending
+            - generic [ref=f5e88]:
+              - generic [ref=f5e89]: "0"
+              - generic [ref=f5e90]: Processing
+            - generic [ref=f5e91]:
+              - generic [ref=f5e92]: "8"
+              - generic [ref=f5e93]: Completed
+            - generic [ref=f5e94]:
+              - generic [ref=f5e95]: "0"
+              - generic [ref=f5e96]: Failed
+        - generic [ref=f5e97]:
+          - heading "Detected Trees" [level=2] [ref=f5e98]
+          - generic [ref=f5e99]:
+            - generic [ref=f5e100]:
+              - generic [ref=f5e101]: "243"
+              - generic [ref=f5e102]: Total detections
+            - generic [ref=f5e103]:
+              - generic [ref=f5e104]: "8"
+              - generic [ref=f5e105]: Processed tiles
+            - generic [ref=f5e106]:
+              - generic [ref=f5e107]: "0"
+              - generic [ref=f5e108]: Remaining tiles
+        - generic [ref=f5e109]:
+          - heading "Permanent Trees" [level=2] [ref=f5e110]
+          - generic [ref=f5e111]:
+            - generic [ref=f5e112]:
+              - generic [ref=f5e113]: "243"
+              - generic [ref=f5e114]: Total Trees
+            - generic [ref=f5e115]:
+              - generic [ref=f5e116]: "243"
+              - generic [ref=f5e117]: Newly Created
+            - generic [ref=f5e118]:
+              - generic [ref=f5e119]: "0"
+              - generic [ref=f5e120]: Matched Existing
+            - generic [ref=f5e121]:
+              - generic [ref=f5e122]: —
+              - generic [ref=f5e123]: Avg Match Confidence
+          - generic [ref=f5e124]:
+            - generic [ref=f5e126]:
+              - generic [ref=f5e127]:
+                - generic [ref=f5e128]: TREE-0001
+                - generic [ref=f5e129]: Seen 1× · Match new · 12.195105, 76.609737
+              - generic [ref=f5e130]:
+                - button "Inspection History" [ref=f5e131] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e132] [cursor=pointer]
+            - generic [ref=f5e134]:
+              - generic [ref=f5e135]:
+                - generic [ref=f5e136]: TREE-0002
+                - generic [ref=f5e137]: Seen 1× · Match new · 12.194645, 76.610189
+              - generic [ref=f5e138]:
+                - button "Inspection History" [ref=f5e139] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e140] [cursor=pointer]
+            - generic [ref=f5e142]:
+              - generic [ref=f5e143]:
+                - generic [ref=f5e144]: TREE-0003
+                - generic [ref=f5e145]: Seen 1× · Match new · 12.195074, 76.610157
+              - generic [ref=f5e146]:
+                - button "Inspection History" [ref=f5e147] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e148] [cursor=pointer]
+            - generic [ref=f5e150]:
+              - generic [ref=f5e151]:
+                - generic [ref=f5e152]: TREE-0004
+                - generic [ref=f5e153]: Seen 1× · Match new · 12.195134, 76.609961
+              - generic [ref=f5e154]:
+                - button "Inspection History" [ref=f5e155] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e156] [cursor=pointer]
+            - generic [ref=f5e158]:
+              - generic [ref=f5e159]:
+                - generic [ref=f5e160]: TREE-0005
+                - generic [ref=f5e161]: Seen 1× · Match new · 12.194898, 76.610489
+              - generic [ref=f5e162]:
+                - button "Inspection History" [ref=f5e163] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e164] [cursor=pointer]
+            - generic [ref=f5e166]:
+              - generic [ref=f5e167]:
+                - generic [ref=f5e168]: TREE-0006
+                - generic [ref=f5e169]: Seen 1× · Match new · 12.194644, 76.609610
+              - generic [ref=f5e170]:
+                - button "Inspection History" [ref=f5e171] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e172] [cursor=pointer]
+            - generic [ref=f5e174]:
+              - generic [ref=f5e175]:
+                - generic [ref=f5e176]: TREE-0007
+                - generic [ref=f5e177]: Seen 1× · Match new · 12.194548, 76.609955
+              - generic [ref=f5e178]:
+                - button "Inspection History" [ref=f5e179] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e180] [cursor=pointer]
+            - generic [ref=f5e182]:
+              - generic [ref=f5e183]:
+                - generic [ref=f5e184]: TREE-0008
+                - generic [ref=f5e185]: Seen 1× · Match new · 12.194637, 76.610484
+              - generic [ref=f5e186]:
+                - button "Inspection History" [ref=f5e187] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e188] [cursor=pointer]
+            - generic [ref=f5e190]:
+              - generic [ref=f5e191]:
+                - generic [ref=f5e192]: TREE-0009
+                - generic [ref=f5e193]: Seen 1× · Match new · 12.194771, 76.609970
+              - generic [ref=f5e194]:
+                - button "Inspection History" [ref=f5e195] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e196] [cursor=pointer]
+            - generic [ref=f5e198]:
+              - generic [ref=f5e199]:
+                - generic [ref=f5e200]: TREE-0010
+                - generic [ref=f5e201]: Seen 1× · Match new · 12.194902, 76.609836
+              - generic [ref=f5e202]:
+                - button "Inspection History" [ref=f5e203] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e204] [cursor=pointer]
+            - generic [ref=f5e206]:
+              - generic [ref=f5e207]:
+                - generic [ref=f5e208]: TREE-0011
+                - generic [ref=f5e209]: Seen 1× · Match new · 12.194987, 76.610360
+              - generic [ref=f5e210]:
+                - button "Inspection History" [ref=f5e211] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e212] [cursor=pointer]
+            - generic [ref=f5e214]:
+              - generic [ref=f5e215]:
+                - generic [ref=f5e216]: TREE-0012
+                - generic [ref=f5e217]: Seen 1× · Match new · 12.194890, 76.610181
+              - generic [ref=f5e218]:
+                - button "Inspection History" [ref=f5e219] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e220] [cursor=pointer]
+            - generic [ref=f5e222]:
+              - generic [ref=f5e223]:
+                - generic [ref=f5e224]: TREE-0013
+                - generic [ref=f5e225]: Seen 1× · Match new · 12.194383, 76.609861
+              - generic [ref=f5e226]:
+                - button "Inspection History" [ref=f5e227] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e228] [cursor=pointer]
+            - generic [ref=f5e230]:
+              - generic [ref=f5e231]:
+                - generic [ref=f5e232]: TREE-0014
+                - generic [ref=f5e233]: Seen 1× · Match new · 12.194475, 76.610433
+              - generic [ref=f5e234]:
+                - button "Inspection History" [ref=f5e235] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e236] [cursor=pointer]
+            - generic [ref=f5e238]:
+              - generic [ref=f5e239]:
+                - generic [ref=f5e240]: TREE-0015
+                - generic [ref=f5e241]: Seen 1× · Match new · 12.194314, 76.610297
+              - generic [ref=f5e242]:
+                - button "Inspection History" [ref=f5e243] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e244] [cursor=pointer]
+            - generic [ref=f5e246]:
+              - generic [ref=f5e247]:
+                - generic [ref=f5e248]: TREE-0016
+                - generic [ref=f5e249]: Seen 1× · Match new · 12.194388, 76.610000
+              - generic [ref=f5e250]:
+                - button "Inspection History" [ref=f5e251] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e252] [cursor=pointer]
+            - generic [ref=f5e254]:
+              - generic [ref=f5e255]:
+                - generic [ref=f5e256]: TREE-0017
+                - generic [ref=f5e257]: Seen 1× · Match new · 12.195161, 76.610425
+              - generic [ref=f5e258]:
+                - button "Inspection History" [ref=f5e259] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e260] [cursor=pointer]
+            - generic [ref=f5e262]:
+              - generic [ref=f5e263]:
+                - generic [ref=f5e264]: TREE-0018
+                - generic [ref=f5e265]: Seen 1× · Match new · 12.194985, 76.609604
+              - generic [ref=f5e266]:
+                - button "Inspection History" [ref=f5e267] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e268] [cursor=pointer]
+            - generic [ref=f5e270]:
+              - generic [ref=f5e271]:
+                - generic [ref=f5e272]: TREE-0019
+                - generic [ref=f5e273]: Seen 1× · Match new · 12.194755, 76.610365
+              - generic [ref=f5e274]:
+                - button "Inspection History" [ref=f5e275] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e276] [cursor=pointer]
+            - generic [ref=f5e278]:
+              - generic [ref=f5e279]:
+                - generic [ref=f5e280]: TREE-0020
+                - generic [ref=f5e281]: Seen 1× · Match new · 12.194519, 76.610131
+              - generic [ref=f5e282]:
+                - button "Inspection History" [ref=f5e283] [cursor=pointer]
+                - button "Start Inspection" [ref=f5e284] [cursor=pointer]
+          - generic [ref=f5e285]:
+            - button "Previous" [disabled] [ref=f5e286]
+            - generic [ref=f5e287]: Page 1 of 13
+            - button "Next" [ref=f5e288] [cursor=pointer]
+        - generic [ref=f5e42]:
+          - generic [ref=f5e43]:
+            - generic [ref=f5e44]: "04"
+            - heading "Harvest Planner" [level=2] [ref=f5e45]
+          - paragraph [ref=f5e46]: Generate a Harvest Mission from the latest Inventory Snapshots. Eligible trees are ordered by a Nearest-Neighbour route. Execute it below to drive the robot through the queue and update Inventory History.
+          - generic [ref=f5e47]:
+            - generic [ref=f5e48]: Harvest type
+            - combobox "Harvest type" [ref=f5e49]:
+              - option "Mature" [selected]
+              - option "Potential"
+              - option "Premature"
+              - option "All"
+            - button "Generate Harvest Mission" [ref=f5e50] [cursor=pointer]
+          - generic [ref=f5e289]:
+            - generic [ref=f5e290]:
+              - generic [ref=f5e291]: HM-0001
+              - generic [ref=f5e292]: COMPLETED
+            - generic [ref=f5e293]:
+              - generic [ref=f5e294]: "Harvest type: mature"
+              - generic [ref=f5e295]: "Total trees: 1"
+              - generic [ref=f5e296]: "Expected coconuts: 3"
+            - heading "Ordered Tree Queue" [level=3] [ref=f5e297]
+            - list [ref=f5e298]:
+              - listitem [ref=f5e299]:
+                - generic [ref=f5e300]: "1"
+                - generic [ref=f5e301]: TREE-0001
+                - generic [ref=f5e302]: "Expected: 3"
+                - generic [ref=f5e303]: "Harvested: 3"
+                - generic [ref=f5e304]: COMPLETED
+            - generic [ref=f5e305]:
+              - generic [ref=f5e306]:
+                - heading "Robot Status" [level=3] [ref=f5e307]
+                - generic [ref=f5e308]: COMPLETED
+              - generic [ref=f5e309]:
+                - generic [ref=f5e310]: "Mission: COMPLETED"
+                - generic [ref=f5e311]: "Current tree: —"
+                - generic [ref=f5e312]: "Completed: 1"
+                - generic [ref=f5e313]: "Remaining: 0"
+                - generic [ref=f5e314]: "Harvested: 3"
+                - generic [ref=f5e315]: "Next tree: —"
+          - generic [ref=f5e316]:
+            - heading "Harvest Missions" [level=3] [ref=f5e317]
+            - button "HM-0001 · mature · COMPLETED · 1 tree(s) · 3 expected · 7/16/2026, 8:56:46 PM" [ref=f5e319] [cursor=pointer]
+        - generic [ref=f5e320]:
+          - heading "Survey Tile Generation" [level=2] [ref=f5e321]
+          - generic [ref=f5e322]:
+            - generic [ref=f5e323]:
+              - generic [ref=f5e324]: "8"
+              - generic [ref=f5e325]: Images Uploaded
+            - generic [ref=f5e326]:
+              - generic [ref=f5e327]: "8"
+              - generic [ref=f5e328]: Tiles Generated
+            - generic [ref=f5e329]:
+              - generic [ref=f5e330]: "0"
+              - generic [ref=f5e331]: Remaining
+            - generic [ref=f5e332]:
+              - generic [ref=f5e333]: Complete
+              - generic [ref=f5e334]: Generation Status
+  - alert [ref=f5e51]

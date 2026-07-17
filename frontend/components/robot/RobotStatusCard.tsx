@@ -3,14 +3,14 @@
 import type { RobotSnapshot, SimulationStatus, V3RobotState } from "@/lib/api/detection"
 
 export const ROBOT_STATE_COLORS: Record<V3RobotState, string> = {
-  IDLE: "#9ca3af",
-  MOVING: "#3b82f6",
-  CLIMBING: "#f97316",
-  SCANNING: "#a855f7",
-  HARVESTING: "#22c55e",
-  RETURNING: "#f59e0b",
-  ERROR: "#ef4444",
-  DOCKED: "#4b5563",
+  IDLE: "var(--color-text-faint)",
+  MOVING: "var(--color-accent)",
+  CLIMBING: "var(--color-husk)",
+  SCANNING: "var(--color-accent)",
+  HARVESTING: "var(--color-leaf)",
+  RETURNING: "var(--color-amber)",
+  ERROR: "var(--color-crit)",
+  DOCKED: "var(--color-text-faint)",
 }
 
 // V3.6 — Robot Status Card (presentation only). Shows the latest backend
@@ -29,8 +29,8 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
         fontSize: 13,
       }}
     >
-      <span style={{ color: "#6b7280" }}>{label}</span>
-      <span style={{ fontWeight: 600, textAlign: "right" }}>{value}</span>
+      <span style={{ color: "var(--color-text-faint)" }}>{label}</span>
+      <span style={{ fontWeight: 600, textAlign: "right", color: "var(--color-text)" }}>{value}</span>
     </div>
   )
 }
@@ -58,11 +58,11 @@ export default function RobotStatusCard({
     <div
       data-testid="robot-status-card"
       style={{
-        border: "1px solid #e5e7eb",
-        borderRadius: 10,
+        border: "1px solid var(--color-line)",
+        borderRadius: 12,
         padding: 14,
-        background: "#fff",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+        background: "var(--color-surface)",
+        boxShadow: "none",
         width: "100%",
       }}
     >
@@ -74,16 +74,17 @@ export default function RobotStatusCard({
           marginBottom: 10,
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Robot Status</span>
+        <span style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>Robot Status</span>
         <span
           data-testid="robot-state-badge"
           style={{
-            background: color,
-            color: "#fff",
+            background: "color-mix(in srgb, " + color + " 22%, transparent)",
+            color: color,
             borderRadius: 12,
             padding: "2px 10px",
             fontSize: 12,
             fontWeight: 600,
+            border: "1px solid color-mix(in srgb, " + color + " 40%, transparent)",
           }}
         >
           {state}
@@ -96,7 +97,7 @@ export default function RobotStatusCard({
           style={{
             height: 8,
             borderRadius: 4,
-            background: "#e5e7eb",
+            background: "var(--color-surface-3)",
             overflow: "hidden",
           }}
         >
@@ -105,11 +106,11 @@ export default function RobotStatusCard({
             style={{
               width: `${battery}%`,
               height: "100%",
-              background: battery < 20 ? "#ef4444" : "#22c55e",
+              background: battery < 20 ? "var(--color-crit)" : "var(--color-leaf)",
             }}
           />
         </div>
-        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+        <div style={{ fontSize: 12, color: "var(--color-text-faint)", marginTop: 4 }}>
           Battery {battery.toFixed(1)}%
         </div>
       </div>
@@ -132,7 +133,7 @@ export default function RobotStatusCard({
       <Row
         label="WS"
         value={
-          <span style={{ color: connection === "open" ? "#22c55e" : "#9ca3af" }}>
+          <span style={{ color: connection === "open" ? "var(--color-leaf)" : "var(--color-text-faint)" }}>
             {connection}
           </span>
         }

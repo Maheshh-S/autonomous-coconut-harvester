@@ -12,10 +12,11 @@ import FarmViewer from "@/components/FarmViewer"
 import { MosaicTile } from "@/components/FarmMosaic"
 
 const card: React.CSSProperties = {
-  background: "#fff",
-  borderRadius: 10,
+  background: "var(--color-surface)",
+  borderRadius: 12,
   padding: 16,
-  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+  border: "1px solid var(--color-line)",
+  boxShadow: "none",
 }
 
 // Small interactive Farm Viewer for the dashboard. Mirrors the /map fetch logic
@@ -85,6 +86,7 @@ export default function DashboardFarmCard() {
           justifyContent: "space-between",
           alignItems: "center",
           gap: 12,
+          color: "var(--color-text)",
         }}
       >
         <span>Digital Twin — Farm Mosaic</span>
@@ -92,7 +94,14 @@ export default function DashboardFarmCard() {
           <select
             value={missionId ?? ""}
             onChange={(e) => setMissionId(Number(e.target.value))}
-            style={{ fontSize: 13, padding: "4px 6px", borderRadius: 6 }}
+            style={{
+              fontSize: 13,
+              padding: "4px 6px",
+              borderRadius: 6,
+              background: "var(--color-surface-2)",
+              color: "var(--color-text)",
+              border: "1px solid var(--color-line-strong)",
+            }}
           >
             {missions.map((m) => (
               <option key={m.id} value={m.id}>
@@ -103,13 +112,13 @@ export default function DashboardFarmCard() {
         )}
       </div>
 
-      {loading && <p style={{ color: "#999" }}>Loading…</p>}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
+      {loading && <p style={{ color: "var(--color-text-faint)" }}>Loading…</p>}
+      {error && <p style={{ color: "var(--color-crit)" }}>{error}</p>}
       {!loading && !error && tiles.length === 0 && (
-        <p style={{ color: "#999" }}>No tiles found.</p>
+        <p style={{ color: "var(--color-text-faint)" }}>No tiles found.</p>
       )}
       {!loading && !error && isPreV2 && (
-        <p style={{ color: "#b45309" }}>
+        <p style={{ color: "var(--color-husk)" }}>
           This mission was surveyed before Version 2 and has no persisted
           tile-grid metadata. Re-survey to enable the Digital Twin.
         </p>
