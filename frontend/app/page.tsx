@@ -17,7 +17,7 @@ const CHAPTERS = [
   {
     tag: "02 · Aerial Survey",
     title: ["A drone maps", "every tree."],
-    body: "An autonomous flight planner sweeps the plantation. Computer vision detects each palm and assigns a permanent Tree ID — no tree left uncounted.",
+    body: "An autonomous flight planner sweeps the plantation. Computer vision detects each palm and assigns a permanent Tree ID, so no tree is left uncounted.",
   },
   {
     tag: "03 · Digital Twin",
@@ -32,12 +32,12 @@ const CHAPTERS = [
   {
     tag: "05 · Mission Planning",
     title: ["Optimal routes,", "computed."],
-    body: "The Harvest Planner builds a frozen, nearest-neighbour mission from the latest inventory — a precise, auditable work order for the field.",
+    body: "The Harvest Planner builds a frozen, nearest-neighbour mission from the latest inventory: a precise, auditable work order for the field.",
   },
   {
     tag: "06 · The Robot",
     title: ["It climbs.", "It harvests."],
-    body: "A tree-climbing harvester navigates the twin, ascends the trunk, and plucks only the mature coconuts — safely, repeatedly, autonomously.",
+    body: "A tree-climbing harvester navigates the twin, ascends the trunk, and plucks only the mature coconuts: safely, repeatedly, autonomously.",
   },
   {
     tag: "07 · Mission Analytics",
@@ -70,21 +70,18 @@ export default function Landing() {
         .fromTo(".film-cap-inner", { y: 26, opacity: 0 }, { y: 0, opacity: 1, ease: "none" }, 0)
         .to(".film-hero", { yPercent: -4, ease: "none" }, 0);
 
-      // Chapter captions: pin + crossfade each beat
-      gsap.utils.toArray<HTMLElement>(".chapter").forEach((ch) => {
+      // Chapter beats: glide in from the beat's own alignment side, once.
+      gsap.utils.toArray<HTMLElement>(".chapter").forEach((ch, i) => {
+        const fromRight = i % 2 === 1;
         gsap.fromTo(
-          ch,
-          { opacity: 0, y: 30 },
+          ch.querySelector(".chapter-inner"),
+          { opacity: 0, x: fromRight ? 48 : -48 },
           {
             opacity: 1,
-            y: 0,
-            ease: "none",
-            scrollTrigger: {
-              trigger: ch,
-              start: "top 78%",
-              end: "top 38%",
-              scrub: 0.5,
-            },
+            x: 0,
+            duration: 0.8,
+            ease: "power3.out",
+            scrollTrigger: { trigger: ch, start: "top 80%" },
           }
         );
       });
@@ -132,12 +129,12 @@ export default function Landing() {
                 The farm that <span className="lede-accent">harvests itself.</span>
               </h1>
               <p className="film-sub">
-                Drone intelligence, a living Digital Twin, and a tree-climbing robot —
-                one precision-agriculture operating system.
+                Drone intelligence, a living Digital Twin, and a tree-climbing robot.
+                One precision-agriculture operating system.
               </p>
               <div className="film-cta">
-                <Link href="/dashboard" className="btn btn-primary">Enter Mission Control</Link>
-                <Link href="#story" className="btn btn-ghost">See the system</Link>
+                <Link href="/dashboard" className="btn btn-glass btn-glass-primary">Enter Mission Control</Link>
+                <Link href="#story" className="btn btn-glass">See the system</Link>
               </div>
             </div>
           </div>
@@ -149,7 +146,7 @@ export default function Landing() {
       {/* ══════════ CHAPTER BEATS ══════════ */}
       <section className="beats" aria-label="How it works">
         {CHAPTERS.map((c, i) => (
-          <div className="chapter" key={i} data-reveal>
+          <div className="chapter" key={i}>
             <div className="chapter-inner">
               <span className="chapter-idx font-mono">{c.tag}</span>
               <h2 className="font-display tracking-tightest">
@@ -185,7 +182,7 @@ export default function Landing() {
           Precision agriculture should be <span className="lede-accent">autonomous, observable, and accountable.</span>
         </h2>
         <p className="manifesto-sub">
-          Areca turns a dangerous, manual craft into a measured, repeatable system —
+          Areca turns a dangerous, manual craft into a measured, repeatable system,
           without losing the intelligence of the people who know the land.
         </p>
       </section>
@@ -222,8 +219,8 @@ export default function Landing() {
         </h2>
         <p className="closer-sub">Survey a plantation, watch the twin build, and send the robot to work.</p>
         <div className="closer-cta">
-          <Link href="/survey" className="btn btn-primary">Start a Survey</Link>
-          <Link href="/map" className="btn btn-ghost">View the Digital Twin</Link>
+          <Link href="/survey" className="btn btn-glass btn-glass-primary">Start a Survey</Link>
+          <Link href="/map" className="btn btn-glass">View the Digital Twin</Link>
         </div>
       </section>
 
@@ -244,7 +241,7 @@ export default function Landing() {
 
       <style jsx>{`
         .film {
-          height: 320vh;
+          height: 220vh;
           position: relative;
         }
         .film-stage {
@@ -277,8 +274,8 @@ export default function Landing() {
           z-index: 2;
           pointer-events: none;
           background:
-            radial-gradient(60% 55% at 50% 50%, transparent 20%, rgba(14, 18, 13, 0.55) 100%),
-            linear-gradient(180deg, rgba(14, 18, 13, 0.5) 0%, transparent 30%, rgba(14, 18, 13, 0.72) 100%);
+            radial-gradient(58% 50% at 50% 48%, rgba(14, 18, 13, 0.28) 0%, rgba(14, 18, 13, 0.62) 100%),
+            linear-gradient(180deg, rgba(14, 18, 13, 0.58) 0%, rgba(14, 18, 13, 0.22) 32%, rgba(14, 18, 13, 0.82) 100%);
         }
         .film-cap {
           position: absolute;
@@ -289,10 +286,11 @@ export default function Landing() {
           color: #f3f6ee;
         }
         .film-cap .kicker {
-          color: rgba(220, 230, 210, 0.82);
+          color: rgba(232, 240, 224, 0.94);
         }
         .film-cap h1 {
-          color: #f6f8f2;
+          color: #ffffff;
+          text-shadow: 0 1px 30px rgba(14, 18, 13, 0.45);
         }
         .cap-open h1 {
           font-size: clamp(40px, 7vw, 96px);
@@ -303,9 +301,10 @@ export default function Landing() {
         .film-sub {
           margin: 22px auto 0;
           max-width: 540px;
-          color: rgba(226, 234, 218, 0.9);
+          color: rgba(240, 245, 234, 0.96);
           font-size: clamp(15px, 1.5vw, 19px);
           line-height: 1.6;
+          text-shadow: 0 1px 16px rgba(14, 18, 13, 0.5);
         }
         .film-cta {
           margin-top: 34px;
@@ -345,12 +344,30 @@ export default function Landing() {
         .beats {
           position: relative;
           z-index: 2;
-          padding: 12vh 7vw;
+          padding: 8vh 7vw;
           max-width: 1100px;
           margin: 0 auto;
         }
+        /* Living backdrop: a soft sage wash + faint field-grid, on-palette,
+           so the beats read as a surface rather than a blank slab. */
+        .beats::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          pointer-events: none;
+          background:
+            radial-gradient(120% 50% at 100% 0%, var(--color-accent-glow) 0%, transparent 55%),
+            radial-gradient(120% 50% at 0% 100%, rgba(169, 130, 74, 0.08) 0%, transparent 55%),
+            linear-gradient(var(--color-line) 1px, transparent 1px),
+            linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+          background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px;
+          -webkit-mask-image: radial-gradient(80% 80% at 50% 50%, #000 40%, transparent 100%);
+          mask-image: radial-gradient(80% 80% at 50% 50%, #000 40%, transparent 100%);
+          opacity: 0.5;
+        }
         .chapter {
-          min-height: 78vh;
+          min-height: 46vh;
           display: flex;
           align-items: center;
         }
@@ -466,17 +483,30 @@ export default function Landing() {
         }
 
         .closer {
+          position: relative;
           text-align: center;
           padding: 16vh 7vw;
+          margin: 0 auto;
+          max-width: 1200px;
+          border-radius: var(--radius-xl);
+          overflow: hidden;
+          background:
+            radial-gradient(90% 120% at 50% 0%, rgba(63, 125, 52, 0.5) 0%, transparent 60%),
+            linear-gradient(160deg, #1d261b 0%, #0e120d 100%);
+          color: #f3f6ee;
         }
         .closer h2 {
           font-size: clamp(34px, 5.5vw, 80px);
           font-weight: 700;
           line-height: 1.02;
+          color: #f6f8f2;
+        }
+        .closer h2 :global(.lede-accent) {
+          color: var(--color-accent-dim);
         }
         .closer-sub {
           margin: 22px auto 34px;
-          color: var(--color-text-dim);
+          color: rgba(226, 234, 218, 0.82);
           font-size: 17px;
         }
         .closer-cta {
@@ -540,15 +570,15 @@ export default function Landing() {
         }
         @media (max-width: 620px) {
           .caps-grid { grid-template-columns: 1fr; }
-          .film { height: 240vh; }
-          .beats { padding: 7vh 22px; }
+          .film { height: 180vh; }
+          .beats { padding: 5vh 22px; }
           .stats { padding: 5vh 22px 3vh; }
           .manifesto { padding: 9vh 22px; }
           .caps { padding: 5vh 22px 7vh; }
           .closer { padding: 9vh 22px; }
           .land-foot { padding: 6vh 22px 5vh; }
           .cap { padding: 20px 18px; }
-          .chapter { min-height: 64vh; }
+          .chapter { min-height: 40vh; }
           .chapter h2 { font-size: clamp(28px, 8vw, 44px); }
         }
       `}</style>

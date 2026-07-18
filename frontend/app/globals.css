@@ -231,6 +231,67 @@ body::after {
   background: var(--color-surface-2);
 }
 
+/* Liquid glass — Apple-material approximation for CTAs over imagery/video.
+   Translucent surface + blur, a bright inner top-edge (light catching the
+   material), and a soft depth shadow. Legible over dark video via the hero
+   scrim. Solid fallbacks under reduced transparency / more contrast. */
+.btn-glass {
+  color: #f6f8f2;
+  background: rgba(246, 248, 242, 0.14);
+  border: 1px solid rgba(246, 248, 242, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(14, 18, 13, 0.12),
+    0 8px 24px rgba(14, 18, 13, 0.28);
+}
+/* @supports keeps Lightning CSS from collapsing the unprefixed property to
+   -webkit- only (modern Chromium honors only the unprefixed form). */
+@supports (backdrop-filter: blur(1px)) {
+  .btn-glass {
+    backdrop-filter: blur(16px) saturate(160%);
+  }
+}
+.btn-glass:hover {
+  background: rgba(246, 248, 242, 0.22);
+  border-color: rgba(246, 248, 242, 0.44);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(14, 18, 13, 0.12),
+    0 12px 32px rgba(14, 18, 13, 0.34);
+}
+/* Accent glass — primary action, tinted with the leaf accent */
+.btn-glass-primary {
+  color: #ffffff;
+  background: rgba(63, 125, 52, 0.5);
+  border: 1px solid rgba(246, 248, 242, 0.34);
+}
+.btn-glass-primary:hover {
+  background: rgba(79, 154, 63, 0.62);
+  border-color: rgba(246, 248, 242, 0.5);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .btn-glass-primary {
+    backdrop-filter: blur(16px) saturate(160%);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .btn-glass {
+    background: rgba(14, 18, 13, 0.72);
+    border-color: rgba(246, 248, 242, 0.5);
+  }
+  .btn-glass-primary {
+    background: var(--color-accent);
+    border-color: transparent;
+  }
+}
+@supports (backdrop-filter: blur(1px)) {
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    .btn-glass {
+      backdrop-filter: none;
+    }
+  }
+}
+
 /* Card surface — soft, airy, subtle elevation (taste-skill §4.4) */
 .panel {
   background: var(--color-surface);

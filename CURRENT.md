@@ -1652,7 +1652,49 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         `robot.log · 6 entries`, aligned clock/severity/event columns, detail flattened to
         `from=MOVING` (no JSON blob), body text `rgb(29,38,27)` (near-black, WCAG-safe),
         Geist Mono, tabular clock, **0 console errors**, no horizontal overflow, 3-column
-        collapse on mobile. **Not committed** — awaiting approval.
+          collapse on mobile. **Not committed** — awaiting approval.
+    - **Home Page (`/`) Redesign — interactive landing polish (completed; awaiting commit
+      approval):** a presentation-only restyle of the public home page — **no route / IA / data /
+      backend / logic changes.** User explicitly authorised going beyond the docs-only scope for
+      `/` alone. Honours the taste-skill + apple-design rules: shape/colour locks, **zero em-dashes**
+      in landing copy, motion only when motivated + `prefers-reduced-motion`/`prefers-reduced
+      -transparency` fallbacks, one icon family (Phosphor), palette-locked tokens.
+      - **Tighter chapter beats:** the 7 `CHAPTERS` were each `min-height: 78vh` (one beat per
+        screen, ~7× the scroll) with `12vh` section padding. Reduced to `min-height: 46vh`
+        (mobile `40vh`) and `8vh`/`5vh` padding — the seven beats now read as a continuous,
+        scannable sequence instead of isolated full-height slabs.
+      - **Glide-in scroll animation (replaces a conflicting dual system):** the old page drove
+        each beat with *both* the global `data-reveal` IntersectionObserver (opacity/translate) and
+        a GSAP scrubbed `opacity` tween — the two fought each other. Removed `data-reveal` from
+        `.chapter` and added a single, motivated GSAP once-only reveal: each `.chapter-inner`
+        glides in from its own left/right alignment (`x: ±48 → 0`, `power3.out`, fires at
+        `top 80%`). Under `prefers-reduced-motion` the `useEffect` early-returns, so beats are
+        static and visible.
+      - **Living backdrop for the beats:** the `.beats` section was a flat `--color-bg` slab. Added
+        a masked `::before` layer — two on-palette radial washes (accent-glow + husk) over a faint
+        64px field grid, radial-masked so it reads as a surface, not wallpaper. No neon.
+      - **Apple liquid-glass buttons:** added `.btn-glass` / `.btn-glass-primary` (over the hero
+        video + the closer only, where glass reads best). Webkit + unprefixed `backdrop-filter:
+        blur(16px) saturate(160%)`, a translucent surface, a bright inner top-edge highlight, and a
+        soft depth shadow. **Lightning CSS caveat fixed:** Tailwind v4's Lightning CSS collapsed
+        the unprefixed `backdrop-filter` to `-webkit-` only (modern Chromium ignores the prefixed
+        form, so the blur silently died); wrapped both the blur and the reduced-transparency
+        `backdrop-filter: none` resets in `@supports (backdrop-filter: blur(1px))` so the
+        unprefixed property survives. Solid fallbacks under `prefers-reduced-transparency` /
+        `prefers-contrast: more`.
+      - **Hero video contrast:** the sunrise/green-trees clip kept caption copy low-contrast in
+        bright frames. Strengthened the `.film-scrim` floor (darker radial + bottom gradient),
+        set the `h1` to pure `#fff` with a soft text-shadow, and lifted the sub/kicker to
+        `rgba(240,245,234,0.96)` / `rgba(232,240,224,0.94)` — copy is now solidly legible over any
+        frame.
+      - **Em-dash ban applied to landing copy:** rewrote the 4 `-` em-dashes in `CHAPTERS` /
+        manifesto / hero sub into commas, colons, or sentence breaks (taste-skill §band).
+      - **Verification:** `tsc --noEmit` — 0 errors; `next build` — success (10 routes); Playwright
+        on `/` (clean tab) at 1024 + 390 — **0 console errors**, 7 chapters, glass `backdrop-filter:
+        blur(16px) saturate(1.6)` applied, h1 `#fff`, chapter glide settles to opacity 1 /
+        transform none, `.beats` `::before` gradient present, closer is a dark on-palette panel,
+        0 horizontal overflow; reduced-motion emulation → chapters static & visible; mobile 390px →
+        0 overflow, glass translucent. **Not committed** — awaiting approval.
     - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`
