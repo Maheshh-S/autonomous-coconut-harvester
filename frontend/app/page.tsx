@@ -124,7 +124,7 @@ export default function Landing() {
 
           <div className="film-cap cap-open">
             <div className="film-cap-inner">
-              <p className="kicker">Areca · Autonomous Coconut Harvesting</p>
+              <p className="kicker">Veraxis · An AI-Powered Autonomous Coconut Harvesting System</p>
               <h1 className="font-display tracking-tightest">
                 The farm that <span className="lede-accent">harvests itself.</span>
               </h1>
@@ -182,7 +182,7 @@ export default function Landing() {
           Precision agriculture should be <span className="lede-accent">autonomous, observable, and accountable.</span>
         </h2>
         <p className="manifesto-sub">
-          Areca turns a dangerous, manual craft into a measured, repeatable system,
+          Veraxis turns a dangerous, manual craft into a measured, repeatable system,
           without losing the intelligence of the people who know the land.
         </p>
       </section>
@@ -226,8 +226,8 @@ export default function Landing() {
 
       <footer className="land-foot">
         <div className="land-foot-in">
-          <span className="land-foot-mark font-display">ARECA</span>
-          <span className="land-foot-tag">Autonomous Coconut Harvesting Platform · Control Build v3.8</span>
+          <span className="land-foot-mark font-display">Veraxis</span>
+          <span className="land-foot-tag">An AI-Powered Autonomous Coconut Harvesting System · Control Build v3.8</span>
         </div>
         <div className="land-foot-links">
           <Link href="/dashboard">Mission Control</Link>

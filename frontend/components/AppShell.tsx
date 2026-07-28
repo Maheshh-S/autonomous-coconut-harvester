@@ -49,9 +49,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="shell">
       {/* ── Desktop rail ─────────────────────────────────────────── */}
       <aside className="rail">
-        <Link href="/" className="rail-brand" aria-label="Areca — home">
-          <span className="rail-brand-mark">ARECA</span>
-          <span className="rail-brand-sub">Harvest Intelligence</span>
+        <Link href="/" className="rail-brand" aria-label="Veraxis — home">
+          <span className="rail-brand-mark">Veraxis</span>
+          <span className="rail-brand-sub">An AI-Powered Autonomous Coconut Harvesting System</span>
         </Link>
 
         <nav className="rail-nav" aria-label="Primary">

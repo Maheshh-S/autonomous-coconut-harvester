@@ -48,12 +48,12 @@ Do not skip steps. If a listed doc does not yet exist, note it and proceed.
   - `backend/analytics/` — `mission_history.py` (Mission History & Analytics).
   - `backend/main.py` — app assembly, CORS, router mounting, `init_db()` at startup.
 - `frontend/` — React/Next.js UI (App Router).
-  - `frontend/app/` — pages: `/` (Home), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`, `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
-  - `frontend/components/` — `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `CoconutUploader`, `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
+  - `frontend/app/` — pages: `/` (Home — scroll-driven brand landing), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`, `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
+  - `frontend/components/` — `AppShell` (desktop rail + mobile bottom nav + More sheet), `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `CoconutUploader`, `SmoothScroll` (Lenis), `AmbientClip`, `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
   - `frontend/lib/` — `api/detection.ts` (single API client), `mosaicLayout.ts` (shared farm-pixel transform), `useRobotSimulation.ts` (WS hook).
 - `models/` — YOLOv8 weights (`tree_model/`, `coconut_model/`), gitignored.
 
-Folders that no longer exist (e.g. the legacy V1 `MapView`/`MapWrapper`/`leafletFix` components, the `mapping/`, `perception/`, and `simulation/robot_simulator.py` V1 scripts) have been removed or superseded — do not reference them.
+Folders that no longer exist (e.g. the legacy V1 `MapView`/`MapWrapper`/`leafletFix` components, the `mapping/`, `perception/`, and `simulation/robot_simulator.py` V1 scripts) have been removed or superseded — do not reference them. Navigation is rendered via the `AppShell` component (desktop rail + mobile bottom nav + More sheet); imported in `frontend/app/layout.tsx`.
 
 ## 4. Engineering Workflow
 
@@ -152,7 +152,7 @@ When a task is design/frontend/UX-related, load the relevant skill(s) **before**
 - **Minor versions** refine architecture, UX, performance, or stability within the frozen design.
 - **Hardening releases** focus only on quality: critical review, correctness/performance fixes, dead-code/legacy cleanup, documentation sync, and regression. **No new features** belong in a hardening milestone.
 
-Version 2 is **FROZEN** at `v2.0` (architecture locked); it is fully implemented and verified. Version 3 is implemented through **V3.7.3** (Survey → Digital Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics), all verified but **not yet committed**. Commit only after explicit approval. V3.8 Production Hardening is the next milestone.
+Version 2 is **FROZEN** at `v2.0` (architecture locked); it is fully implemented and verified. Version 3 is implemented through **V3.8.7** (Survey → Digital Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign), all verified but **not yet committed**. Commit only after explicit approval.
 
 ## 10. Golden Rules
 

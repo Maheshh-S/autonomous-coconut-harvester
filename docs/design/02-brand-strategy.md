@@ -1,6 +1,6 @@
 # 02 — Brand Strategy
 
-> Companion to `01-design-constitution.md`. Defines ARECA's name, voice, logo direction, and
+> Companion to `01-design-constitution.md`. Defines Veraxis's name, voice, logo direction, and
 > brand world. No code, no assets yet. Every choice reinforces the autonomous-coconut-
 > harvesting identity from §1 of the constitution.
 
@@ -8,16 +8,12 @@
 
 ## 1. Name
 
-**ARECA** — a real genus of tropical palms (Areca), echoing the coconut family without
-being the literal word "coconut." It reads as a proper product name, is short, ownable, and
-pronounceable. It signals *botanical precision* rather than *robotics hype*.
+**Veraxis** — a coined name combining "vera" (truth/true) and "axis" (central line, coordination), evoking precision, alignment, and truth in autonomous agriculture. It reads as a proper product name, is short, ownable, and pronounceable. It signals *botanical precision* and *algorithmic accuracy* rather than *robotics hype*.
 
-- **Spoken:** "uh-REE-kuh" or "AIR-uh-kuh" — both fine; the brand guide uses **AH-reh-kah**
-  in voiceover for the documentary clips.
-- **Never** written as "Areca" mid-sentence in a way that reads like a plant genus in copy;
-  as the product word it is **ARECA** (caps) in UI, sentence-case "Areca" only in prose.
+- **Spoken:** "ver-AX-is" — the brand guide uses **ver-AX-is** in voiceover for the documentary clips.
+- **Never** written as "Veraxis" mid-sentence in a way that reads like a generic word in copy; as the product word it is **Veraxis** in UI, sentence-case "Veraxis" only in prose.
 - Tagline (used sparingly, never as an eyebrow on every section):
-  **"The plantation, autonomously harvested."**
+  **"An AI-Powered Autonomous Coconut Harvesting System"**
 
 ---
 
@@ -25,7 +21,7 @@ pronounceable. It signals *botanical precision* rather than *robotics hype*.
 
 | Context | Voice |
 |---|---|
-| Landing hero | Calm, declarative. One sentence that states what ARECA is. |
+| Landing hero | Calm, declarative. One sentence that states what Veraxis is. |
 | Dashboard | Status, plain. "12 trees ready. Mission running." |
 | Survey | Discovery. "The drone found 302 trees across 10 tiles." |
 | Twin | Topographic, factual. "This is the surveyed plantation, as captured." |
@@ -59,7 +55,7 @@ cream; never a photo, never emoji.
   geometric mark"). All *other* icons come from a real library (Phosphor/Tabler).
 
 ### 3.2 Wordmark
-`ARECA` set in the display sans (see `03`), tight tracking, no gradient, no glow. The
+`Veraxis` set in the display sans (see `03`), tight tracking, no gradient, no glow. The
 wordmark alone is sufficient on the nav bar; the leaf-reticle mark leads sections that need
 a glyph.
 
@@ -94,7 +90,7 @@ This world is codified for video in `10-google-flow-guidelines.md` and for shots
 
 ## 5. Brand in the UI (where identity shows without text)
 
-Even with the leaf-reticle mark hidden, the UI must read as ARECA:
+Even with the leaf-reticle mark hidden, the UI must read as Veraxis:
 
 1. **The twin mosaic** *is* the brand — a real surveyed plantation, not a chart.
 2. **Drone-scan cyan** appears only where the machine is "seeing" (active scan, live robot,

@@ -1,7 +1,7 @@
 # ROBOT_ARCHITECTURE.md
 
 > **Status: FROZEN — approved baseline specification for Version 3. Architecture locked;
-> implemented V3.1–V3.7.3 (not yet committed).**
+> implemented V3.1–V3.8.7 (not yet committed).**
 > Companion to `PROJECT_SPECIFICATION.md` Appendix A (Version 3 Robot Simulation,
 > FROZEN). Version 2 (Digital Twin) is frozen and complete. This document records
 > the robot subsystem design so Version 3 can be implemented without carrying
@@ -342,7 +342,11 @@ and never mutates `Robot`/`Navigation`/`RobotStateMachine`; a dropped client is
 | **V3.7.1 Mission History Refinement** | Transparent analytics + twin wiring | No new architecture/features. `score_breakdown` (Text) on `RobotRun` + `_mission_score` `(final, breakdown)` exposing `completion`/`battery_economy`/`status_factor`/`safe_return`/`error_free`; `build_timeline` grouped **"Travelled X m"** segments; `build_robot_log` severity (INFO/WARNING/ERROR); tree-activity → **Open Tree** (`/trees/[id]`) + **Open Digital Twin** (`/map?tree=[id]`) via `FarmViewer.initialTreeId`. Frontend renders only. **(implemented, not committed)** |
 | **V3.7.2 Workflow Integration** | One synchronized workflow, no manual steps | Hardening/integration, no new features. `POST /harvest/missions/{id}/start` auto-starts the robot sim (`scheduler.start`); execution mutations factored into `backend/harvest/execution.py` (single source of truth) consumed by **both** the manual advance endpoint and the scheduler run loop — the robot now completes `HarvestMissionItem`s and writes post-harvest `InventorySnapshot`s as it harvests, and finalizes the mission on dock return; `get_permanent_trees` server-side paginated. **(implemented, not committed)** |
 | **V3.7.3 Speed & Battery Calibration** | Realistic defaults, no new features | Refinement only. `DEFAULT_SIMULATION_SPEED = 60` in `backend/simulation/config.py` (single source; was 3× hardcoded `1.0`); `GET /robot/simulation/config` exposes it, frontend auto-initialises; `BATTERY_DRAIN_PER_S = 1/DEFAULT_SIMULATION_SPEED` (%/sim-s) so ~1%/real-s at 60× — derived from simulated elapsed time, deterministic, recharge/return-to-dock unchanged. **(implemented, not committed)** |
-| **V3.8 Production Hardening** | Critical review + cleanup | Two-agent review; N+1/perf on telemetry; WebSocket reconnect/backpressure; dead-code removal; regression suite; docs sync. |
+| **V3.8.1 Navigation Redesign** | Premium navigation shell | `AppShell` component (desktop rail + mobile bottom nav + More sheet); responsive, self-contained; replaces inline layout nav. No backend/API/route changes. **(implemented, not committed)** |
+| **V3.8.2 Timeline Tab Redesign** | Robot history timeline UX | `/robot/history/[id]` timeline tab: vertical rail, Phosphor icons, tabular timestamps, `#treeId` deep links, staggered reveal. **(implemented, not committed)** |
+| **V3.8.3 Robot Log Tab Redesign** | Robot history log UX | `/robot/history/[id]` robot-log tab: terminal frame, WCAG severity tokens, aligned grid, hover highlight, mobile collapse. **(implemented, not committed)** |
+| **V3.8.4 Home Page Redesign** | Scroll-driven brand landing | `/` page: 7 GSAP chapters (Hero, Beats, Drone, Twin, Robot, Trees, Closer); Lenis smooth scroll; Apple Liquid Glass CTAs; living backdrop; zero em-dashes; `prefers-reduced-motion/transparency/contrast` fallbacks. **(implemented, not committed)** |
+| **V3.8.5–V3.8.7 Production Hardening** | Critical review + cleanup | Two-agent review; N+1/perf on telemetry; WebSocket reconnect/backpressure; dead-code removal; regression suite; docs sync. **(implemented, not committed)** |
 
 ## 9. Future Extension Points
 

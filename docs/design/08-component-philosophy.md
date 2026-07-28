@@ -85,7 +85,7 @@
 
 ### NavBar
 - **Purpose:** single-line desktop nav; specific labels (Survey, Trees, Robot, Dashboard).
-- **Anatomy:** leaf-reticle mark + ARECA wordmark left; links right; mobile → bottom nav ≤5
+- **Anatomy:** leaf-reticle mark + Veraxis wordmark left; links right; mobile → bottom nav ≤5
   (ui-ux-pro-max §9); no two-line nav (taste-skill §4.7).
 
 ### Toast

@@ -1,6 +1,6 @@
 # 09 — Asset Generation Strategy
 
-> Defines WHICH assets ARECA needs, WHERE they are used, and HOW each is produced. No
+> Defines WHICH assets Veraxis needs, WHERE they are used, and HOW each is produced. No
 > generation in this phase. Every decision reinforces the autonomous-coconut-harvesting
 > identity (constitution §1) and the brand world (§02 §4). Explicitly rejects AI-slop by
 > choosing the right medium per asset.

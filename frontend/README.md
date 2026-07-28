@@ -25,23 +25,27 @@ backend must be running for the pages to load live data.
 ## Pages (`app/`)
 | Route | File | Purpose |
 |-------|------|---------|
-| `/` | `app/page.tsx` | Home — project entrance (pipeline overview, link to Dashboard) |
+| `/` | `app/page.tsx` | Home — scroll-driven brand landing (7 GSAP-animated chapters) |
 | `/dashboard` | `app/dashboard/page.tsx` | Operational overview (counts, farm summary, charts) |
 | `/survey` | `app/survey/page.tsx` | Survey Mission image ingestion + inspection/inventory/harvest |
 | `/map` | `app/map/page.tsx` | Digital Twin farm viewer (survey mission tiles) |
 | `/robot` | `app/robot/page.tsx` | Robot simulation + harvest-mission execution |
 | `/robot/history` | `app/robot/history/page.tsx` | Mission History & Analytics |
+| `/robot/history/[id]` | `app/robot/history/[id]/page.tsx` | Run detail (timeline, tree-activity, robot-log tabs) |
 | `/trees` | `app/trees/page.tsx` | Tree dashboard (summary from `GET /trees/summary`) |
 | `/trees/[treeId]` | `app/trees/[treeId]/page.tsx` | Single‑tree detail + coconut upload |
 
 ## Components (`components/`)
+- `AppShell` — navigation shell (desktop rail + mobile bottom nav + More sheet).
 - `CoconutUploader.tsx` – upload a coconut photo, shows detected coconuts.
 - `FarmMosaic` / `OverlayLayer` / `FarmViewer` / `TreeDetailsDrawer` – Digital Twin viewer.
 - `DashboardFarmCard` – dashboard farm summary card.
+- `SmoothScroll` – Lenis smooth-scroll provider.
+- `AmbientClip` – ambient video backdrop component.
 - `robot/` – `RobotLayer`, `RobotMarker`, `RobotPathLayer`, `RobotStatusCard`, `SimulationControls`.
 
 ## Notes
 - Upload previews use native `<img>` with `blob:` URLs (dynamic, not static
   assets), so `next/image` is intentionally not used there.
-- Navigation is rendered inline in `app/layout.tsx` (no separate navbar
-  component).
+- Navigation is rendered via `AppShell` in `app/layout.tsx` (desktop rail +
+  mobile bottom nav + More overflow sheet).

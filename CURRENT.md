@@ -1,7 +1,7 @@
 # CURRENT.md
 
 - **Project Version:** 3.8.7 (Version 3 line; V3.8 Production Hardening in progress)
-- **Current Status:** Version 3 pipeline complete through V3.7.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics). All V1–V3 work is implemented and verified but **not yet committed** — awaiting explicit approval.
+- **Current Status:** Version 3 pipeline complete through V3.8.7 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign). All V1–V3 work is implemented and verified but **not yet committed** — awaiting explicit approval.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
     tree-matching into permanent `Tree` records, V1 `Task`/`Detection` model, V1 robot
@@ -1509,25 +1509,24 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
       deleted V3.8.2 modules (`planner_api`/`map_api`/`harvest_planner`); no source
       references to removed modules remain. `requirements.txt` is a complete manifest;
       `.gitignore` hardened (V3.8.5). **NOT committed** — awaiting approval.
-   - **Frontend UI Redesign — ARECA "mission control" (completed; awaiting commit
-     approval):** a master restyle of the entire frontend into a cohesive, premium
-     dark "mission-control" product surface (Apple / NVIDIA / Boston Dynamics grade),
-     **without any feature / route / API / schema change, and without touching backend
-     logic.** The goal was visual & UX coherence only; every number and action still
-     comes from the existing APIs.
-     - **Design system (single, timeless dark identity — no light mode, no theme
-       switcher):** `app/globals.css` rewritten with design tokens — forest-tinted
-       near-black surfaces (`--color-bg` #080c09 …), living-green phosphor accent
-       (`--color-accent` #4fe39a), warm harvest gold (`--color-gold` #f5c451), status
-       colors, Space Grotesk / Inter / Geist Mono font roles (wired via `next/font` in
-       `layout.tsx`), and reusable utilities (`.panel`, `.btn`, `.kicker`, `.text-gradient`,
-       reveal, reduced-motion, Lenis CSS). Ambient radial glow + subtle grid veil sit
-       behind all pages. Motion is purpose-driven: `SmoothScroll.tsx` (Lenis on the
-       `gsap.ticker` clock, reduced-motion aware) and `lib/useReveal.ts` (Intersection
-       Observer reveal). `gsap@3.12.5` + `lenis@1.1.13` added.
-     - **Navigation chrome:** `AppShell.tsx` — a fixed left rail (logo "ARECA / Harvest
-       OS") + responsive mobile topbar/mobnav — wraps every page; `layout.tsx` mounts it
-       around `SmoothScroll`. Preserves the existing 9 routes and their nav entries.
+- **Frontend UI Redesign — Veraxis "mission control" (completed; awaiting commit
+      approval):** a master restyle of the entire frontend into a cohesive, premium
+      dark "mission-control" product surface (Apple / NVIDIA / Boston Dynamics grade),
+      **without any feature / route / API / schema change, and without touching backend
+      logic.** The goal was visual & UX coherence only; every number and action still
+      comes from the existing APIs.
+      - **Design system (single, timeless dark identity — no light mode, no theme
+        switcher):** `app/globals.css` rewritten with design tokens — forest-tinted
+        near-black surfaces (`--color-bg` #080c09 …), living-green phosphor accent
+        (`--color-accent` #4fe39a), warm harvest gold (`--color-gold` #f5c451), status
+        colors, Space Grotesk / Inter / Geist Mono font roles (wired via `next/font` in
+        `layout.tsx`), and reusable utilities (`.panel`, `.btn`, `.kicker`, `.text-gradient`,
+        reveal, reduced-motion, Lenis CSS). Ambient radial glow + subtle grid veil sit
+        behind all pages. Motion is purpose-driven: `SmoothScroll.tsx` (Lenis on the
+        `gsap.ticker` clock, reduced-motion aware) and `lib/useReveal.ts` (Intersection
+        Observer reveal). `gsap@3.12.5` + `lenis@1.1.13` added.
+      - **Navigation chrome:** `AppShell.tsx` — a fixed left rail (logo "Veraxis / An AI-Powered Autonomous Coconut Harvesting System") + responsive mobile topbar/mobnav — wraps every page; `layout.tsx` mounts it
+        around `SmoothScroll`. Preserves the existing 9 routes and their nav entries.
      - **Pages redesigned (logic 100% preserved):**
        - `/` (`app/page.tsx`): cinematic scroll-driven landing — GSAP-pinned hero film
          (procedural SVG `BrandArt` PalmRobot / SurveyGrid; frame-scrub upgrade path if
@@ -1565,13 +1564,13 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
        8 pages**; `verify_v371.js` (history list/detail + twin tree-focus) — 0 errors
        (harness updated from stale run id `2` → existing run `1`). **Not committed** —
        awaiting approval.
-    - **Navigation Redesign — ARECA rail + mobile bottom nav (completed; awaiting commit
-      approval):** a focused, premium redesign of the navigation experience only — **no
-      backend / API / route / schema / business-logic / IA / page-content changes.** Restyles
-      `components/AppShell.tsx` chrome exclusively; the 7 destinations and their descriptive
-      labels (Overview, Mission Control, Survey & Harvest, Digital Twin, Robot Ops, Mission
-      History, Tree Registry) are unchanged.
-      - **Desktop rail (240px):** ARECA wordmark identity (no logo/icon — typography only),
+- **Navigation Redesign — Veraxis rail + mobile bottom nav (completed; awaiting commit
+       approval):** a focused, premium redesign of the navigation experience only — **no
+       backend / API / route / schema / business-logic / IA / page-content changes.** Restyles
+       `components/AppShell.tsx` chrome exclusively; the 7 destinations and their descriptive
+       labels (Overview, Mission Control, Survey & Harvest, Digital Twin, Robot Ops, Mission
+       History, Tree Registry) are unchanged.
+       - **Desktop rail (240px):** Veraxis wordmark identity (no logo/icon — typography only),
         refined density (14px labels on 44px targets, 9px radius, tighter brand block),
         single icon family (Phosphor, `weight="fill"` on active / `regular` otherwise),
         calm active state (accent-weak fill + accent text + 3px accent bar), hover gated
@@ -1707,10 +1706,9 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
     - Real geotagging of drone images (currently GPS is derived from the box position).
     - Model versioning / distribution strategy (weights are gitignored).
    - **Known Issues / Decisions:**
+  Decisions:**
   - Database is **PostgreSQL (Neon)**, not SQLite (early documentation said SQLite).
   - `requirements.txt` is a complete backend dependency manifest (fixed in V3.8.4); the
     README documents setup. Install with `pip install -r requirements.txt`.
   - Model weights (`*.pt`) and `.env` are gitignored; they are local‑only.
-  - Navigation is rendered inline in `layout.tsx` (the old `Navbar.tsx` component was removed).
-    Nav exposes Home, Dashboard, Survey, Digital Twin, Robot, Mission History; the
-    `/trees` pages remain reachable from Mission History detail.
+  - Navigation is rendered via `AppShell` component (desktop rail + mobile bottom nav + More sheet); imported in `frontend/app/layout.tsx`. Nav exposes Home, Dashboard, Survey, Digital Twin, Robot, Mission History; the `/trees` pages remain reachable from Mission History detail.

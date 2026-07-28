@@ -18,7 +18,7 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Areca — Autonomous Coconut Harvesting Platform",
+  title: "Veraxis — Autonomous Coconut Harvesting Platform",
   description:
     "AI-powered precision agriculture. Drone surveying, digital-twin plantation intelligence, and autonomous robotic coconut harvesting in one control system.",
 };

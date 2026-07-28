@@ -1,7 +1,7 @@
 # 04 — Motion Language
 
 > Implements constitution §8 (interaction) + emil-design-eng + apple-design + animation-
-> vocabulary. Defines how ARECA moves. No code yet. All motion is OPTIONAL until approved
+> vocabulary. Defines how Veraxis moves. No code yet. All motion is OPTIONAL until approved
 > and must honor `prefers-reduced-motion`.
 
 ---

@@ -1,6 +1,6 @@
 # 03 — Visual Style Guide
 
-> The complete visual language for ARECA. Implements `01-design-constitution.md` §5–§9 and
+> The complete visual language for Veraxis. Implements `01-design-constitution.md` §5–§9 and
 > `02-brand-strategy.md`. This is the document a future implementer reads to build pixels.
 > No code yet.
 

@@ -1,6 +1,6 @@
 # 05 — Storyboard
 
-> The narrative arc of ARECA, page by page. Implements the "one question per page" axiom
+> The narrative arc of Veraxis, page by page. Implements the "one question per page" axiom
 > (constitution §7.1) and the brand world (§4). Explains what the user feels, why each page
 > exists, and how it flows to the next. No code.
 
@@ -16,7 +16,7 @@ coherent building — same dark plantation world, same accent, same type voice.
 
 ---
 
-## 1. Landing `/` — "What is ARECA?"
+## 1. Landing `/` — "What is Veraxis?"
 
 - **Feels:** "A real, serious autonomous farming system — and it's beautiful."
 - **Exists to:** establish identity in 1 screen. No login wall, no feature-grid-first.

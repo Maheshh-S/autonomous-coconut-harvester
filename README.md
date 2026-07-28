@@ -34,6 +34,8 @@ Dashboard / Digital Twin (read-only supervision)
   framework; schema is evolved manually and ensured at startup (see below).
 - **ML:** Ultralytics YOLOv8 models in `models/` (`tree_detector.pt`,
   `coconut_detector.pt`). Both files are **gitignored** — they are local only.
+- **Navigation:** rendered via `AppShell` component (desktop rail + mobile bottom
+  nav + More sheet); imported in `frontend/app/layout.tsx`.
 
 ## Architecture Overview
 
@@ -95,16 +97,17 @@ EXISTS`).
 
 ## Frontend
 
-- React/Next.js (App Router) in `frontend/`. Pages: `/` (Drone Uploader),
-  `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`,
+- React/Next.js (App Router) in `frontend/`. Pages: `/` (Home), `/dashboard`,
+  `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`,
   `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
 - Talks to the backend through the single typed wrapper
   `frontend/lib/api/detection.ts`.
+- Navigation: `AppShell` component (desktop rail + mobile bottom nav + More
+  sheet); imported in `frontend/app/layout.tsx`.
 - Digital Twin components: `FarmMosaic` (tile canvas), `OverlayLayer` (tree boxes,
   presentation-only), `FarmViewer` (zoom/pan/fit viewport + selection state),
   `TreeDetailsDrawer` (read-only details). `RobotLayer` mounts inside the same
   transformed stage and shares the one zoom/pan/fit transform.
-- Navigation is rendered inline in `frontend/app/layout.tsx`.
 
 ## Database
 
@@ -179,9 +182,12 @@ backend/
   main.py         app assembly, CORS, router mounting, init_db() at startup
 frontend/
   app/            pages (/, /dashboard, /survey, /map, /robot, /robot/history,
-                  /trees, /trees/[treeId])
-  components/      FarmMosaic, OverlayLayer, FarmViewer, TreeDetailsDrawer,
-                  DashboardFarmCard, DroneUploader, CoconutUploader, robot/
+                  /robot/history/[id], /trees, /trees/[treeId])
+  components/     AppShell (desktop rail + mobile bottom nav + More sheet),
+                  FarmMosaic, OverlayLayer, FarmViewer, TreeDetailsDrawer,
+                  DashboardFarmCard, CoconutUploader, SmoothScroll (Lenis),
+                  AmbientClip, robot/ (RobotLayer, RobotMarker, RobotPathLayer,
+                  RobotStatusCard, SimulationControls)
   lib/            api/detection.ts (single API client), mosaicLayout.ts,
                   useRobotSimulation.ts
 models/           YOLOv8 weights (gitignored): tree_model/, coconut_model/

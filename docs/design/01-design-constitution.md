@@ -1,8 +1,8 @@
 # 01 — Design Constitution
 
-> The single source of truth for every visual, interaction, and motion decision in ARECA.
+> The single source of truth for every visual, interaction, and motion decision in Veraxis.
 > This is a planning document. No code, no UI changes, no asset generation. It defines
-> *what* ARECA must feel like and *why*. Implementation begins only after approval.
+> *what* Veraxis must feel like and *why*. Implementation begins only after approval.
 
 ---
 
@@ -18,7 +18,7 @@ a *design point of view*. This constitution is that point of view. Every later d
 
 ## 1. Product Identity
 
-ARECA is an **Autonomous Coconut Harvesting Platform**.
+Veraxis is an **Autonomous Coconut Harvesting Platform**.
 
 It is not:
 - a generic AI tool
@@ -139,10 +139,10 @@ primary actions, never as a glow. (Full tokens in `03-visual-style-guide.md`.)
 ## 7. UX Principles
 
 1. **One question per page** (the axiom from the brief):
-   Landing→*What is ARECA?* · Dashboard→*What is happening on the farm?* ·
-   Survey→*What did the drone discover?* · Twin→*What does the plantation look like now?* ·
-   Robot→*What is the robot doing?* · History→*What happened previously?* ·
-   Trees→*What is the condition of every tree?*
+    Landing→*What is Veraxis?* · Dashboard→*What is happening on the farm?* ·
+    Survey→*What did the drone discover?* · Twin→*What does the plantation look like now?* ·
+    Robot→*What is the robot doing?* · History→*What happened previously?* ·
+    Trees→*What is the condition of every tree?*
    Every page leads with the answer to its question. Secondary content supports, never competes.
 2. **Wayfinding** (apple-design §16): every screen answers Where am I / Where can I go /
    What's here / How do I get out. Nav is a single line on desktop (taste-skill §4.7).
@@ -225,7 +225,7 @@ Directly from the rejection + the five design skills. Any of these fails the con
 
 The v1 rejection proved the pattern: an LLM, left to its defaults, produces the *same*
 interface for any prompt — Inter + slate-900 + purple glow + three cards. That is the
-tell. ARECA's entire value is that it is a *specific* physical system in a *specific* world.
+tell. Veraxis's entire value is that it is a *specific* physical system in a *specific* world.
 The bans exist so the design cannot collapse into the generic. Each forbidden item is a
 known AI-default that erases identity. Replacing it requires a deliberate, defensible
 choice — which is the whole point of craft (impeccable: "evidence before claiming done").

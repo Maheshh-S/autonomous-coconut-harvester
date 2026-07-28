@@ -14,12 +14,13 @@ single source of truth; the frontend never computes business results.
 
 ## Frontend
 
-- React/Next.js (App Router) application in `frontend/`. Pages: `/` (Drone
-  Uploader), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`,
+- React/Next.js (App Router) application in `frontend/`. Pages: `/` (Home),
+  `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`,
   `/robot/history`, `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
 - Talks to the backend through the single typed wrapper
   `frontend/lib/api/detection.ts`.
-- Navigation is rendered inline in `frontend/app/layout.tsx`.
+- Navigation: `AppShell` component (desktop rail + mobile bottom nav + More
+  sheet); imported in `frontend/app/layout.tsx`.
 - Digital Twin components: `FarmMosaic` (tile canvas), `OverlayLayer` (tree boxes,
   presentation-only), `FarmViewer` (zoom/pan/fit viewport + selection state),
   `TreeDetailsDrawer` (read-only details). `RobotLayer` mounts **inside** the same
@@ -119,7 +120,7 @@ per-tree tile/pixel/bbox is persisted in a mission-scoped `TreeObservation` mode
   (`harvest/`, `navigation/`, `robot/`, `simulation/`, `telemetry/`, `analytics/`).
 - **models/** – YOLO model files (gitignored).
 
-## Version 3 — Robot Simulation (FROZEN baseline, architecture only at V3.0; implemented V3.1–V3.7.3)
+## Version 3 — Robot Simulation (FROZEN baseline, architecture only at V3.0; implemented V3.1–V3.8.7)
 
 - One **simulated, time-driven harvesting robot** executes a `HarvestMission` on the
   Digital Twin. **Backend owns all robot behaviour**; the frontend only visualizes

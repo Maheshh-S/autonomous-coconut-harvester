@@ -113,6 +113,31 @@ flowchart TD
 
 ---
 
+# Design-First Workflow (Frontend)
+
+For any frontend work, the following design-first workflow applies:
+
+1. **Design Constitution** — Define product identity, design philosophy, emotional goals
+2. **Brand Strategy** — Naming, voice, logo direction, brand world
+3. **Visual Style Guide** — Typography, grid, color, depth, glass, photography, iconography
+4. **Motion Language** — Timing, easing, scroll rhythm, micro-interactions, hover, loading, transitions
+5. **Storyboard** — Page-to-page emotional arc and transition logic
+6. **Shot List** — Every video shot fully specified before any prompt is written
+7. **Page UX Strategy** — Per-page purpose, journey, hierarchy, interactions, success criteria
+8. **Component Philosophy** — Reusable primitives with clear purpose, anti-patterns
+9. **Asset Generation Strategy** — What assets needed, where used, how produced (Google Flow pipeline)
+10. **Google Flow Guidelines** — Master prompt spec for all clips
+11. **Design Review** — Pre-flight: taste-skill + emil-design-eng + apple-design review against built UI
+12. **Implementation** — Build to spec, respecting frozen contracts
+13. **Playwright Browser Validation** — Run relevant harness, confirm 0 console errors
+14. **Visual QA** — Inspect in real browser at 1024 + 390; verify reduced-motion fallbacks
+15. **Iteration** — Refine until visual/behavioral parity with design intent
+16. **TypeScript Verification** — `npx tsc --noEmit` passes with 0 errors
+17. **Production Build Verification** — `npx next build` succeeds
+18. **Completion** — Summary produced, await commit approval
+
+---
+
 # Code Quality
 
 Before finishing implementation, verify:

@@ -8,7 +8,7 @@
 | **Document Version** | v1.0 Draft (frozen) |
 | **Repository** | `autonomous-coconut-harvester` |
 | **Last Updated** | 2026-07-16 |
-| **Status** | Architecture Frozen — Version 3 implemented through V3.7.3 (not yet committed) |
+| **Status** | Architecture Frozen — Version 3 implemented through V3.8.7 (not yet committed) |
 | **Owner** | Major Project Engineering Team |
 | **Classification** | Internal Engineering Reference |
 
@@ -18,18 +18,19 @@
 > DECISIONS.md, SpecKit files) disagree, this document governs. Other documents
 > are reconciled to this specification.
 >
-> **Implementation note (2026-07-16):** this specification was authored before the
+> **Implementation note (2026-07-28):** this specification was authored before the
 > Version 2 Digital Twin and Version 3 Robot Simulation work. The many
 > **[Planned Enhancement]** markers scattered through the body describe gaps that
-> existed at draft time. As of V3.7.3 those items are **implemented**: the
+> existed at draft time. As of V3.8.7 those items are **implemented**: the
 > `SurveyMission` / `SurveyTile` / `TreeObservation` data model, the drone-image
 > Digital Twin (replacing the V1 Leaflet/OSM map), the `InventorySnapshot` system,
 > the immutable `HarvestMission` / `HarvestMissionItem` queue, the Robot Domain /
-> State Machine / Simulation Engine / Telemetry, and Mission History & Analytics
-> are all built and verified. The `[Planned Enhancement]` labels are retained as
-> historical record of the original gap analysis and are **not** to be read as
-> currently-unimplemented. See `CURRENT.md` for the authoritative per-version
-> implementation status.
+> State Machine / Simulation Engine / Telemetry, Mission History & Analytics,
+> the premium navigation redesign (`AppShell`), and the home page redesign
+> (scroll-driven brand landing) are all built and verified. The `[Planned Enhancement]`
+> labels are retained as historical record of the original gap analysis and are **not**
+> to be read as currently-unimplemented. See `CURRENT.md` for the authoritative
+> per-version implementation status.
 
 ---
 
@@ -140,16 +141,17 @@ ripeness data. Combining the two into one vehicle would force a trade-off betwee
 coverage speed and inspection quality that the project refuses to make.
 
 **Current implementation status.** The repository implements the full frozen
-pipeline end-to-end (Version 3, through V3.7.3): YOLOv8 tree detection, GPS
+pipeline end-to-end (Version 3, through V3.8.7): YOLOv8 tree detection, GPS
 de-duplication into permanent `Tree` records, the `SurveyMission` / `SurveyTile` /
 `TreeObservation` data model, the drone-image **Digital Twin** Farm Viewer (the V1
 Leaflet/OSM map was removed), YOLOv8 coconut-ripeness detection writing immutable
 `InventorySnapshot`s, the `HarvestMission` / `HarvestMissionItem` queue with a
 frozen Nearest-Neighbour route, the Robot Domain / State Machine / Simulation
-Engine / Telemetry pipeline, and Mission History & Analytics. The robot is
-simulated; the same HTTP/WebSocket contract is designed to be driven by real
-hardware without restructuring the backend. All work is implemented and verified
-but **not yet committed** — see `CURRENT.md` for per-version status. The
+Engine / Telemetry pipeline, Mission History & Analytics, the premium navigation
+redesign (`AppShell`), and the home page redesign (scroll-driven brand landing).
+The robot is simulated; the same HTTP/WebSocket contract is designed to be driven
+by real hardware without restructuring the backend. All work is implemented and
+verified but **not yet committed** — see `CURRENT.md` for per-version status. The
 **[Planned Enhancement]** markers elsewhere in this document are historical (see
 the implementation note at the top of this file).
 

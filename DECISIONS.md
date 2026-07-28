@@ -10,7 +10,7 @@
 - **API design**: Separate routers for each domain (tree, coconut, robot, planning) to keep responsibilities isolated.
 - **Infrastructure**: The `.engineering/` directory houses specs, templates, and workflows that guide AI agents and contributors.
 
-- **Digital Twin Farm Viewer (Version 2, FROZEN v2.0)**: The plantation visualisation moves from the V1 Leaflet/OSM marker map to a purpose-built tile-mosaic canvas where survey tiles are arranged by grid row/column and the YOLO bounding boxes are the interactive layer. GPS is demoted to backend metadata; a "farm-pixel" coordinate system becomes the primary spatial truth. Recorded as amendment v2.0 in `PROJECT_SPECIFICATION.md §V2`. Locked decisions: (1) "invisible boundaries" replaced by a seam-de-emphasised continuous farm mosaic — **no orthomosaic, no stitching** (§337 stays); (2) tile/pixel/bbox metadata lives in a new mission-scoped historical **`TreeObservation`** model with a `Tree.current_observation_id` pointer (mirroring `InventorySnapshot`), never flat on `Tree`; (3) representative observation = highest confidence → closest to tile centre → newest mission; (4) `SurveyTile.grid_row/grid_col/image_width/image_height` are persisted during survey processing, not recomputed; (5) the twin **replaces** `/map` — a single viewer, no parallel Leaflet map, unless a concrete technical constraint (to be recorded here) forces coexistence. Freeze authorises implementation; no code written yet.
+- **Digital Twin Farm Viewer (Version 2, FROZEN v2.0)**: The plantation visualisation moves from the V1 Leaflet/OSM marker map to a purpose-built tile-mosaic canvas where survey tiles are arranged by grid row/column and the YOLO bounding boxes are the interactive layer. GPS is demoted to backend metadata; a "farm-pixel" coordinate system becomes the primary spatial truth. Recorded as amendment v2.0 in `PROJECT_SPECIFICATION.md §V2`. Locked decisions: (1) "invisible boundaries" replaced by a seam-de-emphasised continuous farm mosaic — **no orthomosaic, no stitching** (§337 stays); (2) tile/pixel/bbox metadata lives in a new mission-scoped historical **`TreeObservation`** model with a `Tree.current_observation_id` pointer (mirroring `InventorySnapshot`), never flat on `Tree`; (3) representative observation = highest confidence → closest to tile centre → newest mission; (4) `SurveyTile.grid_row/grid_col/image_width/image_height` are persisted during survey processing, not recomputed; (5) the twin **replaces** `/map` — a single viewer, no parallel Leaflet map, unless a concrete technical constraint (to be recorded here) forces coexistence. **Implemented in V2.1–V2.7; architecture frozen at v2.0.**
 
 - **Decision 6 — Rendering foundation stays React/DOM (Version 2.8.2 architecture review)**: The project will retain the current custom **React + DOM/CSS-transform** Digital Twin renderer (`FarmViewer` → `FarmMosaic` → `OverlayLayer`) as the rendering foundation. Rendering technology will **not** be changed during Version 2. After the Version 3 Robot Layer is implemented, rendering performance will be evaluated against the full roadmap (robot animation, path visualization, mission playback, heatmaps, multiple robots). A hybrid **Canvas/Konva** layer may be introduced **only if measured performance demonstrates that the DOM renderer has become the bottleneck** — a full engine        replacement (PixiJS/WebGL) is not justified at current scale (302 trees, 60 FPS, 0 console errors, validated culling/LOD). This preserves the V2.8.1 finding that the renderer is fundamentally correct and the spec's §V2.8 escalation clause (Canvas/WebGL only if box counts exceed a DOM threshold). The future Robot/Path/Animation/Heatmap layers are to be added as **additive** components sharing the existing `computeMosaicLayout` farm-pixel coordinate system, not as a rewrite.
   - **Decision 6b — Flight Planner owns mission geometry (Version 2.8.3)**: Survey
@@ -76,6 +76,33 @@
   websocket}`, `frontend/components/{digitalTwin,dashboard,robot}`, `frontend/robot`)
   with no implementation; `ROBOT_ARCHITECTURE.md` was added. No business logic or
   user-visible behaviour changed; Version 2 architecture stays frozen.
+
+- **Decision 9 — Premium navigation redesign (V3.8.5, completed)**: the
+  `AppShell` component (`frontend/components/AppShell.tsx`) replaces the legacy
+  inline `layout.tsx` navigation. Desktop: a persistent left-side icon rail
+  with labeled nav items, a "More" overflow sheet for items beyond the primary
+  set, and a profile/action footer. Mobile: a fixed bottom tab bar with the
+  five primary routes and a "More" sheet for overflow. Navigation items use
+  Phosphor icons (one family, standardised `strokeWidth`). The `AppShell`
+  wraps all page content in `layout.tsx` via `<AppShell>{children}</AppShell>`.
+  Architectural impact: the nav is now a self-contained component with its own
+  responsive behaviour (desktop rail vs mobile bottom nav) rather than
+  conditional inline markup. No backend, API, or route changes.
+
+- **Decision 10 — Home page redesign (V3.8.7, completed)**: the `/` page
+  (`frontend/app/page.tsx`) was redesigned as a scroll-driven brand landing
+  with seven GSAP-animated chapters (Hero, Beats, Drone, Twin, Robot, Trees,
+  Closer). The page uses Lenis smooth scroll, GSAP ScrollTrigger for chapter
+  reveal (glide-in from left/right), and Apple Liquid Glass buttons on the
+  hero and closer CTAs (with `@supports (backdrop-filter: blur(1px))` guard
+  for Lightning CSS v4 compatibility). The `.beats` section uses a living
+  backdrop with masked radial washes. Design-taste skills (taste-skill,
+  apple-design, emil-design-eng) were loaded and followed: zero em-dashes in
+  landing copy, `prefers-reduced-motion`/`prefers-reduced-transparency`/
+  `prefers-contrast: more` fallbacks, one icon family (Phosphor), palette-
+  locked tokens. Architectural impact: none — presentation only. No backend,
+  API, route, or schema changes. Verified: `tsc --noEmit` 0 errors,
+  `next build` 10 routes, Playwright 0 console errors on `/` at 1024 + 390.
 
 *Add new decisions here as they are made; never delete existing entries.*
 

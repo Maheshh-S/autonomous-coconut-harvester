@@ -15,6 +15,10 @@ Claude-specific working notes for the Autonomous Coconut Harvester repository.
   framework; schema is evolved manually and ensured at startup (see below).
 - **ML:** Ultralytics YOLOv8 models in `models/` (`tree_detector.pt`,
   `coconut_detector.pt`). Both files are **gitignored** — they are local only.
+- **Navigation:** rendered via `AppShell` component (desktop rail + mobile bottom
+  nav + More sheet); imported in `frontend/app/layout.tsx`.
+- **Motion/Scroll:** Lenis smooth scroll + GSAP ScrollTrigger; Motion (`motion/react`) for component transitions.
+- **Icons:** Phosphor Icons (`@phosphor-icons/react`), one family, standardized `strokeWidth`.
 
 ## Common commands
 

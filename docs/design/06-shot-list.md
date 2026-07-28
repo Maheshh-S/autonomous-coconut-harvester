@@ -18,7 +18,7 @@ Conventions:
 
 ## S1 — brand-hero-aerial-survey
 - **Page:** `/` (Landing hero)
-- **Scene purpose:** Establish the whole ARECA world in one breath — plantation + drone.
+- **Scene purpose:** Establish the whole Veraxis world in one breath — plantation + drone.
 - **Camera movement:** slow aerial push-in following the drone down a palm row toward horizon.
 - **Lens:** wide (24–35mm equiv), steady gimbal.
 - **Lighting:** golden hour, warm key, soft fill.

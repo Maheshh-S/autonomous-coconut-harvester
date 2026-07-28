@@ -16,7 +16,7 @@
 
 ---
 
-## 1. Landing `/` — "What is ARECA?"
+## 1. Landing `/` — "What is Veraxis?"
 
 - **Primary purpose:** establish identity in one screen.
 - **User journey:** arrive → see plantation + drone → read one line → "Enter the farm".
