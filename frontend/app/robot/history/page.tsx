@@ -8,6 +8,10 @@ import {
   type RunStatus,
 } from "@/lib/api/detection"
 import AmbientClip from "@/components/AmbientClip"
+import Pager from "@/components/Pager"
+import SkeletonRows from "@/components/SkeletonRows"
+import { usePagination } from "@/lib/usePagination"
+import { fmtIST } from "@/lib/formatTime"
 
 const statusColor: Record<RunStatus, string> = {
   COMPLETED: "#4fe39a",
@@ -23,9 +27,7 @@ function fmtDuration(s: number | null) {
 }
 
 function fmtTime(iso: string | null) {
-  if (!iso) return "—"
-  const d = new Date(iso)
-  return d.toLocaleString()
+  return fmtIST(iso)
 }
 
 const STATUS_LABEL: Record<RunStatus, string> = {
@@ -42,7 +44,6 @@ export default function MissionHistoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<SortKey>("finished_at")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
-
   useEffect(() => {
     setLoading(true)
     getRobotRuns(200)
@@ -75,6 +76,8 @@ export default function MissionHistoryPage() {
     })
     return arr
   }, [runs, sortKey, sortDir])
+
+  const pager = usePagination(sorted)
 
   function toggleSort(k: SortKey) {
     if (k === sortKey) {
@@ -122,7 +125,11 @@ export default function MissionHistoryPage() {
         </div>
       </header>
 
-      {loading && <p style={{ color: "var(--color-text-dim)" }}>Loading runs…</p>}
+      {loading && (
+        <div className="panel" style={{ overflow: "hidden" }}>
+          <SkeletonRows rows={8} />
+        </div>
+      )}
       {error && <p style={{ color: "var(--color-crit)" }}>{error}</p>}
       {!loading && !error && runs.length === 0 && (
         <div className="panel-2" style={{ padding: 24, color: "var(--color-text-dim)" }}>
@@ -158,7 +165,7 @@ export default function MissionHistoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((r) => (
+                {pager.slice.map((r) => (
                   <tr key={r.id} style={{ borderTop: "1px solid var(--color-line)" }}>
                     <Td>
                       <Link
@@ -189,6 +196,7 @@ export default function MissionHistoryPage() {
               </tbody>
             </table>
           </div>
+          <Pager page={pager.page} totalPages={pager.totalPages} onPrev={pager.prev} onNext={pager.next} />
         </div>
       )}
     </div>

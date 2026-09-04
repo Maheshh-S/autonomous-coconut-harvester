@@ -16,6 +16,7 @@ import {
   getHarvestMissions,
   getHarvestMissionItems,
 } from "@/lib/api/detection"
+import { fmtIST } from "@/lib/formatTime"
 
 // V2.5 / V2.5.1 — Tree Details Drawer (PROJECT_SPECIFICATION.md §32, §33).
 // Reuses the existing Feature 6–11 APIs (inventory, inventory history,
@@ -63,10 +64,7 @@ const HARVEST_TYPE_LABEL: Record<string, string> = {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—"
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return iso
-  return d.toLocaleString()
+  return fmtIST(iso)
 }
 
 function useIsMobile() {
