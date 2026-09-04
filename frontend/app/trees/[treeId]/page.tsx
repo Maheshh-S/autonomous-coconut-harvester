@@ -26,6 +26,7 @@ export default function TreePage({ params }: Props) {
   const [harvestType, setHarvestType] = useState("mature")
   const [tree, setTree] = useState<TreeSummary | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [loading, setLoading] = useState(true)
 
 
 
@@ -34,6 +35,7 @@ export default function TreePage({ params }: Props) {
     async function loadTree() {
 
       setNotFound(false)
+      setLoading(true)
       const trees: TreeSummary[] = await getTreesSummary()
 
       const t = trees.find(
@@ -42,6 +44,7 @@ export default function TreePage({ params }: Props) {
 
       setTree(t ?? null)
       if (!t) setNotFound(true)
+      setLoading(false)
     }
 
     loadTree()
@@ -67,6 +70,21 @@ export default function TreePage({ params }: Props) {
         >
           Tree #{treeId} not found.
         </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1100, margin: "0 auto" }}>
+        <div className="kicker">Tree Detail</div>
+        <div style={{ height: 34, width: 260, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite", borderRadius: 8, margin: "8px 0 20px" }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, margin: "20px 0" }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ height: 90, background: "var(--color-surface)", border: "1px solid var(--color-line)", borderRadius: 12, opacity: 0.6, animation: "pulse 1.4s ease-in-out infinite", animationDelay: `${(i % 4) * 0.1}s` }} />
+          ))}
+        </div>
+        <div style={{ height: 200, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite 0.2s", borderRadius: 12 }} />
       </div>
     )
   }

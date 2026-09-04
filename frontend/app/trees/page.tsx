@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { getTreesSummary } from "@/lib/api/detection"
 import Link from "next/link"
 import AmbientClip from "@/components/AmbientClip"
+import Pager from "@/components/Pager"
+import { usePagination } from "@/lib/usePagination"
 
 type TreeSummary = {
   tree_id: number
@@ -16,6 +18,7 @@ type TreeSummary = {
 export default function TreesPage() {
   const [trees, setTrees] = useState<TreeSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const pager = usePagination(trees)
 
   useEffect(() => {
     async function load() {
@@ -101,7 +104,7 @@ export default function TreesPage() {
               </tr>
             </thead>
             <tbody>
-              {trees.map((t: TreeSummary) => (
+              {pager.slice.map((t: TreeSummary) => (
                 <tr key={t.tree_id}>
                   <Td className="tab" style={{ fontWeight: 600, fontFamily: "var(--font-mono)" }}>#{t.tree_id}</Td>
                   <Td align="right" className="tab" style={{ color: "var(--color-text-dim)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{t.gps_lat.toFixed(6)}</Td>
@@ -135,6 +138,7 @@ export default function TreesPage() {
             </tbody>
           </table>
         </div>
+        <Pager page={pager.page} totalPages={pager.totalPages} onPrev={pager.prev} onNext={pager.next} />
       </div>
 
       <style jsx>{`

@@ -14,6 +14,7 @@ import { MosaicTile } from "@/components/FarmMosaic"
 import { useRobotSimulation } from "@/lib/useRobotSimulation"
 import RobotStatusCard from "@/components/robot/RobotStatusCard"
 import AmbientClip from "@/components/AmbientClip"
+import SkeletonRows from "@/components/SkeletonRows"
 
 type MissionSummary = {
   id: number
@@ -111,6 +112,7 @@ function FarmPageInner() {
   const [gap, setGap] = useState(2)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [missionsLoaded, setMissionsLoaded] = useState(false)
 
   // V3.7.1 — optional `?tree=<id>` focuses the twin on that tree (reused by the
   // Mission History "Open Digital Twin" link). Read-only focus; no new lookup.
@@ -136,6 +138,7 @@ function FarmPageInner() {
         if (ms.length > 0) setMissionId(ms[0].id)
       })
       .catch((e) => setError(String(e)))
+      .finally(() => setMissionsLoaded(true))
   }, [])
 
   useEffect(() => {
@@ -240,19 +243,23 @@ function FarmPageInner() {
           <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--color-text-faint)", fontFamily: "var(--font-mono)" }}>
             Mission
           </span>
-          <select
-            value={missionId ?? ""}
-            onChange={(e) => setMissionId(Number(e.target.value))}
-            className="select"
-          >
-            {missions.map((m) => (
-              <option key={m.id} value={m.id}>
-                #{m.id}
-                {m.status ? ` (${m.status})` : ""}
-                {m.source_folder ? ` — ${m.source_folder}` : ""}
-              </option>
-            ))}
-          </select>
+          {!missionsLoaded ? (
+            <div style={{ height: 38, width: "100%", borderRadius: 8, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite" }} />
+          ) : (
+            <select
+              value={missionId ?? ""}
+              onChange={(e) => setMissionId(Number(e.target.value))}
+              className="select"
+            >
+              {missions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  #{m.id}
+                  {m.status ? ` (${m.status})` : ""}
+                  {m.source_folder ? ` — ${m.source_folder}` : ""}
+                </option>
+              ))}
+            </select>
+          )}
         </label>
 
         <label style={{ display: "inline-flex", flexDirection: "column", gap: 5, minWidth: 200 }}>
@@ -277,7 +284,11 @@ function FarmPageInner() {
         <Toggle label="Show Current Target" on={showTarget} set={setShowTarget} />
       </div>
 
-      {loading && <p style={{ color: "var(--color-text-dim)" }}>Loading tiles…</p>}
+      {loading && (
+        <div className="panel" style={{ overflow: "hidden" }}>
+          <SkeletonRows rows={8} height={64} />
+        </div>
+      )}
       {error && <p style={{ color: "var(--color-crit)" }}>{error}</p>}
       {!loading && !error && tiles.length === 0 && (
         <div className="panel-2" style={{ padding: 24, color: "var(--color-text-dim)" }}>

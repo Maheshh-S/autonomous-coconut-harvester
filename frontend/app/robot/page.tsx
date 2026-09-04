@@ -16,6 +16,7 @@ import { useRobotSimulation } from "@/lib/useRobotSimulation"
 import SimulationControls from "@/components/robot/SimulationControls"
 import RobotStatusCard from "@/components/robot/RobotStatusCard"
 import AmbientClip from "@/components/AmbientClip"
+import SkeletonRows from "@/components/SkeletonRows"
 
 // --- Legacy V1 Task-based robot service (LIVE, kept per AGENTS.md) ----------
 type Task = {
@@ -39,6 +40,7 @@ export default function RobotPage() {
   const [trees, setTrees] = useState<TreeOverlay[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [harvestLoaded, setHarvestLoaded] = useState(false)
 
   // V3.7.3 — the default simulation speed is backend-owned; initialise the
   // control to it so the value lives in one place (not duplicated on the client).
@@ -77,6 +79,7 @@ export default function RobotPage() {
         else if (hs.length > 0) setHarvestMissionId(hs[0].id)
       })
       .catch(() => setHarvestMissions([]))
+      .finally(() => setHarvestLoaded(true))
   }, [])
 
   useEffect(() => {
@@ -210,17 +213,21 @@ export default function RobotPage() {
             <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--color-text-faint)", fontFamily: "var(--font-mono)" }}>
               Harvest Mission
             </span>
-            <select
-              value={harvestMissionId ?? ""}
-              onChange={(e) => setHarvestMissionId(Number(e.target.value))}
-              className="select"
-            >
-              {harvestMissions.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.mission_code ?? `#${m.id}`} ({m.status})
-                </option>
-              ))}
-            </select>
+            {harvestLoaded ? (
+              <select
+                value={harvestMissionId ?? ""}
+                onChange={(e) => setHarvestMissionId(Number(e.target.value))}
+                className="select"
+              >
+                {harvestMissions.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.mission_code ?? `#${m.id}`} ({m.status})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ height: 38, width: "100%", borderRadius: 8, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite" }} />
+            )}
           </label>
         </div>
 
@@ -240,7 +247,11 @@ export default function RobotPage() {
           error={sim.error}
         />
 
-        {loading && <p style={{ color: "var(--color-text-dim)", marginTop: 16 }}>Loading twin…</p>}
+        {loading && (
+          <div className="panel" style={{ overflow: "hidden", marginTop: 16 }}>
+            <SkeletonRows rows={8} height={64} />
+          </div>
+        )}
         {error && <p style={{ color: "var(--color-crit)", marginTop: 16 }}>{error}</p>}
 
         {!loading && !error && v2Tiles.length > 0 && (
