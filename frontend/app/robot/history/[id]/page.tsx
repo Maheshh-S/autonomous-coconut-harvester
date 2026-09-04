@@ -244,7 +244,7 @@ export default function RunDetailPage({
             <Metric label="Idle time" value={`${run.idle_time_s}s`} />
             <Metric
               label="Efficiency"
-              value={run.efficiency != null ? `${run.efficiency}` : "—"}
+              value={run.efficiency != null ? run.efficiency.toFixed(2) : "—"}
             />
           </div>
           <div style={{ color: "var(--color-text-faint)", fontSize: 13 }}>
@@ -294,10 +294,10 @@ export default function RunDetailPage({
                           {t.tree_code ? ` (${t.tree_code})` : ""}
                         </Link>
                         <span style={{ display: "inline-flex", gap: 6 }}>
-                          <ActionLink href={`/trees/${t.tree_id}`} color="#4fe39a">
+                          <ActionLink href={`/trees/${t.tree_id}`} color="var(--color-accent)">
                             Open Tree
                           </ActionLink>
-                          <ActionLink href={`/map?tree=${t.tree_id}`} color="#f5c451">
+                          <ActionLink href={`/map?tree=${t.tree_id}`} color="var(--color-gold-ink)">
                             Open Digital Twin
                           </ActionLink>
                         </span>
@@ -310,12 +310,12 @@ export default function RunDetailPage({
                           borderRadius: 99,
                           fontSize: 12,
                           fontWeight: 600,
-                          color: t.harvest_result === "harvested" ? "#4fe39a" : "var(--color-text-dim)",
+                          color: t.harvest_result === "harvested" ? "var(--color-accent)" : "var(--color-text-dim)",
                           background:
                             t.harvest_result === "harvested"
-                              ? "rgba(79,227,154,0.14)"
+                              ? "rgba(63,125,52,0.12)"
                               : "var(--color-surface-2)",
-                          border: `1px solid ${t.harvest_result === "harvested" ? "rgba(79,227,154,0.4)" : "var(--color-line)"}`,
+                          border: `1px solid ${t.harvest_result === "harvested" ? "rgba(63,125,52,0.4)" : "var(--color-line)"}`,
                         }}
                       >
                         {t.harvest_result}
@@ -323,7 +323,7 @@ export default function RunDetailPage({
                     </Td2>
                     <Td2>{t.visit_time != null ? `${t.visit_time}s` : "—"}</Td2>
                     <Td2>{t.harvest_duration_s != null ? `${t.harvest_duration_s}s` : "—"}</Td2>
-                    <Td2>{t.battery_at_visit != null ? `${t.battery_at_visit}%` : "—"}</Td2>
+                    <Td2>{t.battery_at_visit != null ? `${t.battery_at_visit.toFixed(1)}%` : "—"}</Td2>
                     <Td2>{t.inventory_collected ?? "—"}</Td2>
                   </tr>
                 ))}

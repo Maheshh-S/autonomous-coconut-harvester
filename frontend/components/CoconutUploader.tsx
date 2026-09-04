@@ -82,11 +82,6 @@ export default function CoconutUploader({
 
       }
 
-      console.log(
-        "Stored detections for tree",
-        treeId
-      )
-
     } catch (err) {
 
       console.error(

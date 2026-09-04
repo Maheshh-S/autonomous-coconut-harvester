@@ -112,8 +112,9 @@ export default function TreePage({ params }: Props) {
           margin: "20px 0",
         }}
       >
-        <Stat label="Latitude" value={tree.gps_lat} />
-        <Stat label="Longitude" value={tree.gps_lon} />
+        {/* 6dp matches the Tree Registry and the twin drawer (and fits the chip). */}
+        <Stat label="Latitude" value={tree.gps_lat.toFixed(6)} />
+        <Stat label="Longitude" value={tree.gps_lon.toFixed(6)} />
         <Stat label="Coconuts detected" value={tree.coconuts_detected} />
         <Stat
           label="Tasks remaining"

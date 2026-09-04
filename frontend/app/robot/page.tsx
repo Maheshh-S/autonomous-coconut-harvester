@@ -16,7 +16,7 @@ import ToggleSwitch from "@/components/ToggleSwitch"
 import { useRobotSimulation } from "@/lib/useRobotSimulation"
 import SimulationControls from "@/components/robot/SimulationControls"
 import RobotStatusCard from "@/components/robot/RobotStatusCard"
-import AmbientClip from "@/components/AmbientClip"
+import PageHero from "@/components/PageHero"
 import SkeletonRows from "@/components/SkeletonRows"
 
 // --- Legacy V1 Task-based robot service (LIVE, kept per AGENTS.md) ----------
@@ -172,40 +172,13 @@ export default function RobotPage() {
 
   return (
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
-      <header
-        style={{
-          position: "relative",
-          marginBottom: 22,
-          borderRadius: 16,
-          overflow: "hidden",
-          border: "1px solid var(--color-line)",
-          padding: "34px clamp(20px,3vw,40px)",
-        }}
-      >
-        <AmbientClip src="/clips/5.mp4" opacity={0.22} />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(90deg, rgba(14,18,13,0.82), rgba(14,18,13,0.4) 55%, transparent), radial-gradient(120% 140% at 0% 0%, rgba(14,18,13,0.5), transparent)",
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="kicker">Telemetry · Control</div>
-          <h1
-            className="font-display"
-            style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 700, margin: "8px 0 4px", letterSpacing: "-0.03em" }}
-          >
-            Robot <span className="lede-accent">Control Centre</span>
-          </h1>
-          <p style={{ color: "var(--color-text-dim)", margin: 0, maxWidth: 640 }}>
-            Command the harvester simulation, watch live telemetry, and trace its
-            route across the twin. Mission logic is owned by the backend.
-          </p>
-        </div>
-      </header>
+      <PageHero
+        kicker="Telemetry · Control"
+        title="Robot"
+        accent="Control Centre"
+        sub="Command the harvester simulation, watch live telemetry, and trace its route across the twin. Mission logic is owned by the backend."
+        clip="/clips/5.mp4"
+      />
 
       {/* V3.6 — Simulation Control Centre */}
       <section className="panel" style={{ padding: 22, marginBottom: 22 }}>

@@ -737,7 +737,7 @@ export default function FarmViewer({
             position: "absolute",
             left: 12,
             bottom: 12,
-            color: "#6b7d6b",
+            color: "#7d907d",
             fontSize: 12,
             zIndex: 5,
             pointerEvents: "none",

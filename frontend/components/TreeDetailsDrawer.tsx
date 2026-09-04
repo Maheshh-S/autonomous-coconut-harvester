@@ -273,7 +273,7 @@ export default function TreeDetailsDrawer({
         <div style={{ fontWeight: 700, fontSize: 15 }}>
           {displayTree?.tree_code ?? `Tree #${displayTree?.tree_id ?? ""}`}
           {displayTree && (
-            <span style={{ color: "#6b7d6b", fontWeight: 400, marginLeft: 6 }}>
+            <span style={{ color: "#7d907d", fontWeight: 400, marginLeft: 6 }}>
               #{displayTree.tree_id}
             </span>
           )}

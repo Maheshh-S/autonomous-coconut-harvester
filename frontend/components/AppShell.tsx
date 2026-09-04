@@ -35,8 +35,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  // Longest-prefix match: `/robot/history/7` activates "Mission History"
+  // (`/robot/history`) but NOT "Robot Ops" (`/robot`).
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/"
+    if (pathname === href) return true
+    return pathname.startsWith(href + "/")
+  }
 
   // close the mobile "More" sheet on navigation
   useEffect(() => setMoreOpen(false), [pathname]);

@@ -582,7 +582,7 @@ export default function SurveyPage() {
         </div>
 
         <div className="progress">
-          <div className="progress-bar"><div className="progress-fill" style={{ width: `${progress}%` }} /></div>
+          <div className="progress-bar"><div className="progress-fill" style={{ transform: `scaleX(${progress / 100})` }} /></div>
           <div className="progress-meta font-mono">
             <span>Uploaded <b>{uploadedCount}</b></span>
             <span>Remaining <b>{remaining}</b></span>
@@ -932,7 +932,7 @@ export default function SurveyPage() {
             <div className="mission-list">
               {harvestMissionPager.slice.map((m) => (
                 <button key={m.id} type="button" onClick={() => handleSelectHarvestMission(m.id)} className={"mission-row" + (selectedHarvest?.id === m.id ? " sel" : "")}>
-                  <span className="font-mono">{m.mission_code}</span> · {m.harvest_type} · {m.status} · {m.total_trees} tree(s) · {m.total_expected_coconuts} expected · {m.created_at ? fmtIST(m.created_at) : ""}
+                  <span className="font-mono">{m.mission_code}</span> · {m.harvest_type} · <span className="status-pill">{m.status}</span> · {m.total_trees} tree(s) · {m.total_expected_coconuts} expected · {m.created_at ? fmtIST(m.created_at) : ""}
                 </button>
               ))}
             </div>
@@ -1013,7 +1013,7 @@ export default function SurveyPage() {
 
         .progress { margin-top: 18px; }
         .progress-bar { height: 8px; border-radius: 99px; background: var(--color-surface-3); overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--color-accent), var(--color-accent-bright)); transition: width 0.4s var(--ease-out); }
+        .progress-fill { height: 100%; width: 100%; transform-origin: 0 50%; background: linear-gradient(90deg, var(--color-accent), var(--color-accent-bright)); transition: transform 0.4s var(--ease-out); }
         .progress-meta { display: flex; gap: 22px; margin-top: 10px; font-size: 12px; color: var(--color-text-dim); }
 
         .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }

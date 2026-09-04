@@ -24,12 +24,13 @@
   /* Text — deep green-tinted ink (never pure black) */
   --color-text: #1d261b;
   --color-text-dim: #586153;
-  --color-text-faint: #8b9383;
+  --color-text-faint: #676e61;
 
   /* Accent — natural leaf green. Functional: primary action / live / active.
      Calm, not neon. */
   --color-accent: #3f7d34;
   --color-accent-bright: #4f9a3f;
+  --color-accent-deep: #356b2a;
   --color-accent-dim: #b9d6ad;
   --color-accent-weak: #e7f0e2;
   --color-accent-glow: rgba(63, 125, 52, 0.12);
@@ -41,9 +42,13 @@
   /* Husk / earth — warmth, secondary highlight */
   --color-husk: #a9824a;
 
-  /* Harvest gold / amber — attention, selected tree (NOT a red alert) */
+  /* Harvest gold / amber — attention, selected tree (NOT a red alert).
+     `gold-ink`/`warn-ink` are the AA (≥4.5:1) variants for small text on
+     light surfaces; the base gold stays for dark-island / decorative use. */
   --color-gold: #c98a2e;
   --color-gold-dim: #9a6a24;
+  --color-gold-ink: #91621a;
+  --color-warn-ink: #91621a;
 
   /* Status */
   --color-ok: #4f8a3d;
@@ -216,7 +221,8 @@ body::after {
   border-color: transparent;
 }
 .btn-primary:hover {
-  background: var(--color-accent-bright);
+  /* Darken (not brighten) on hover — white label stays ≥5:1. */
+  background: var(--color-accent-deep);
   transform: translateY(-1px);
 }
 .btn-ghost {

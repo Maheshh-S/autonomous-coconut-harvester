@@ -13,7 +13,7 @@ import FarmViewer from "@/components/FarmViewer"
 import { MosaicTile } from "@/components/FarmMosaic"
 import { useRobotSimulation } from "@/lib/useRobotSimulation"
 import RobotStatusCard from "@/components/robot/RobotStatusCard"
-import AmbientClip from "@/components/AmbientClip"
+import PageHero from "@/components/PageHero"
 import SkeletonRows from "@/components/SkeletonRows"
 import ToggleSwitch from "@/components/ToggleSwitch"
 
@@ -136,40 +136,14 @@ function FarmPageInner() {
 
   return (
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
-      <header
-        style={{
-          position: "relative",
-          marginBottom: 22,
-          borderRadius: 16,
-          overflow: "hidden",
-          border: "1px solid var(--color-line)",
-          padding: "30px clamp(20px,3vw,40px)",
-        }}
-      >
-        <AmbientClip src="/clips/4.mp4" opacity={0.22} once />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(90deg, rgba(14,18,13,0.84), rgba(14,18,13,0.45) 55%, transparent), radial-gradient(120% 140% at 0% 0%, rgba(14,18,13,0.5), transparent)",
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="kicker">Digital Twin · Mosaic</div>
-          <h1
-            className="font-display"
-            style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 700, margin: "8px 0 4px", letterSpacing: "-0.03em" }}
-          >
-            Farm <span className="lede-accent">Digital Twin</span>
-          </h1>
-          <p style={{ color: "var(--color-text-dim)", margin: 0, maxWidth: 640 }}>
-            A living reconstruction of the surveyed plantation — tile mosaic, tree
-            detections, and the live robot overlaid in one shared coordinate space.
-          </p>
-        </div>
-      </header>
+      <PageHero
+        kicker="Digital Twin · Mosaic"
+        title="Farm"
+        accent="Digital Twin"
+        sub="A living reconstruction of the surveyed plantation — tile mosaic, tree detections, and the live robot overlaid in one shared coordinate space."
+        clip="/clips/4.mp4"
+        once
+      />
 
       <div
         className="panel-2"

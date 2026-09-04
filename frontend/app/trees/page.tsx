@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { getTreesSummary } from "@/lib/api/detection"
 import Link from "next/link"
-import AmbientClip from "@/components/AmbientClip"
+import PageHero from "@/components/PageHero"
 import Pager from "@/components/Pager"
 import { usePagination } from "@/lib/usePagination"
 
@@ -58,37 +58,13 @@ export default function TreesPage() {
 
   return (
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
-      <header
-        style={{
-          position: "relative",
-          marginBottom: 24,
-          borderRadius: 16,
-          overflow: "hidden",
-          border: "1px solid var(--color-line)",
-          padding: "30px clamp(20px,3vw,40px)",
-        }}
-      >
-        <AmbientClip src="/clips/7.mp4" opacity={0.18} />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(90deg, rgba(14,18,13,0.84), rgba(14,18,13,0.45) 55%, transparent), radial-gradient(120% 140% at 0% 0%, rgba(14,18,13,0.5), transparent)",
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="kicker">Inventory</div>
-          <h1 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 700, margin: "8px 0 4px", letterSpacing: "-0.03em" }}>
-            Permanent <span className="lede-accent">Tree Registry</span>
-          </h1>
-          <p style={{ color: "var(--color-text-dim)", margin: 0, maxWidth: 680 }}>
-            Every permanent tree the platform has resolved from drone surveys, with
-            its GPS fix, detected coconuts, and remaining harvest tasks.
-          </p>
-        </div>
-      </header>
+      <PageHero
+        kicker="Inventory"
+        title="Permanent"
+        accent="Tree Registry"
+        sub="Every permanent tree the platform has resolved from drone surveys, with its GPS fix, detected coconuts, and remaining harvest tasks."
+        clip="/clips/7.mp4"
+      />
 
       <div className="panel" style={{ overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>

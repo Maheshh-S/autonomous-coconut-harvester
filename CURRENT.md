@@ -1,7 +1,7 @@
 # CURRENT.md
 
-- **Project Version:** 4.0.2 (Version 4 line; UI/UX quality track)
-- **Current Status:** Version 3 pipeline complete through V4.0.2 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade). All work is implemented and verified but **not yet committed** — awaiting explicit approval.
+- **Project Version:** 4.0.3 (Version 4 line; UI/UX quality track)
+- **Current Status:** Version 3 pipeline complete through V4.0.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System). All work is implemented and verified but **not yet committed** — awaiting explicit approval.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
     tree-matching into permanent `Tree` records, V1 `Task`/`Detection` model, V1 robot
@@ -1866,6 +1866,40 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         MutationObserver (smooth rAF animation; readout rounding hides sub-1% steps at fit zoom —
         cosmetic). Screenshots: `frontend/shots/audit/after-dashboard-minimap*.png`,
         `after-robot-*.png`. **Not committed** — awaiting approval.
+    - **Batch A quick wins + Batch B hero system (V4.0.3, completed; awaiting commit approval):**
+      the audit's cross-cutting fixes and the shared hero component. Presentation-only; no
+      backend / API / contract / flow changes.
+      - **Nav double-active fixed** (`AppShell.tsx`): exact-or-segment match — `/robot/history/7`
+        activates only "Mission History", not "Robot Ops".
+      - **WCAG AA contrast pass** (`globals.css` + call sites): `--color-text-faint` darkened to
+        `#676e61` (4.6–5.3:1 on all surfaces; carries the 11px kickers/labels/timestamps); new
+        `--color-gold-ink` / `--color-warn-ink` `#91621a` (5.3:1 on white) for small gold text on
+        light surfaces (base `--color-gold` kept for dark-island/decorative use); history status
+        pills, tree-activity pills and "Open Tree / Open Digital Twin" chips moved from neon hexes
+        (`#4fe39a/#f5c451`) to AA tokens; `.btn-primary:hover` darkens to new
+        `--color-accent-deep #356b2a` (white text 6.4:1) instead of brightening; twin zoom chip and
+        drawer `#id` brightened to `#7d907d` (5.7:1 on the dark island).
+      - **Raw-number formatting:** Tree Activity battery → 1dp (was `26.3999999999963%`); run
+        Efficiency → 2dp; tree-detail GPS → 6dp (matches registry + drawer; fixes the mid-digit
+        chip overflow).
+      - **Status pills:** `/survey` harvest-mission list rows now use the same `.status-pill` as
+        the mission card. (State-badge casing left uppercase — `verify_v361` asserts the badge
+        text.)
+      - **Micro:** survey progress bar animates `transform: scaleX` (was `transition: width`);
+        removed a stray `console.log` in `CoconutUploader`.
+      - **Landing hero visible at rest** (`app/page.tsx`): the scrubbed timeline no longer starts
+        the headline/CTAs at `opacity: 0` — the hero is fully visible before any scroll; scrolling
+        settles the clip scale and gives the caption a gentle parallax drift.
+      - **Shared `PageHero` component** (`components/PageHero.tsx`): strengthened scrim + single
+        light-ink headline (accent word in the light `accent-dim` tint, AA on the dark scrim) +
+        kicker/sub, one ambient clip. Applied to `/map`, `/robot`, `/robot/history`, `/trees` —
+        fixes the dark-on-dark first words and washed-out subcopy in one place (dashboard/survey
+        headers already passed and are unchanged).
+      - **Verification:** `tsc --noEmit` — 0 errors; `next build` — success (10 routes);
+        `verify_v26.js` 15/15, `verify_v251.js` 11/11, `verify_v361.js` complete PASS;
+        `verify_console.js` — **8 pages, 0 failures, 0 console errors**. Hero screenshots:
+        `frontend/shots/audit/after-hero-*.png`, `after-landing-hero-rest.png`. **Not committed**
+        — awaiting approval.
     - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`

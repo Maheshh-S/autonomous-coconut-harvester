@@ -61,13 +61,14 @@ export default function Landing() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
     const ctx = gsap.context(() => {
-      // Hero film: settle the clip + rise the caption (no neon, no scrubbed grid)
-      const stage = root.current!.querySelector(".film-stage");
+      // Hero film: visible at rest (headline + clip are the first thing a
+      // visitor sees); scrolling settles the clip and gives the caption a
+      // gentle parallax drift — reveal enhances, never gates.
       const tl = gsap.timeline({
         scrollTrigger: { trigger: ".film", start: "top top", end: "bottom bottom", scrub: 0.6 },
       });
-      tl.fromTo(".film-hero", { scale: 1.12, opacity: 0.0 }, { scale: 1, opacity: 1, ease: "none" }, 0)
-        .fromTo(".film-cap-inner", { y: 26, opacity: 0 }, { y: 0, opacity: 1, ease: "none" }, 0)
+      tl.fromTo(".film-hero", { scale: 1.08 }, { scale: 1, ease: "none" }, 0)
+        .to(".film-cap-inner", { yPercent: -12, ease: "none" }, 0)
         .to(".film-hero", { yPercent: -4, ease: "none" }, 0);
 
       // Chapter beats: glide in from the beat's own alignment side, once.
