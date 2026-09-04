@@ -98,15 +98,36 @@ def dashboard_overview():
 
 def _dashboard_overview(db):
     # --- Overview card counts ------------------------------------------
-    survey_missions_count = db.query(func.count(SurveyMission.id)).scalar() or 0
-    permanent_trees_count = db.query(func.count(Tree.id)).scalar() or 0
-    trees_inspected_count = (
-        db.query(func.count(func.distinct(Inspection.tree_id))).scalar() or 0
+    # Fetched as five logical counts in ONE indexed query (subselects), instead of
+    # five separate sequential round-trips against the remote Neon database. Purely
+    # an access-path change: every value is byte-identical to before.
+    (
+        survey_missions_count,
+        permanent_trees_count,
+        trees_inspected_count,
+        inventory_snapshots_count,
+        harvest_missions_count,
+    ) = (
+        db.query(
+            func.coalesce(
+                db.query(func.count(SurveyMission.id)).scalar_subquery(), 0
+            ),
+            func.coalesce(
+                db.query(func.count(Tree.id)).scalar_subquery(), 0
+            ),
+            func.coalesce(
+                db.query(func.count(func.distinct(Inspection.tree_id)))
+                .scalar_subquery(),
+                0,
+            ),
+            func.coalesce(
+                db.query(func.count(InventorySnapshot.id)).scalar_subquery(), 0
+            ),
+            func.coalesce(
+                db.query(func.count(HarvestMission.id)).scalar_subquery(), 0
+            ),
+        ).one()
     )
-    inventory_snapshots_count = (
-        db.query(func.count(InventorySnapshot.id)).scalar() or 0
-    )
-    harvest_missions_count = db.query(func.count(HarvestMission.id)).scalar() or 0
 
     # --- Farm Summary: latest Inventory Snapshot of each Tree (§30) -----
     current_ids = [

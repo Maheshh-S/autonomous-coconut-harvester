@@ -407,7 +407,11 @@ class HarvestMissionItem(Base):
     )
 
     mission = relationship("HarvestMission", back_populates="items")
-    tree = relationship("Tree")
+    # lazy="selectin" eagerly batches the referenced Tree in ONE bulk query when a
+    # list of items is loaded, instead of firing one SELECT per item (N+1) — the
+    # harvest list/detail/status/start/pause/resume/cancel/advance responses all
+    # serialize ``item.tree``. Purely an ORM loading strategy; no schema change.
+    tree = relationship("Tree", lazy="selectin")
 
 
 # ---------------------------------------------------------------------------

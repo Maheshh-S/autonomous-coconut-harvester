@@ -17,11 +17,12 @@ The ``RobotRun`` row is written exactly once, when a simulation run terminates
 (COMPLETED / ABORTED / FAILED), by ``SimulationScheduler`` via ``record_run``.
 """
 
+from bisect import bisect_right
 from typing import List, Optional
 
 import json
 
-from sqlalchemy import func
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from database.models import (
@@ -94,10 +95,25 @@ def _telemetry_for(db: Session, mission_id: Optional[int], robot_id: int):
     return q.order_by(RobotTelemetry.sim_time.asc(), RobotTelemetry.id.asc()).all()
 
 
-def _events_for(db: Session, mission_id: Optional[int], robot_id: int):
+def _events_for(db: Session, mission_id: Optional[int], robot_id: int,
+                limit: Optional[int] = None):
+    """Events for a robot/mission in ascending (sim_time, id) order.
+
+    When ``limit`` is set, only the *newest* ``limit`` rows are fetched (pushed to
+    SQL) and returned still in ascending order — equivalent to loading the full set
+    and slicing ``[-limit:]``, but without transferring the whole time-series over
+    the network.
+    """
     q = db.query(RobotEvent).filter(RobotEvent.robot_id == robot_id)
     if mission_id is not None:
         q = q.filter(RobotEvent.mission_id == mission_id)
+    if limit is not None:
+        rows = (
+            q.order_by(RobotEvent.sim_time.desc(), RobotEvent.id.desc())
+            .limit(limit)
+            .all()
+        )
+        return list(reversed(rows))
     return q.order_by(RobotEvent.sim_time.asc(), RobotEvent.id.asc()).all()
 
 
@@ -380,43 +396,51 @@ def build_timeline(db: Session, robot_id: int, mission_id: Optional[int]) -> Lis
         prev = t.battery_pct
 
     # --- V3.7.1: group travel between consecutive trees into one segment ------
+    # Sum the distance travelled in each consecutive-tree travel window with a
+    # SINGLE forward pass over the (sim_time-sorted) telemetry, instead of
+    # re-scanning the full array once per segment (previous O(N·T) behaviour).
     if telemetry and len(order_seen) >= 2:
-        def distance_between(t0: float, t1: float) -> float:
-            dist = 0.0
-            prev_p = None
-            for t in telemetry:
-                if t.sim_time < t0:
-                    continue
-                if t.sim_time > t1:
-                    break
-                if prev_p is not None:
-                    dx = t.position_x - prev_p[0]
-                    dy = t.position_y - prev_p[1]
-                    dist += (dx * dx + dy * dy) ** 0.5
-                prev_p = (t.position_x, t.position_y)
-            return round(dist, 2)
-
+        segs = []
         for i in range(len(order_seen) - 1):
             cur = order_seen[i]
             nxt = order_seen[i + 1]
             seg_start = done_time.get(cur, reach_time.get(cur))
             seg_end = reach_time.get(nxt)
-            if seg_start is None or seg_end is None or seg_end <= seg_start:
-                continue
-            trav = distance_between(seg_start, seg_end)
-            if trav <= 0:
-                continue
-            entries.append({
-                "key": f"travelled_{cur}_to_{nxt}",
-                "icon": "route",
-                "color": "#64748b",
-                "title": "Travelled",
-                "sim_time": seg_end,
-                "timestamp": None,
-                "description": f"Travelled {trav} m to tree #{nxt}.",
-                "tree_id": nxt,
-                "distance_m": trav,
-            })
+            if seg_start is not None and seg_end is not None and seg_end > seg_start:
+                segs.append([seg_start, seg_end, 0.0, nxt])  # start, end, dist, nxt
+
+        if segs:
+            # Windows are ordered and disjoint along the route (reach → done, then
+            # done → next reach). A sample's movement segment is the window whose
+            # range contains the sample's own sim_time (matching the old
+            # ``t0 <= t <= t1`` scan window for the later sample).
+            seg_idx = 0
+            prev_p = None
+            for t in telemetry:
+                while seg_idx < len(segs) and t.sim_time > segs[seg_idx][1]:
+                    seg_idx += 1
+                if seg_idx < len(segs) and t.sim_time >= segs[seg_idx][0]:
+                    if prev_p is not None:
+                        dx = t.position_x - prev_p[0]
+                        dy = t.position_y - prev_p[1]
+                        segs[seg_idx][2] += (dx * dx + dy * dy) ** 0.5
+                prev_p = (t.position_x, t.position_y)
+
+            for i, (_seg_start, seg_end, dist, nxt) in enumerate(segs):
+                trav = round(dist, 2)
+                if trav <= 0:
+                    continue
+                entries.append({
+                    "key": f"travelled_{order_seen[i]}_to_{nxt}",
+                    "icon": "route",
+                    "color": "#64748b",
+                    "title": "Travelled",
+                    "sim_time": seg_end,
+                    "timestamp": None,
+                    "description": f"Travelled {trav} m to tree #{nxt}.",
+                    "tree_id": nxt,
+                    "distance_m": trav,
+                })
 
     entries.sort(key=lambda e: (e["sim_time"], e["title"]))
     return entries
@@ -486,16 +510,17 @@ def build_tree_activity(db: Session, robot_id: int, mission_id: Optional[int]) -
         for insp in db.query(Inspection).join(sub, Inspection.id == sub.c.mid).all():
             latest_insp[insp.tree_id] = insp
 
+    # Precompute ascending sim_time list once for O(log N) lookup per tree, instead
+    # of rescanning the whole telemetry array per tree (previous O(T·N) loop).
+    _sim_times = [t.sim_time for t in telemetry]
+
     def battery_at(sim_t: Optional[float]) -> Optional[float]:
         if sim_t is None or not telemetry:
             return None
-        best = None
-        for t in telemetry:
-            if t.sim_time <= sim_t:
-                best = t.battery_pct
-            else:
-                break
-        return best
+        i = bisect_right(_sim_times, sim_t) - 1
+        if i < 0:
+            return None
+        return telemetry[i].battery_pct
 
     cards = []
     for tid in tree_ids:
@@ -547,7 +572,7 @@ def _event_severity(event_type: str, detail: dict) -> str:
 
 def build_robot_log(db: Session, robot_id: int, mission_id: Optional[int], limit: int = 500) -> List[dict]:
     """Chronological event log (raw events) with a derived severity per entry."""
-    events = _events_for(db, mission_id, robot_id)[-limit:]
+    events = _events_for(db, mission_id, robot_id, limit=limit)
     log = []
     for ev in events:
         detail = _parse_detail(ev.detail)

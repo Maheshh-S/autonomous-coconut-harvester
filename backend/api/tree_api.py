@@ -83,7 +83,9 @@ def get_trees_summary():
 
     db = SessionLocal()
 
-    trees = db.query(Tree).all()
+    # Project only the columns this summary needs (id, gps) instead of hydrating
+    # every full Tree row over the network — the caller never touches the rest.
+    trees = db.query(Tree.id, Tree.gps_lat, Tree.gps_lon).all()
 
     # Bulk-aggregate coconut counts and open-task counts in TWO queries instead of
     # 2 queries per tree (an N+1 that becomes ~600 sequential round-trips against

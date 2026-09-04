@@ -16,7 +16,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from database.db import SessionLocal
 from database.models import (
@@ -574,37 +574,42 @@ def harvest_mission_status(mission_id: int):
     db = SessionLocal()
     try:
         mission = _get_mission_or_404(db, mission_id)
-        items = mission.items  # ordered by visit_order
-        current = next(
-            (
-                i
-                for i in items
-                if i.status == HarvestMissionItemStatus.IN_PROGRESS.value
-            ),
-            None,
-        )
-        nxt = next(
-            (
-                i
-                for i in items
-                if i.status == HarvestMissionItemStatus.PENDING.value
-            ),
-            None,
-        )
-        completed = [
-            i
-            for i in items
-            if i.status == HarvestMissionItemStatus.COMPLETED.value
-        ]
-        remaining = [
-            i
-            for i in items
-            if i.status
-            in (
-                HarvestMissionItemStatus.PENDING.value,
-                HarvestMissionItemStatus.IN_PROGRESS.value,
+        # Pulled with targeted aggregate/limit queries instead of loading the full
+        # (potentially large) item list and rescanning it 4 times for status/counts.
+        current = _in_progress_item(db, mission_id)
+        nxt = _next_pending_item(db, mission_id)
+        completed_count = (
+            db.query(func.count(HarvestMissionItem.id))
+            .filter(
+                HarvestMissionItem.mission_id == mission_id,
+                HarvestMissionItem.status == HarvestMissionItemStatus.COMPLETED.value,
             )
-        ]
+            .scalar()
+            or 0
+        )
+        remaining_count = (
+            db.query(func.count(HarvestMissionItem.id))
+            .filter(
+                HarvestMissionItem.mission_id == mission_id,
+                HarvestMissionItem.status.in_(
+                    [
+                        HarvestMissionItemStatus.PENDING.value,
+                        HarvestMissionItemStatus.IN_PROGRESS.value,
+                    ]
+                ),
+            )
+            .scalar()
+            or 0
+        )
+        harvested_coconuts = (
+            db.query(func.coalesce(func.sum(HarvestMissionItem.expected_coconuts), 0))
+            .filter(
+                HarvestMissionItem.mission_id == mission_id,
+                HarvestMissionItem.status == HarvestMissionItemStatus.COMPLETED.value,
+            )
+            .scalar()
+            or 0
+        )
         return {
             "mission_id": mission.id,
             "mission_code": mission.mission_code,
@@ -612,11 +617,11 @@ def harvest_mission_status(mission_id: int):
             "robot_state": _robot_state(mission.status, current is not None),
             "current_item": _serialize_item(current) if current else None,
             "next_item": _serialize_item(nxt) if nxt else None,
-            "completed_count": len(completed),
-            "remaining_count": len(remaining),
+            "completed_count": completed_count,
+            "remaining_count": remaining_count,
             "total_trees": mission.total_trees,
             "total_expected_coconuts": mission.total_expected_coconuts,
-            "harvested_coconuts": sum(i.expected_coconuts for i in completed),
+            "harvested_coconuts": harvested_coconuts,
         }
     finally:
         db.close()

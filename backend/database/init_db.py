@@ -164,6 +164,45 @@ def init_db():
             )
         )
 
+        # --- Hot-path indexes (hardening). CREATE INDEX IF NOT EXISTS is additive
+        # and idempotent: it only speeds up the project's dominant read queries and
+        # never changes schema semantics or row data. Backed by the same indexes on
+        # the SQLAlchemy models (Index(...) in __table_args__) so fresh databases
+        # get them at create_all time, while existing databases get them here.
+        # trees: filtered by last_seen/first_seen (permanent-trees) and joined by
+        # current_observation_id (Digital Twin tree overlay).
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_trees_last_seen_mission_id "
+            "ON trees (last_seen_mission_id)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_trees_first_seen_mission_id "
+            "ON trees (first_seen_mission_id)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_trees_current_observation_id "
+            "ON trees (current_observation_id)"
+        ))
+        # survey_missions / robot_runs: ORDER BY created_at / finished_at lists.
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_survey_missions_created_at "
+            "ON survey_missions (created_at)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_robot_runs_finished_at "
+            "ON robot_runs (finished_at)"
+        ))
+        # telemetry / events: composite (robot, mission, sim_time) serves the
+        # history endpoints' filtered + ordered time-series reads in one index.
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_robot_telemetry_robot_mission_time "
+            "ON robot_telemetry (robot_id, mission_id, sim_time)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_robot_events_robot_mission_time "
+            "ON robot_events (robot_id, mission_id, sim_time)"
+        ))
+
     # Backfill the immutable public `tree_code` for any legacy/Feature-6 trees that
     # were created before the column existed, so every permanent tree has one.
     # Using the row id keeps codes unique, monotonic, and stable across reboots.

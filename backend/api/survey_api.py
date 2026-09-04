@@ -1086,26 +1086,44 @@ def get_permanent_trees(mission_id: int, page: int = 1, page_size: int = 20):
                 status_code=404, detail="Survey mission not found"
             )
 
-        observed = (
+        # Counts + confidence aggregate pushed to SQL (no full-set materialisation);
+        # the page payload below is a separate LIMIT/OFFSET query.
+        total = (
+            db.query(func.count(Tree.id))
+            .filter(Tree.last_seen_mission_id == mission_id)
+            .scalar()
+            or 0
+        )
+        newly_created = (
+            db.query(func.count(Tree.id))
+            .filter(
+                Tree.last_seen_mission_id == mission_id,
+                Tree.first_seen_mission_id == mission_id,
+            )
+            .scalar()
+            or 0
+        )
+        matched_existing = total - newly_created
+        avg_conf = (
+            db.query(func.avg(Tree.last_matching_confidence))
+            .filter(
+                Tree.last_seen_mission_id == mission_id,
+                Tree.first_seen_mission_id != mission_id,
+            )
+            .scalar()
+        )
+        if avg_conf is not None:
+            avg_conf = round(float(avg_conf), 4)
+
+        start = (page - 1) * page_size
+        page_trees = (
             db.query(Tree)
             .filter(Tree.last_seen_mission_id == mission_id)
             .order_by(Tree.id)
+            .offset(start)
+            .limit(page_size)
             .all()
         )
-        newly_created = [t for t in observed if t.first_seen_mission_id == mission_id]
-        matched_existing = [
-            t for t in observed if t.first_seen_mission_id != mission_id
-        ]
-        confs = [
-            t.last_matching_confidence
-            for t in matched_existing
-            if t.last_matching_confidence is not None
-        ]
-        avg_conf = round(sum(confs) / len(confs), 4) if confs else None
-
-        total = len(observed)
-        start = (page - 1) * page_size
-        page_trees = observed[start : start + page_size]
 
         return {
             "mission_id": mission_id,
@@ -1113,8 +1131,8 @@ def get_permanent_trees(mission_id: int, page: int = 1, page_size: int = 20):
             "page": page,
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size if total else 0,
-            "newly_created": len(newly_created),
-            "matched_existing": len(matched_existing),
+            "newly_created": newly_created,
+            "matched_existing": matched_existing,
             "avg_match_confidence": avg_conf,
             "trees": [
                 {
