@@ -55,6 +55,13 @@ single source of truth; the frontend never computes business results.
   - `analytics/mission_history.py` — backend-owned Mission History & Analytics.
 - Schema is ensured at startup by `backend/database/init_db.py` (manual migrations,
   idempotent `ALTER … IF NOT EXISTS`).
+- Read-path hardening: `HarvestMissionItem.tree` uses `lazy="selectin"` to avoid N+1
+  relationship loads on list/detail/status/command responses; idempotent hot-path indexes
+  are created on `trees(last_seen_mission_id)`, `trees(first_seen_mission_id)`,
+  `trees(current_observation_id)`, `survey_missions(created_at)`, `robot_runs(finished_at)`,
+  and composite `robot_telemetry(robot_id, mission_id, sim_time)` /
+  `robot_events(robot_id, mission_id, sim_time)`. Latency floor is Neon serverless
+  round-trips (~2 s warm), not query shape.
 
 ## ML Models
 

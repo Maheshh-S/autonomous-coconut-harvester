@@ -4,8 +4,8 @@ import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 import AppShell from "@/components/AppShell";
 
-// Single precision-instrument family (docs/design/03 §1.2): Geist for display + UI
-// sans, Geist Mono for data/coordinates. No serif, no Inter default.
+// Single precision-instrument family: Geist for display + UI sans, Geist Mono for
+// data/coordinates. No serif, no Inter default.
 const sans = Geist({
   subsets: ["latin"],
   variable: "--font-sans",

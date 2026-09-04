@@ -22,6 +22,85 @@
   - **Current state:** all V1–V3 work is implemented and verified (Playwright 0 console
     errors, `tsc --noEmit` / `next build` clean) but **not yet committed** — awaiting
     explicit approval. Do NOT commit until approved.
+  - **Performance Hardening (backend read-path + indexes; behavior-preserving — awaiting
+    commit approval):** an end-to-end audit of the Neon-serverless-bound read paths (dashboard,
+    survey → Digital Twin, harvest status/items, Mission History timeline/tree-activity/
+    robot-log) reduced DB round-trips and unbounded loads with **zero change** to response
+    shapes, routes, business rules, or the frontend contract.
+    - **N+1 eliminated:** `HarvestMissionItem.tree` is now `lazy="selectin"` (was one lazy
+      SELECT per item across list/detail/status + every start/pause/resume/cancel/advance
+      response); `dashboard overview` counts collapsed from 5 sequential queries into one.
+    - **LIMIT pushed to SQL:** `build_robot_log` fetches the newest `limit` events in the DB
+      instead of loading the whole `robot_events` time-series and slicing in Python.
+    - **Quadratic loops → single pass:** `build_timeline` travel-distance and
+      `build_tree_activity` `battery_at` no longer rescan the whole telemetry array per
+      tree/segment (were O(N·T); now O(N) / O(log N)). Verified byte-identical to the old
+      results (run 3 / mission 2: travel segments and battery lookups match exactly).
+    - **Pagination in SQL:** `/mission/{id}/permanent-trees` moved page slicing +
+      count/avg aggregates off the full `.all()` to `LIMIT/OFFSET` + `COUNT`/`AVG`.
+    - **Column projection:** `/trees/summary` and the twin overlay select only the columns
+      the payload needs instead of whole ORM rows.
+    - **Missing indexes added (idempotent `CREATE INDEX IF NOT EXISTS` in `init_db.py`,
+      mirrored by the SQLAlchemy models):** `trees(last_seen_mission_id)`,
+      `trees(first_seen_mission_id)`, `trees(current_observation_id)`,
+      `survey_missions(created_at)`, `robot_runs(finished_at)`, and composite
+      `robot_telemetry(robot_id, mission_id, sim_time)` / `robot_events(robot_id, mission_id,
+      sim_time)`.
+    - **Deliberate non-change:** no frontend caching added — the frontend uses no React Query,
+      and the Dashboard / `useRobotSimulation` poll intervals are intentional live-refresh; a
+      `staleTime` would suppress live updates and break behavior. The backend fixes already cut
+      each poll's cost.
+    - **Honest limitation:** the dominant remaining latency is Neon's pooled round-trip floor
+      (~2 s warm per request, higher on cold scale-to-zero) — a network/serverless-layer cost
+      no query optimization removes. Verified: `py_compile`, app import, `test_db.py`, live
+      endpoint smoke (all 200), and `tsc --noEmit` clean. **NOT committed — awaiting approval.**
+  - **Frontend Polish — list pagination + loading skeletons (presentation-only; behavior & testids
+    preserved — awaiting commit approval):** a UI/UX pass over the list-heavy pages to tame the
+    Neon round-trip latency and long lists. No API contract, route, schema, `detection.ts` export,
+    farm-pixel transform, or `data-testid` was changed — restyle/present only.
+    - **Shared pagination:** new `frontend/lib/usePagination.ts` (`usePagination(items, pageSize=8)`)
+      + `frontend/components/Pager.tsx` (Prev/Next, "Page X of Y", aria-labels, disabled states,
+      **auto-hides when ≤ 8 items**). Client-side slicing — the backend contract is untouched.
+    - **Shared skeletons:** new `frontend/components/SkeletonRows.tsx` (pulsing rows, via global
+      `@keyframes pulse` at `globals.css:572`). Loading states added where the page had none
+      (e.g. `trees/[treeId]`) and extended where a spinner/first-frame existed (dashboard, survey,
+      map, robot, run-detail).
+    - **Pages updated:** `/dashboard` (Recent Activity 8/page), `/trees` (table 8/page),
+      `/robot/history` (runs 8/page), `/robot/history/[id]` (timeline + tree-activity 8/page, with
+      per-page `--tl-i` stagger reset so the reveal replays), `/survey` (uploaded images,
+      harvest-queue, harvest-mission-list + permanent-trees page_size 8), `/map` & `/robot`
+      (mission-select + tile skeletons), `/trees/[treeId]` (detail skeleton).
+    - **Duplicate-key hardening:** the run-detail timeline data carries duplicate backend `key`s
+      (34 events / 26 unique — pre-existing). The React list key is now `${e.key}__${i}` so no
+      key-collision console warning fires; look/behavior unchanged.
+    - **Verified:** `tsc --noEmit` clean, `next build` clean (10 routes), live Playwright pass
+      across every changed page with **0 console errors** (254-tree table paginates 8/page
+      "Page 1 of 32"; Recent Activity 8/page; timeline "Page 1 of 5" pager advances; ≤8 lists
+      auto-hide the pager; skeletons resolve). Standalone `verify_v371.js` couldn't run because
+      its Playwright Chromium binary isn't installed (env), so the equivalent live MCP browser
+      pass was used instead. **NOT committed — awaiting approval.**
+  - **IST Time Handling — presentation-only fix (awaiting commit approval):** back-end
+    timestamps are stored **naive UTC** (`datetime.utcnow()` in `models.py`) and serialised via
+    `.isoformat()` with no `Z`/offset. The frontend previously did raw `new Date(iso).toLocaleString()`,
+    and on a naive string `new Date` interprets it as **local machine time** — so on an India (IST)
+    browser every wall-clock was wrong by **−5:30 h**. Only `/dashboard` had the correct
+    `append "Z" → Asia/Kolkata` pattern; the other pages were off.
+    - **Shared formatter:** new `frontend/lib/formatTime.ts` exports `fmtIST(iso, …)`,
+      `fmtISTTimeOnly(iso)`, `fmtISTDateOnly(iso)` and `IST_TIMEZONE = "Asia/Kolkata"`. Treats the
+      naive string as UTC, renders the correct IST wall-clock, and is idempotent for already-`Z`
+      suffixed values; `null`/invalid → `"—"`.
+    - **Pages fixed:** `/robot/history/[id]` summary (`fmtTime` → `fmtIST`), `/robot/history`
+      list, `/survey` (all 6 `toLocaleString` sites), `TreeDetailsDrawer` inspection times
+      (`fmtDate` → `fmtIST`), `/dashboard` (reuses the shared formatter, dropping its local copy).
+    - **Timeline & robot log now show a real clock alongside the sim clock:** the run-detail
+      timeline shows `t+Xs` (simulated) **and** an IST chip (`fmtISTTimeOnly(e.timestamp)`), and the
+      robot log gained a leading IST-clock column plus a `t+N` sim-seconds column — a legend notes
+      "t+N s = simulated seconds · clock = IST". This anchors the 60×-fast simulation to real
+      wall-clock time.
+    - **Verified (observed):** `01:52 UTC` renders `7:22 am IST` (+5:30); timeline `t+24s` +
+      `7:22 am`; robot log `7:22 am / t+24 / WARNING / Event`; summary `finished 28 Jul 2026,
+      3:42 pm`; history/survey/dashboard all correct IST. `tsc --noEmit` clean, `next build` clean,
+      live browser **0 console errors** on every touched page. **NOT committed — awaiting approval.**
   - **Version 2 (FROZEN v2.0 — architecture locked; data foundation implemented):**
   - **Digital Twin Farm Viewer** amendment frozen in `PROJECT_SPECIFICATION.md §V2`.
     A seam-de-emphasised tile mosaic (tiles by grid row/col; YOLO bounding boxes as the

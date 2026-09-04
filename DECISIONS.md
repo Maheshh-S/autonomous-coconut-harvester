@@ -106,6 +106,15 @@
 
 *Add new decisions here as they are made; never delete existing entries.*
 
+- **Decision — Timezone: backend stores naive UTC; frontend renders IST (`Asia/Kolkata`)**:
+  Backend persists `datetime.utcnow()` naive timestamps (`models.py`) and serialises with
+  `.isoformat()` (no `Z`/offset). The frontend owns presentation, so all wall-clock rendering
+  goes through the shared `frontend/lib/formatTime.ts` formatters (`fmtIST`, `fmtISTTimeOnly`,
+  `fmtISTDateOnly`), which treat the naive string as UTC (append `Z`) and render as
+  `Asia/Kolkata` (+5:30). A raw `new Date(naive)` on an IST browser would read the naive string
+  as local time and be off by −5:30 h — hence the single canonical formatter. The backend is
+  intentionally unchanged to keep the stored/API payload UTC-normalised.
+
 Future Architecture Note
 
 PlannerConfig currently uses a single DEFAULT_PLANNER_CONFIG.

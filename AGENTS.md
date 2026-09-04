@@ -49,8 +49,8 @@ Do not skip steps. If a listed doc does not yet exist, note it and proceed.
   - `backend/main.py` — app assembly, CORS, router mounting, `init_db()` at startup.
 - `frontend/` — React/Next.js UI (App Router).
   - `frontend/app/` — pages: `/` (Home — scroll-driven brand landing), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`, `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
-  - `frontend/components/` — `AppShell` (desktop rail + mobile bottom nav + More sheet), `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `CoconutUploader`, `SmoothScroll` (Lenis), `AmbientClip`, `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
-  - `frontend/lib/` — `api/detection.ts` (single API client), `mosaicLayout.ts` (shared farm-pixel transform), `useRobotSimulation.ts` (WS hook).
+  - `frontend/components/` — `AppShell` (desktop rail + mobile bottom nav + More sheet), `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `CoconutUploader`, `SmoothScroll` (Lenis), `AmbientClip`, `Pager`, `SkeletonRows`, `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
+  - `frontend/lib/` — `api/detection.ts` (single API client), `mosaicLayout.ts` (shared farm-pixel transform), `useRobotSimulation.ts` (WS hook), `usePagination.ts` (client-side list pagination), `formatTime.ts` (IST time formatters — render naive-UTC backend timestamps as `Asia/Kolkata`).
 - `models/` — YOLOv8 weights (`tree_model/`, `coconut_model/`), gitignored.
 
 Folders that no longer exist (e.g. the legacy V1 `MapView`/`MapWrapper`/`leafletFix` components, the `mapping/`, `perception/`, and `simulation/robot_simulator.py` V1 scripts) have been removed or superseded — do not reference them. Navigation is rendered via the `AppShell` component (desktop rail + mobile bottom nav + More sheet); imported in `frontend/app/layout.tsx`.

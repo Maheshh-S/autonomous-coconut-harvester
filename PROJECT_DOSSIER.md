@@ -709,7 +709,7 @@ The **WebSocket telemetry frame + HTTP command set** is the contract boundary. A
 | **GSAP ScrollTrigger** | Scroll-driven animations |
 | **Framer Motion** | Component enter/exit, drawers, press feedback |
 
-**Animation Rules (from [docs/design/04](docs/design/04-motion-language.md)):**
+**Animation Rules (from the archived [design-v1 motion language](docs/archive/design-v1/04-motion-language.md) — historical):**
 - UI durations <= 300ms; feedback 100-160ms (`scale(0.97)` on `:active`)
 - Custom easings: `--ease-out`, `--ease-in-out`, `--ease-drawer`
 - Never `ease-in` on UI; never animate `width/height/top/left`
@@ -721,7 +721,7 @@ The **WebSocket telemetry frame + HTTP command set** is the contract boundary. A
 
 | Asset | Source | Usage |
 |-------|--------|-------|
-| **A1-A7** (7 clips) | Google Flow (Veo) | Hero/ambient per page (see [docs/design/06](docs/design/06-shot-list.md)) |
+| **A1-A7** (7 clips) | Google Flow (Veo) | Hero/ambient per page (see the archived [design-v1 shot list](docs/archive/design-v1/06-shot-list.md)) |
 | **Survey Tiles** | Backend | Mosaic images — real drone photos |
 | **Inspection Images** | Backend | Tree Details, `/trees` — real close-ups |
 
@@ -755,6 +755,8 @@ RootLayout (layout.tsx)
 | `mosaicLayout.ts` | **Shared farm-pixel transform** — `computeMosaicLayout(tiles, gap)` |
 | `useRobotSimulation.ts` | WS hook + `RobotWebSocketClient` (single WS, observe-only) |
 | `useReveal.ts` | IntersectionObserver-based scroll reveal |
+| `usePagination.ts` | **Client-side list pagination** — `usePagination(items, pageSize = 8)`; auto-hides when ≤ 8 items |
+| `formatTime.ts` | **Shared IST formatters** — `fmtIST` / `fmtISTTimeOnly` / `fmtISTDateOnly` render naive-UTC back-end timestamps as `Asia/Kolkata` wall-clock |
 
 ### 10.7 Desktop vs Mobile Behaviour
 
@@ -918,7 +920,7 @@ autonomous-coconut-harvester/
 +-- backend/                  # FastAPI service
 +-- frontend/                 # Next.js UI
 +-- models/                   # YOLO weights (gitignored)
-+-- docs/design/              # Design system (10 documents)
++-- docs/archive/design-v1/   # Archived v1 design docs (OUTDATED — superseded)
 +-- .engineering/             # Empty scaffolding
 +-- assets/                   # Clips (gitignored) + prompts
 +-- uploads/                  # Survey + inspection images (gitignored)
@@ -959,6 +961,8 @@ frontend/
 |   +-- api/detection.ts      # Single API client
 |   +-- mosaicLayout.ts       # computeMosaicLayout (SHARED)
 |   +-- useRobotSimulation.ts # WS hook
+|   +-- usePagination.ts      # Client-side list pagination helper
+|   +-- formatTime.ts         # IST (Asia/Kolkata) time formatters
 +-- public/                   # Static assets
 +-- package.json              # Next.js 16, React 19, Tailwind 4, GSAP, Lenis, Motion, Phosphor
 ```
@@ -979,7 +983,13 @@ backend/
 +-- requirements.txt
 ```
 
-### 13.4 Design Documentation (`docs/design/`)
+### 13.4 Design Documentation (`docs/archive/design-v1/` — ARCHIVED)
+
+> **ARCHIVED / OUTDATED (July 2025).** The original design docs describe the
+> tropical-dark direction and were never kept in sync with the implementation.
+> Superseded — retained for history only; see `docs/archive/design-v1/README.md`.
+> The current design source of truth is the implemented code (`frontend/app/globals.css`
+> tokens + live pages/components).
 
 | File | Purpose |
 |------|---------|
@@ -1191,7 +1201,7 @@ A feature is complete only if:
 | A7 | `trees-health-detail` | `/trees` hero | Google Flow (S7) | 6s, seamless loop, intimate palm |
 
 **Filenames:** `assets/clips/<shot>.mp4` (16:9, >=1080p)
-**Prompts:** `assets/prompts/<NN>-<shot>.md` (standardized per [docs/design/10](docs/design/10-google-flow-guidelines.md))
+**Prompts:** `assets/prompts/<NN>-<shot>.md` (standardized per the archived [design-v1 Google Flow guidelines](docs/archive/design-v1/10-google-flow-guidelines.md))
 
 ### 16.2 Real Photography (Backend-Served)
 
@@ -1304,6 +1314,15 @@ A feature is complete only if:
 | **Deterministic Simulation** | Pure `step(dt)` enables replay without DB |
 | **Append-Only Telemetry** | Never mutated; read-side only |
 | **Server-Side Analytics** | All metrics from raw telemetry/events |
+| **Relationship Eager Loading (perf)** | `HarvestMissionItem.tree` is `lazy="selectin"` (was one lazy SELECT per item across list/detail/status + every command response) |
+| **SQL LIMIT Pushdown (perf)** | `build_robot_log` fetches only the newest `limit` events in the DB, not the whole `robot_events` time-series sliced in Python |
+| **SQL Pagination + Aggregates (perf)** | `/mission/{id}/permanent-trees` pages `LIMIT/OFFSET` and computes `total`/`newly_created`/`matched_existing`/`avg_conf` via `COUNT`/`AVG` instead of materialising the full `.all()` |
+| **Single-Pass Timing (perf)** | `build_timeline` travel distance and `build_tree_activity.battery_at` moved from O(N·T) per-tree/per-segment full-telemetry rescans to a single forward pass / bisect (O(N)/O(log N)) |
+| **Column Projection (perf)** | `/trees/summary` projects only the id/GPS columns the payload needs instead of whole ORM rows |
+| **Collapsed Aggregates (perf)** | Dashboard overview card counts fold 5 sequential queries into one labeled query |
+| **Hot-Path Indexes (perf)** | Idempotent `CREATE INDEX IF NOT EXISTS` on `trees(last_seen_mission_id)`, `trees(first_seen_mission_id)`, `trees(current_observation_id)`, `survey_missions(created_at)`, `robot_runs(finished_at)`, and composite `robot_telemetry(robot_id, mission_id, sim_time)` / `robot_events(robot_id, mission_id, sim_time)` |
+
+**Root cause of hot-read latency:** the floor is Neon serverless Postgres round-trips (~2 s warm, higher on cold scale-to-zero) — a network-layer cost no query rewrite removes. Above that floor the read paths compounded it: N+1 relationship loads, unbounded time-series/row loads sliced in Python, O(N·T) telemetry rescans, and missing indexes on hot filter/order/join columns. The fixes cut both round-trip count and per-query CPU while keeping response shapes, routes, and the frontend contract byte-identical.
 
 ### 18.3 Known Performance Characteristics
 
@@ -1565,8 +1584,8 @@ Per PROJECT_SPECIFICATION.md and ROBOT_ARCHITECTURE.md:
 | `backend/analytics/` | `mission_history.py` |
 | `frontend/app/` | 9 routes (Next.js App Router) |
 | `frontend/components/` | Reusable UI components |
-| `frontend/lib/` | `api/detection.ts`, `mosaicLayout.ts`, `useRobotSimulation.ts` |
-| `docs/design/01-10` | Design system (constitution to guidelines) |
+| `frontend/lib/` | `api/detection.ts`, `mosaicLayout.ts`, `useRobotSimulation.ts`, `usePagination.ts`, `formatTime.ts` |
+| `docs/archive/design-v1/` | Archived v1 design docs (OUTDATED — superseded) |
 | `models/` | YOLO weights (gitignored) |
 | `uploads/` | Survey + inspection images (gitignored) |
 

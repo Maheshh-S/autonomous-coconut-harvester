@@ -124,3 +124,11 @@ uploads/
 .playwright-mcp/
 .agents/
 .specify/
+.zcode/
+skills-lock.json
+
+# -----------------------------
+# Local UI audit tooling (throwaway sweep scripts + generated screenshots)
+# -----------------------------
+frontend/audit_shots.js
+frontend/shots/

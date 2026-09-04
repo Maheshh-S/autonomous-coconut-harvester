@@ -186,10 +186,12 @@ frontend/
   components/     AppShell (desktop rail + mobile bottom nav + More sheet),
                   FarmMosaic, OverlayLayer, FarmViewer, TreeDetailsDrawer,
                   DashboardFarmCard, CoconutUploader, SmoothScroll (Lenis),
-                  AmbientClip, robot/ (RobotLayer, RobotMarker, RobotPathLayer,
-                  RobotStatusCard, SimulationControls)
+                  AmbientClip, Pager, SkeletonRows, robot/ (RobotLayer,
+                  RobotMarker, RobotPathLayer, RobotStatusCard,
+                  SimulationControls)
   lib/            api/detection.ts (single API client), mosaicLayout.ts,
-                  useRobotSimulation.ts
+                  useRobotSimulation.ts, usePagination.ts (list pagination),
+                  formatTime.ts (IST / Asia–Kolkata time formatters)
 models/           YOLOv8 weights (gitignored): tree_model/, coconut_model/
 ```
 
