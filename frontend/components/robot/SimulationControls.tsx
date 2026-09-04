@@ -6,11 +6,18 @@ import { useEffect, useState } from "react"
 // existing backend Simulation / Robot REST APIs. There is NO business logic in
 // the component — it only forwards intents and reports errors. Start takes an
 // optional mission id + speed factor; speed is debounced to the API on change.
+//
+// V3.8.9 — command-bar redesign (presentation only): token-based button kinds
+// (the old "warn" kind referenced an undefined `--color-amber` token, which left
+// "Return to Dock" with no button chrome at all), a clear operator hierarchy
+// (primary run controls → utilities → separated destructive group), and the
+// previously-missing Stop command (backend `POST /robot/simulation/stop` +
+// hook `onStop` existed; the UI never exposed it). Reset semantics live in the
+// page (stop the active run, then factory-reset: docked + IDLE + 100% battery).
 
-const btn = (
-  label: string,
-  kind: "primary" | "default" | "danger" | "warn"
-): React.CSSProperties => {
+type Kind = "primary" | "default" | "ghost" | "warn" | "stop" | "danger"
+
+const btn = (kind: Kind): React.CSSProperties => {
   const base: React.CSSProperties = {
     padding: "11px 16px",
     borderRadius: 10,
@@ -21,12 +28,42 @@ const btn = (
     fontSize: 14,
     cursor: "pointer",
     minHeight: 44,
+    transition: "background 120ms var(--ease-out), transform 120ms var(--ease-out)",
   }
-  if (kind === "primary") return { ...base, background: "var(--color-accent)", color: "#06201e", borderColor: "transparent" }
-  if (kind === "danger") return { ...base, background: "var(--color-crit)", color: "#fff", borderColor: "transparent" }
-  if (kind === "warn") return { ...base, background: "var(--color-amber)", color: "#231a07", borderColor: "transparent" }
-  return base
+  switch (kind) {
+    case "primary":
+      return { ...base, background: "var(--color-accent)", color: "#fff", borderColor: "transparent" }
+    case "ghost":
+      return { ...base, background: "transparent", color: "var(--color-text-dim)" }
+    case "warn":
+      // Attention, not danger: gold tint surface + gold-dim text (AA on light).
+      return {
+        ...base,
+        background: "rgba(201, 138, 46, 0.12)",
+        color: "var(--color-gold-dim)",
+        borderColor: "rgba(201, 138, 46, 0.45)",
+      }
+    case "stop":
+      // Destructive-outline: halts the run without hiding that it is not a routine action.
+      return {
+        ...base,
+        background: "rgba(192, 73, 47, 0.08)",
+        color: "var(--color-crit)",
+        borderColor: "rgba(192, 73, 47, 0.45)",
+      }
+    case "danger":
+      return { ...base, background: "var(--color-crit)", color: "#fff", borderColor: "transparent" }
+    default:
+      return base
+  }
 }
+
+const Divider = () => (
+  <span
+    aria-hidden
+    style={{ width: 1, height: 26, background: "var(--color-line-strong)", margin: "0 2px" }}
+  />
+)
 
 export default function SimulationControls({
   simStatus,
@@ -36,6 +73,7 @@ export default function SimulationControls({
   onStart,
   onPause,
   onResume,
+  onStop,
   onReturnToDock,
   onRecharge,
   onReset,
@@ -50,6 +88,7 @@ export default function SimulationControls({
   onStart: (missionId: number | null, speedFactor: number) => void
   onPause: () => void
   onResume: () => void
+  onStop: () => void
   onReturnToDock: () => void
   onRecharge: () => void
   onReset: () => void
@@ -86,12 +125,14 @@ export default function SimulationControls({
         boxShadow: "0 1px 2px rgba(28, 38, 27, 0.04)",
       }}
     >
+      {/* Run lifecycle */}
       <button
         type="button"
         data-testid="btn-start"
         disabled={running || busy}
-        style={{ ...btn("Start", "primary"), opacity: running ? 0.5 : 1 }}
+        style={{ ...btn("primary"), opacity: running || busy ? 0.5 : 1, cursor: running || busy ? "default" : "pointer" }}
         onClick={() => onStart(missionId, localSpeed)}
+        title={running ? "Simulation is already running" : "Start the harvest simulation"}
       >
         Start
       </button>
@@ -99,8 +140,9 @@ export default function SimulationControls({
         type="button"
         data-testid="btn-pause"
         disabled={!running || busy}
-        style={{ ...btn("Pause", "default"), opacity: !running ? 0.5 : 1 }}
+        style={{ ...btn("default"), opacity: !running || busy ? 0.5 : 1, cursor: !running || busy ? "default" : "pointer" }}
         onClick={onPause}
+        title={running ? "Pause the simulation" : "Nothing is running"}
       >
         Pause
       </button>
@@ -108,16 +150,19 @@ export default function SimulationControls({
         type="button"
         data-testid="btn-resume"
         disabled={!paused || busy}
-        style={{ ...btn("Resume", "default"), opacity: !paused ? 0.5 : 1 }}
+        style={{ ...btn("default"), opacity: !paused || busy ? 0.5 : 1, cursor: !paused || busy ? "default" : "pointer" }}
         onClick={onResume}
+        title={paused ? "Resume the paused simulation" : "Nothing is paused"}
       >
         Resume
       </button>
+
+      {/* Utilities */}
       <button
         type="button"
         data-testid="btn-return-to-dock"
         disabled={!active || busy}
-        style={{ ...btn("Return to Dock", "warn"), opacity: !active ? 0.5 : 1 }}
+        style={{ ...btn("warn"), opacity: !active || busy ? 0.5 : 1, cursor: !active || busy ? "default" : "pointer" }}
         onClick={onReturnToDock}
         title="Recall the robot to its home dock (preserves mission progress)"
       >
@@ -127,17 +172,33 @@ export default function SimulationControls({
         type="button"
         data-testid="btn-recharge"
         disabled={busy}
-        style={btn("Recharge", "default")}
+        style={{ ...btn("default"), opacity: busy ? 0.5 : 1 }}
         onClick={onRecharge}
+        title="Restore the battery to 100%"
       >
         Recharge
+      </button>
+
+      <Divider />
+
+      {/* Destructive group — visually separated */}
+      <button
+        type="button"
+        data-testid="btn-stop"
+        disabled={!active || busy}
+        style={{ ...btn("stop"), opacity: !active || busy ? 0.5 : 1, cursor: !active || busy ? "default" : "pointer" }}
+        onClick={onStop}
+        title={active ? "Stop the run entirely (robot stays where it is)" : "Nothing is running"}
+      >
+        Stop
       </button>
       <button
         type="button"
         data-testid="btn-reset"
         disabled={busy}
-        style={{ ...btn("Reset", "danger") }}
+        style={{ ...btn("danger"), opacity: busy ? 0.5 : 1 }}
         onClick={onReset}
+        title="Factory reset: halts any run and returns the robot to the dock, fully charged"
       >
         Reset
       </button>

@@ -1,7 +1,7 @@
 # CURRENT.md
 
-- **Project Version:** 3.8.7 (Version 3 line; V3.8 Production Hardening in progress)
-- **Current Status:** Version 3 pipeline complete through V3.8.7 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign). All V1–V3 work is implemented and verified but **not yet committed** — awaiting explicit approval.
+- **Project Version:** 4.0.2 (Version 4 line; UI/UX quality track)
+- **Current Status:** Version 3 pipeline complete through V4.0.2 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade). All work is implemented and verified but **not yet committed** — awaiting explicit approval.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
     tree-matching into permanent `Tree` records, V1 `Task`/`Detection` model, V1 robot
@@ -1773,6 +1773,99 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         transform none, `.beats` `::before` gradient present, closer is a dark on-palette panel,
         0 horizontal overflow; reduced-motion emulation → chapters static & visible; mobile 390px →
         0 overflow, glass translucent. **Not committed** — awaiting approval.
+    - **Digital Twin Interaction Overhaul — "FarmViewer v2" (V3.8.8, completed; awaiting commit
+      approval):** a presentation-only rebuild of the twin's gesture engine + visual LOD, from the
+      V3.8.8 UI/UX audit. **No backend / API / route / `detection.ts` / `computeMosaicLayout` /
+      `useRobotSimulation` contract / `data-testid` / user-flow changes.** Architecture unchanged
+      (DOM transform stage + memoized mosaic + viewport culling — renderer freeze honoured); only
+      the interaction layer and overlay styling changed.
+      - **Gesture engine (FarmViewer.tsx):** one interruptible rAF pipeline now drives every
+        animated view change (wheel zoom, toolbar, Fit, follow-camera): `viewRef` (live, written
+        straight to the DOM each frame) chases `targetRef`; the CSS-transition mechanism was
+        removed (it fought direct writes). **Trackpad-aware wheel:** continuous deltas
+        (`|deltaY| < 40`) zoom proportionally (`exp(-deltaY·k)`) so two-finger gestures no longer
+        "run away"; discrete notches / synthetic events step exactly `1.12` (test parity). No
+        React re-render per wheel event — the zoom % readout is written via ref each frame and
+        the view is committed to React coalesced per-rAF-frame (culling/LOD see the view
+        immediately). **Momentum pan** with friction + **pan clamping** (content smaller than
+        the viewport pins centered; larger content keeps an 80px margin — the farm can no longer
+        be lost in black space); over-drags settle back. **Fit** is animated, padded (24px) and
+        deterministic (re-fit restores the exact same view). **Double-tap zoom** on touch
+        (desktop double-click stays Fit). Fixed a StrictMode race where a stale `rafRef` handle
+        left by the simulated-unmount cleanup permanently disabled the animation loop.
+      - **Visual LOD — clean farm view (OverlayLayer.tsx):** implemented the far tier of the
+        frozen §V2.8 LOD ladder — zoom < 20% now renders a clean field of small **tree dots** at
+        the detection centroids (previously hundreds of tiny overlapping boxes); the
+        selected/hovered tree still renders its full box + label ("selected label always
+        visible" contract kept; dots carry `data-tree-id` so tap-to-select and culling counts
+        behave identically). Boxes (20–40%) and labels (>40%) tiers restyled crisper
+        (1px counter-scaled borders, subtler fill, 120ms hover transition).
+      - **Drawer fixes (TreeDetailsDrawer.tsx):** desktop width `min(384px, 100%)` of the viewer
+        root (was `min(384px, 92vw)` — inside the ~345px panel at 1024px the drawer clipped its
+        own header, "TREE-0071" → "-E-0071", and collided with the zoom toolbar); mobile bottom
+        sheet gained `76px + safe-area` bottom padding so the app nav no longer covers the last
+        section.
+      - **Robot simulation polish:** new **Follow Robot** toggle (on `/map` control bar and
+        `/robot`) — the viewport gently keeps the live robot centered; any manual pan/zoom
+        suspends it via `onFollowInterrupt` (off by default; dashboard card unaffected).
+        Remaining path dashes flow (`twinDash`), destination ring pulses (`twinPulse`), and a
+        freshly harvested tree emits a one-shot ripple (`twinRipple`) — all transform/opacity
+        only, frozen by the global `prefers-reduced-motion` kill-switch (keyframes in
+        `globals.css`; base opacity 0 keeps rings invisible when motion is off). The map page's
+        pill `Toggle` was extracted to `components/ToggleSwitch.tsx` (shared with `/robot`).
+      - **Harness sync (verification infrastructure only):** `verify_v251.js` expected a
+        hardcoded 302 trees (stale DB seed) — now derives the expected count from the API;
+        `verify_v361.js` clicked the toggle's visually-hidden checkbox — now clicks the visible
+        pill (the pill toggle predates this pass; the interaction had rotted).
+      - **Verification:** `tsc --noEmit` — 0 errors; `next build` — success (10 routes);
+        `verify_v251.js` **11/11 PASS**, `verify_v26.js` **15/15 PASS** (culling 18/127 at 40%,
+        LOD labels/centroids, pan **60fps**, Fit restores 7% exactly, drawer width stable under
+        zoom), `verify_v361.js` **complete PASS** (marker drive, recharge, return-to-dock) —
+        all with **0 console errors**. Before/after screenshots in `frontend/shots/audit/`
+        (`after-map-*.png`); audit trail in `docs/UI_UX_AUDIT.md`. Manual feel-test: trackpad
+        zoom no longer overshoots, momentum + bounds feel native, follow-camera works. **Not
+        committed** — awaiting approval.
+    - **Dashboard Mini-Map + Robot Simulation Upgrade (V3.8.9, completed; awaiting commit
+      approval):** presentation-only upgrade of the Mission Control mini-map and the Robot Ops
+      command centre, from the V3.8.8 audit + user direction. **No backend / API / route /
+      `detection.ts` / `computeMosaicLayout` / `useRobotSimulation` contract / existing
+      `data-testid` / user-flow changes.**
+      - **Dashboard mini-map shows the live robot:** `DashboardFarmCard` now accepts optional
+        robot overlay props (`robot` / `plan` / destination / harvesting / completed ids) and the
+        dashboard page feeds its existing `useRobotSimulation` state through — the mini-map shows
+        where the robot is on the real mosaic, with full zoom/pan/momentum/Fit from the V3.8.8
+        engine and **no drawer** (card intentionally viewer-only, expand affordance to `/map`).
+        Note: the earlier "stuck / fully-zoomed" card was the pre-V3.8.8 rAF state; after that fix
+        the card fits correctly (live-probed: 6% fit, correct transform, robot marker rendered).
+      - **Command bar redesign (`SimulationControls.tsx`):** fixed the undefined `--color-amber`
+        token (the old "warn" kind left **Return to Dock with no button chrome at all**) —
+        token-based kinds now: primary run controls (Start / Pause / Resume) → utilities
+        (Return to Dock gold-tint, Recharge) → **visually separated destructive group with a
+        divider (Stop + Reset)**. Disabled states carry explanatory titles. **Added the missing
+        Stop button** (`data-testid="btn-stop"` → `POST /robot/simulation/stop` — the backend and
+        hook `onStop` existed; the UI never exposed it).
+      - **Reset semantics (user-specified):** Reset now composes *stop the active run* (so the
+        scheduler cannot overwrite it) → *factory reset* (`POST /robot/reset` — backend moves the
+        robot to the dock, IDLE, 100% battery); the marker glides home on the next snapshot.
+        Verified end-to-end: RESET → robot `IDLE`, battery **100%**, docked on the pad.
+      - **Dock station visual (`RobotLayer.tsx`):** a proper robotics-style dock pad (gold
+        lightning-bolt glyph on a dark rounded pad + "DOCK" label, counter-scaled) rendered at
+        the nav plan's dock waypoint — data already in the plan, no new API calls; pulses while
+        the robot is RETURNING.
+      - **Marker & status polish:** robot marker heading is now a clean directional wedge
+        (replacing the stick + tip), softer shadow + inner ring; `RobotStatusCard` RETURNING
+        colour fixed to `--color-gold` (was the undefined `--color-amber`).
+      - **Backend semantics documented during verification:** pausing freezes the sim clock
+        (`GET /robot/simulation` → `paused`) while the robot state remains `MOVING` — the status
+        card shows both (state badge + sim pill). Backend untouched.
+      - **Verification:** `tsc --noEmit` — 0 errors; `next build` — success (10 routes);
+        `verify_v361.js` **complete PASS**, `verify_v26.js` **15/15**, `verify_v251.js` **11/11**
+        — all **0 console errors**. Live end-to-end command drive: START → `MOVING`, PAUSE → sim
+        `paused`, RESUME → `running`, Return to Dock → `RETURNING`, Stop → run released, Reset →
+        `IDLE` + 100% + docked. Dashboard mini-map real-wheel zoom verified via stage-transform
+        MutationObserver (smooth rAF animation; readout rounding hides sub-1% steps at fit zoom —
+        cosmetic). Screenshots: `frontend/shots/audit/after-dashboard-minimap*.png`,
+        `after-robot-*.png`. **Not committed** — awaiting approval.
     - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`

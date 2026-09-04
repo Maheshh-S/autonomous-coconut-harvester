@@ -12,6 +12,7 @@ import {
 import type { TreeOverlay } from "@/lib/api/detection"
 import { MosaicTile } from "@/components/FarmMosaic"
 import FarmViewer from "@/components/FarmViewer"
+import ToggleSwitch from "@/components/ToggleSwitch"
 import { useRobotSimulation } from "@/lib/useRobotSimulation"
 import SimulationControls from "@/components/robot/SimulationControls"
 import RobotStatusCard from "@/components/robot/RobotStatusCard"
@@ -57,6 +58,9 @@ export default function RobotPage() {
   // Legacy task state
   const [task, setTask] = useState<Task | null>(null)
   const [taskMessage, setTaskMessage] = useState("")
+  // V2 (twin overhaul) — follow-camera toggle: keep the live robot centered.
+  // Any manual pan/zoom suspends it (FarmViewer calls back).
+  const [followRobot, setFollowRobot] = useState(false)
 
   useEffect(() => {
     getMissions()
@@ -239,13 +243,33 @@ export default function RobotPage() {
           onStart={sim.onStart}
           onPause={sim.onPause}
           onResume={sim.onResume}
+          onStop={sim.onStop}
           onReturnToDock={sim.onReturnToDock}
           onRecharge={sim.onRecharge}
-          onReset={sim.onReset}
+          onReset={() => {
+            // Reset semantics: halt any active run first (the scheduler would
+            // otherwise overwrite the reset on its next tick), then factory-
+            // reset — the backend moves the robot to the dock, IDLE, 100%
+            // battery; the marker glides home on the next snapshot.
+            if (sim.sim?.status === "running" || sim.sim?.status === "paused") {
+              sim.onStop()
+            }
+            sim.onReset()
+          }}
           onSpeedChange={sim.onSpeedChange}
           busy={sim.busy}
           error={sim.error}
         />
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            padding: "0 4px 10px",
+          }}
+        >
+          <ToggleSwitch label="Follow Robot" on={followRobot} set={setFollowRobot} />
+        </div>
 
         {loading && (
           <div className="panel" style={{ overflow: "hidden", marginTop: 16 }}>
@@ -267,6 +291,10 @@ export default function RobotPage() {
                 destinationTreeId={sim.destinationTreeId}
                 harvestingTreeId={sim.harvestingTreeId}
                 completedTreeIds={sim.completedTreeIds}
+                followPoint={
+                  followRobot && sim.displayRobot ? sim.displayRobot.position : null
+                }
+                onFollowInterrupt={() => setFollowRobot(false)}
               />
             </div>
             <RobotStatusCard

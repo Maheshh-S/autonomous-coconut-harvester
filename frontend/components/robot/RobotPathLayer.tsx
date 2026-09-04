@@ -81,7 +81,7 @@ export default function RobotPathLayer({
           strokeWidth={1.5}
           opacity={0.35}
         />
-        {/* Remaining path (dashed blue) */}
+        {/* Remaining path (dashed blue, slowly flowing toward the robot's goal) */}
         {remainingPoly && (
           <polyline
             points={remainingPoly}
@@ -90,6 +90,7 @@ export default function RobotPathLayer({
             strokeWidth={2}
             strokeDasharray="6 6"
             opacity={0.8}
+            style={{ animation: "twinDash 1.2s linear infinite" }}
           />
         )}
         {/* Traveled path (solid green) */}

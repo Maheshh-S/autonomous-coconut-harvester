@@ -15,6 +15,7 @@ import { useRobotSimulation } from "@/lib/useRobotSimulation"
 import RobotStatusCard from "@/components/robot/RobotStatusCard"
 import AmbientClip from "@/components/AmbientClip"
 import SkeletonRows from "@/components/SkeletonRows"
+import ToggleSwitch from "@/components/ToggleSwitch"
 
 type MissionSummary = {
   id: number
@@ -30,69 +31,8 @@ type MissionSummary = {
 // a status readout. The mosaic is a SURVEY mission; the robot follows a HARVEST
 // mission (different entities — the robot executes a planned harvest while the
 // twin shows the surveyed farm).
-// V3.6.1 — small visualization toggle (module scope so it is NOT re-created on
-// every render; an inline component would remount its subtree each frame, which
-// the rAF-driven display loop makes constant).
-function Toggle({
-  label,
-  on,
-  set,
-}: {
-  label: string
-  on: boolean
-  set: (v: boolean) => void
-}) {
-  return (
-    <label
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        fontSize: 13,
-        color: "var(--color-text-dim)",
-        cursor: "pointer",
-        userSelect: "none",
-      }}
-    >
-      <span
-        onClick={(e) => {
-          e.preventDefault()
-          set(!on)
-        }}
-        style={{
-          position: "relative",
-          width: 36,
-          height: 20,
-          borderRadius: 99,
-          background: on ? "var(--color-accent-dim)" : "var(--color-surface-3)",
-          border: "1px solid var(--color-line-strong)",
-          transition: "background 0.2s var(--ease-out)",
-          flex: "none",
-        }}
-      >
-        <span
-          style={{
-            position: "absolute",
-            top: 1,
-            left: on ? 15 : 1,
-            width: 16,
-            height: 16,
-            borderRadius: "50%",
-            background: on ? "var(--color-accent-bright)" : "var(--color-text-faint)",
-            transition: "left 0.2s var(--ease-out), background 0.2s",
-          }}
-        />
-      </span>
-      <input
-        type="checkbox"
-        checked={on}
-        onChange={(e) => set(e.target.checked)}
-        style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
-      />
-      {label}
-    </label>
-  )
-}
+// V3.6.1 — small visualization toggles (the pill switch itself now lives in
+// components/ToggleSwitch, shared with /robot).
 
 // V3.7.1 — the page reads `?tree=` via useSearchParams(), which forces a client
 // render bailout; wrap in Suspense so the production build can still prerender it.
@@ -124,6 +64,9 @@ function FarmPageInner() {
   const [showRobot, setShowRobot] = useState(true)
   const [showPath, setShowPath] = useState(true)
   const [showTarget, setShowTarget] = useState(true)
+  // V2 (twin overhaul) — follow-camera: keep the live robot centered while the
+  // simulation runs. Any manual pan/zoom suspends it (FarmViewer calls back).
+  const [followRobot, setFollowRobot] = useState(false)
 
   // V3.6 — robot simulation state (single WS connection, owned here). Driven by
   // the current harvest mission the dashboard/scheduler exposes; the hook reads
@@ -279,9 +222,14 @@ function FarmPageInner() {
         <span style={{ width: 1, height: 30, background: "var(--color-line)" }} />
 
         {/* V3.6.1 — visualization-only toggles (no robot controls on this page) */}
-        <Toggle label="Show Robot" on={showRobot} set={setShowRobot} />
-        <Toggle label="Show Planned Path" on={showPath} set={setShowPath} />
-        <Toggle label="Show Current Target" on={showTarget} set={setShowTarget} />
+        <ToggleSwitch label="Show Robot" on={showRobot} set={setShowRobot} />
+        <ToggleSwitch label="Show Planned Path" on={showPath} set={setShowPath} />
+        <ToggleSwitch label="Show Current Target" on={showTarget} set={setShowTarget} />
+        <ToggleSwitch
+          label="Follow Robot"
+          on={followRobot}
+          set={setFollowRobot}
+        />
       </div>
 
       {loading && (
@@ -340,6 +288,12 @@ function FarmPageInner() {
                 showRobotPath={showPath}
                 showRobotTarget={showTarget}
                 initialTreeId={initialTreeId}
+                followPoint={
+                  followRobot && showRobot && sim.displayRobot
+                    ? sim.displayRobot.position
+                    : null
+                }
+                onFollowInterrupt={() => setFollowRobot(false)}
               />
             </div>
             <RobotStatusCard

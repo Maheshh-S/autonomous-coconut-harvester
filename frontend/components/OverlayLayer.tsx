@@ -71,13 +71,19 @@ export default function OverlayLayer({
   const radius = 2 / s
 
   // V2.6 — Level-of-Detail by zoom percentage (§V2.8 / prompt RULE 3).
-  //   < 20% : boxes only; labels + centroid hidden (selected/hovered excepted).
+  //   < 20% : FAR TIER — clean tree dots (one small marker per tree, rendered at
+  //           the persisted detection centroid). No boxes/labels/centroids —
+  //           except the selected/hovered tree, which still renders its full box
+  //           + label so the selection stays visible (and its label present for
+  //           the "selected label always visible" contract) even far out.
   //   20–40%: boxes + selected/hovered label (+ centroid).
   //   > 40% : boxes + all labels (+ centroid).
-  // The selected tree's label is ALWAYS visible (prompt requirement).
+  // Dots carry `data-tree-id`, so tap-to-select, culling counts and the
+  // Playwright contracts behave exactly as with boxes.
   const percent = scale * 100
   const lodLabelsAll = percent >= 40
   const lodLabelsSelectedOnly = percent >= 20
+  const dotTier = percent < 20
 
   // V2.6 — visible farm-pixel rectangle from the current scale / translation /
   // viewport size. A small screen-space margin (~64px) avoids edge popping.
@@ -148,13 +154,39 @@ export default function OverlayLayer({
         const hovered = t.tree_id === hoveredId
         const active = selected || hovered
 
-        const borderColor = selected ? "#facc15" : hovered ? "#d6ffd6" : "rgba(120,220,140,0.85)"
+        const borderColor = selected ? "#facc15" : hovered ? "#d6ffd6" : "rgba(140,230,160,0.9)"
         const fill = selected
           ? "rgba(250,204,21,0.18)"
           : hovered
           ? "rgba(180,255,180,0.12)"
-          : "rgba(120,220,140,0.05)"
+          : "rgba(120,220,140,0.04)"
         const cursor = "pointer"
+
+        // FAR TIER — dot field. The selected/hovered tree keeps its full box (+
+        // label) so the selection remains findable; everything else is a clean
+        // small dot at the detection centroid.
+        if (dotTier && !active) {
+          return (
+            <div
+              key={t.tree_id}
+              data-tree-id={t.tree_id}
+              onMouseEnter={() => setHoveredId(t.tree_id)}
+              onMouseLeave={() => setHoveredId((id) => (id === t.tree_id ? null : id))}
+              style={{
+                position: "absolute",
+                left: place.x + t.local_pixel_x,
+                top: place.y + t.local_pixel_y,
+                width: 6 / s,
+                height: 6 / s,
+                borderRadius: "50%",
+                background: "rgba(150,235,170,0.9)",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "auto",
+                cursor,
+              }}
+            />
+          )
+        }
 
         // V2.6 LOD — centroid marker is a label-like detail: hidden far out,
         // shown once zoomed in (or when the tree is selected / hovered).
@@ -182,6 +214,7 @@ export default function OverlayLayer({
               border: `${borderW}px solid ${borderColor}`,
               background: fill,
               borderRadius: radius,
+              transition: "border-color 120ms ease-out, background 120ms ease-out",
               pointerEvents: "auto",
               cursor,
             }}

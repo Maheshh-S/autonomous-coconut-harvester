@@ -67,10 +67,13 @@ async function getMissionId() {
   console.log("PASS: /map is visualization-only with 3 viz toggles")
 
   // Toggling "Show Robot" off hides the marker.
-  await page.locator('label:has-text("Show Robot") input').uncheck()
+  // (The pill toggle renders its checkbox visually hidden — click the visible
+  // pill span, which carries the onClick handler.)
+  const showRobotPill = page.locator('label:has-text("Show Robot") span').first()
+  await showRobotPill.click()
   await page.waitForTimeout(300)
   const markerHidden = (await page.locator('[data-testid="robot-marker"]').count()) === 0
-  await page.locator('label:has-text("Show Robot") input').check()
+  await showRobotPill.click()
   await page.waitForTimeout(300)
   if (!markerHidden) {
     console.error("FAIL: Show Robot toggle did not hide the marker")

@@ -1,6 +1,22 @@
 const { chromium } = require("playwright")
 
 const BASE = process.env.BASE_URL || "http://localhost:3000"
+const API_URL = process.env.API_URL || "http://127.0.0.1:8000"
+
+// Expected overlay count is environment-dependent (it equals the active
+// mission's permanent-tree overlay count), so derive it from the API instead of
+// hardcoding a stale seed size.
+async function expectedTreeCount() {
+  try {
+    const ms = await (await fetch(`${API_URL}/missions?limit=1`)).json()
+    const id = ms.missions?.[0]?.id
+    if (!id) return null
+    const d = await (await fetch(`${API_URL}/mission/${id}/trees`)).json()
+    return d.count ?? d.trees?.length ?? null
+  } catch {
+    return null
+  }
+}
 
 // Dispatch a PointerEvent on an element at viewport coords (x, y).
 async function dispatchPointer(page, type, x, y, target) {
@@ -47,11 +63,19 @@ function check(name, cond) {
   await page.waitForSelector('[data-tree-id]', { timeout: 20000 })
   await page.waitForTimeout(800)
 
-  // Baseline: zoom readout + 302 boxes
+  // Baseline: zoom readout + all tree overlays rendered at fit
   const readout = await page.$('[data-testid="zoom-readout"]')
   check("zoom readout present", !!readout)
   const boxCount = await page.$$eval('[data-tree-id]', (n) => n.length)
-  check("302 overlay boxes (" + boxCount + ")", boxCount === 302)
+  const expectedTrees = await expectedTreeCount()
+  check(
+    "overlay boxes match mission trees (" +
+      boxCount +
+      " / expected " +
+      (expectedTrees ?? "unknown") +
+      ")",
+    expectedTrees != null && boxCount === expectedTrees
+  )
 
   // Drawer starts closed (translateX(100%))
   const drawerClosed = await page.$eval('[data-testid="tree-details-drawer"]', (d) => {

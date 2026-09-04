@@ -8,7 +8,7 @@ export const ROBOT_STATE_COLORS: Record<V3RobotState, string> = {
   CLIMBING: "var(--color-husk)",
   SCANNING: "var(--color-accent)",
   HARVESTING: "var(--color-leaf)",
-  RETURNING: "var(--color-amber)",
+  RETURNING: "var(--color-gold)",
   ERROR: "var(--color-crit)",
   DOCKED: "var(--color-text-faint)",
 }

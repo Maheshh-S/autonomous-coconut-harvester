@@ -103,7 +103,8 @@ export default function RobotMarker({
               justifyContent: "center",
             }}
           >
-            {/* Robot disc with heading pointer */}
+            {/* Robot disc — heading shown as a directional wedge that rotates
+                around the disc centre (cleaner than the old stick + tip). */}
             <div
               style={{
                 position: "relative",
@@ -112,34 +113,37 @@ export default function RobotMarker({
                 borderRadius: "50%",
                 background: color,
                 border: "2px solid #0b0f0b",
-                boxShadow: `0 0 8px ${color}aa, 0 0 0 1px rgba(255,255,255,0.3)`,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.35)",
               }}
             >
               <div
                 style={{
                   position: "absolute",
-                  left: "50%",
-                  top: "50%",
-                  width: 3,
-                  height: size / 2,
-                  background: "#0b0f0b",
-                  borderRadius: 2,
-                  transform: `translate(-50%, -100%) rotate(${headingDeg}deg)`,
-                  transformOrigin: "bottom center",
+                  inset: 0,
+                  borderRadius: "50%",
+                  transform: `rotate(${headingDeg}deg)`,
                 }}
-              />
-              {/* Heading tip */}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: -4,
+                    transform: "translateX(-50%)",
+                    width: 0,
+                    height: 0,
+                    borderLeft: "5px solid transparent",
+                    borderRight: "5px solid transparent",
+                    borderBottom: `8px solid ${color}`,
+                  }}
+                />
+              </div>
               <div
                 style={{
                   position: "absolute",
-                  left: "50%",
-                  top: 1,
-                  width: 5,
-                  height: 5,
+                  inset: 3,
                   borderRadius: "50%",
-                  background: "#0b0f0b",
-                  transform: `translate(-50%, -50%) rotate(${headingDeg}deg) translateY(-${size / 2 - 2}px)`,
-                  transformOrigin: "center center",
+                  border: "1.5px solid rgba(255,255,255,0.35)",
                 }}
               />
             </div>

@@ -354,7 +354,13 @@ export default function DashboardPage() {
       {/* Twin + Robot status */}
       <section className="block">
         <div className="panel-grid">
-          <DashboardFarmCard />
+          <DashboardFarmCard
+            robot={sim.displayRobot}
+            plan={sim.plan}
+            destinationTreeId={sim.destinationTreeId}
+            harvestingTreeId={sim.harvestingTreeId}
+            completedTreeIds={sim.completedTreeIds}
+          />
           <RobotStatusCard
             robot={sim.displayRobot}
             sim={sim.sim}

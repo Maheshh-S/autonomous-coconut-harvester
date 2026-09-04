@@ -7,7 +7,11 @@ import {
   getMissionTiles,
   getMissionTreeOverlays,
 } from "@/lib/api/detection"
-import type { TreeOverlay } from "@/lib/api/detection"
+import type {
+  TreeOverlay,
+  RobotSnapshot,
+  RobotPlanWaypoint,
+} from "@/lib/api/detection"
 import FarmViewer from "@/components/FarmViewer"
 import { MosaicTile } from "@/components/FarmMosaic"
 
@@ -23,7 +27,21 @@ const card: React.CSSProperties = {
 // (most recent Version 2 mission with persisted tile-grid metadata) and embeds
 // the viewer with an "expand" control that navigates to the full /map page
 // (Google-Maps-like: small preview → expand → dedicated Digital Twin view).
-export default function DashboardFarmCard() {
+export default function DashboardFarmCard({
+  // V3.8.9 — optional live robot overlay (from the page's useRobotSimulation).
+  // The mini-map shows where the robot is on the real mosaic; no controls here.
+  robot,
+  plan,
+  destinationTreeId,
+  harvestingTreeId,
+  completedTreeIds,
+}: {
+  robot?: RobotSnapshot | null
+  plan?: RobotPlanWaypoint[]
+  destinationTreeId?: number | null
+  harvestingTreeId?: number | null
+  completedTreeIds?: number[]
+}) {
   const [missions, setMissions] = useState<{ id: number; name?: string }[]>([])
   const [missionId, setMissionId] = useState<number | null>(null)
   const [tiles, setTiles] = useState<MosaicTile[]>([])
@@ -132,6 +150,11 @@ export default function DashboardFarmCard() {
           minHeight={280}
           expandHref="/map"
           trees={trees}
+          robot={robot ?? null}
+          plan={plan}
+          destinationTreeId={destinationTreeId}
+          harvestingTreeId={harvestingTreeId}
+          completedTreeIds={completedTreeIds}
         />
       )}
     </div>

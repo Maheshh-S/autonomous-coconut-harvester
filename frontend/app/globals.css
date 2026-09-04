@@ -576,3 +576,21 @@ html.lenis body {
 @media (max-width: 640px) {
   .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============================================================
+   Digital Twin — simulation layer motion (FarmViewer v2)
+   All transform/opacity only; the global prefers-reduced-motion
+   kill-switch above freezes these (base opacity 0 keeps the
+   pulse/ripple rings invisible when animation is off).
+   ============================================================ */
+@keyframes twinDash {
+  to { stroke-dashoffset: -12; }
+}
+@keyframes twinPulse {
+  0% { transform: scale(1); opacity: 0.65; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes twinRipple {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(3); opacity: 0; }
+}

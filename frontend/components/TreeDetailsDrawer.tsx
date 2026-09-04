@@ -244,7 +244,10 @@ export default function TreeDetailsDrawer({
               top: 52,
               right: 0,
               bottom: 0,
-              width: "min(384px, 92vw)",
+              // Capped by the VIEWER ROOT's width (100%), not the viewport —
+              // inside a narrow panel (dashboard card / split layouts) a fixed
+              // 384px would clip the drawer's own header.
+              width: "min(384px, 100%)",
               borderLeft: "1px solid #243024",
             }),
   }
@@ -285,7 +288,15 @@ export default function TreeDetailsDrawer({
         </button>
       </div>
 
-      <div style={{ overflowY: "auto", padding: 14, flex: 1 }}>
+      <div
+        style={{
+          overflowY: "auto",
+          padding: 14,
+          // Mobile: clear the app's bottom nav (sheet sits behind it).
+          paddingBottom: isMobile ? "calc(76px + env(safe-area-inset-bottom))" : 14,
+          flex: 1,
+        }}
+      >
         {!displayTree ? null : loading && !detail ? (
           <p style={{ color: "#9fb39f" }}>Loading tree details…</p>
         ) : (
