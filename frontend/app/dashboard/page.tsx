@@ -16,20 +16,12 @@ import { useRobotSimulation } from "@/lib/useRobotSimulation";
 import RobotStatusCard from "@/components/robot/RobotStatusCard";
 import AmbientClip from "@/components/AmbientClip";
 import { useReveal } from "@/lib/useReveal";
+import Pager from "@/components/Pager";
+import SkeletonRows from "@/components/SkeletonRows";
+import { usePagination } from "@/lib/usePagination";
+import { fmtIST } from "@/lib/formatTime";
 
 const POLL_MS = 5000;
-
-function fmtIST(ts: string | null | undefined): string {
-  if (!ts) return "—";
-  const iso = ts.endsWith("Z") ? ts : `${ts}Z`;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return ts;
-  return d.toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 const ROBOT_COLORS: Record<string, string> = {
   IDLE: "#6b7a6b",
@@ -115,6 +107,7 @@ export default function DashboardPage() {
   const currentTreeCode = sim.harvestingTreeId != null ? `Tree ${sim.harvestingTreeId}` : null;
   const nextTreeCode = sim.nextTreeId != null ? `Tree ${sim.nextTreeId}` : null;
   const reveal = useReveal();
+  const activity = usePagination(data?.recent_activity ?? []);
 
   const refresh = useCallback(async () => {
     try {
@@ -169,6 +162,35 @@ export default function DashboardPage() {
             <div className="skeleton-tile" key={i} />
           ))}
         </div>
+        <div className="block">
+          <div className="panel-grid pgrid">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="panel-skel" />
+            ))}
+          </div>
+        </div>
+        <div className="block">
+          <div className="panel-skel psk-feed" />
+        </div>
+        <style jsx>{`
+          .pgrid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .panel-skel {
+            height: 168px;
+            border: 1px solid var(--color-line);
+            border-radius: var(--radius-md);
+            background: linear-gradient(180deg, var(--color-surface), var(--color-bg-elevated));
+            opacity: 0.5;
+            animation: pulse 1.4s ease-in-out infinite;
+          }
+          .panel-skel {
+            animation-delay: 0.15s;
+          }
+          .psk-feed {
+            height: 220px;
+          }
+        `}</style>
       </main>
     );
   }
@@ -351,17 +373,20 @@ export default function DashboardPage() {
           {data.recent_activity.length === 0 ? (
             <p className="muted">No activity yet.</p>
           ) : (
-            <ul className="feed">
-              {data.recent_activity.map((e: ActivityEvent, i) => (
-                <li key={`${e.type}-${e.ref}-${i}`} className="feed-item">
-                  <span className="dot" style={{ background: ACTIVITY_COLORS[e.type] ?? "#9ca3af" }} />
-                  <div className="feed-body">
-                    <div className="feed-label">{e.label}</div>
-                    <div className="feed-ts font-mono">{fmtIST(e.ts)}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="feed">
+                {activity.slice.map((e: ActivityEvent, i) => (
+                  <li key={`${e.type}-${e.ref}-${i}`} className="feed-item">
+                    <span className="dot" style={{ background: ACTIVITY_COLORS[e.type] ?? "#9ca3af" }} />
+                    <div className="feed-body">
+                      <div className="feed-label">{e.label}</div>
+                      <div className="feed-ts font-mono">{fmtIST(e.ts)}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <Pager page={activity.page} totalPages={activity.totalPages} onPrev={activity.prev} onNext={activity.next} />
+            </>
           )}
         </div>
       </section>

@@ -28,6 +28,9 @@ import {
   type RobotLogEntry,
   type LogSeverity,
 } from "@/lib/api/detection"
+import Pager from "@/components/Pager"
+import { usePagination } from "@/lib/usePagination"
+import { fmtIST, fmtISTTimeOnly } from "@/lib/formatTime"
 
 const statusColor: Record<RunStatus, string> = {
   COMPLETED: "#4fe39a",
@@ -89,8 +92,7 @@ function fmtDuration(s: number | null) {
 }
 
 function fmtTime(iso: string | null) {
-  if (!iso) return "—"
-  return new Date(iso).toLocaleString()
+  return fmtIST(iso)
 }
 
 const STATUS_LABEL: Record<RunStatus, string> = {
@@ -131,6 +133,9 @@ export default function RunDetailPage({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const timelinePager = usePagination(timeline)
+  const treePager = usePagination(trees)
+
   useEffect(() => {
     let active = true
     setLoading(true)
@@ -154,7 +159,20 @@ export default function RunDetailPage({
     }
   }, [runId])
 
-  if (loading) return <div style={{ padding: 24, color: "var(--color-text-dim)" }}>Loading run {runId}…</div>
+  if (loading) {
+    return (
+      <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ marginBottom: 16, height: 16, width: 180, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite", borderRadius: 6 }} />
+        <div style={{ height: 28, width: 220, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite 0.08s", borderRadius: 8 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, margin: "24px 0" }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} style={{ height: 72, background: "var(--color-surface)", border: "1px solid var(--color-line)", borderRadius: 12, opacity: 0.6, animation: "pulse 1.4s ease-in-out infinite", animationDelay: `${(i % 8) * 0.08}s` }} />
+          ))}
+        </div>
+        <div style={{ height: 220, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite 0.2s", borderRadius: 12 }} />
+      </div>
+    )
+  }
   if (error) return <div style={{ padding: 24, color: "var(--color-crit)" }}>{error}</div>
   if (!run) return <div style={{ padding: 24, color: "var(--color-text-dim)" }}>Run not found.</div>
 
@@ -235,7 +253,12 @@ export default function RunDetailPage({
         </div>
       )}
 
-      {tab === "timeline" && <Timeline timeline={timeline} />}
+      {tab === "timeline" && (
+        <div>
+          <Timeline timeline={timelinePager.slice} />
+          <Pager page={timelinePager.page} totalPages={timelinePager.totalPages} onPrev={timelinePager.prev} onNext={timelinePager.next} />
+        </div>
+      )}
 
       {tab === "tree-activity" && (
         <div className="panel" style={{ overflow: "hidden" }}>
@@ -259,7 +282,7 @@ export default function RunDetailPage({
                     </Td2>
                   </tr>
                 )}
-                {trees.map((t) => (
+                {treePager.slice.map((t) => (
                   <tr key={t.tree_id} style={{ borderTop: "1px solid var(--color-line)" }}>
                     <Td2>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -307,6 +330,7 @@ export default function RunDetailPage({
               </tbody>
             </table>
           </div>
+          <Pager page={treePager.page} totalPages={treePager.totalPages} onPrev={treePager.prev} onNext={treePager.next} />
         </div>
       )}
 
@@ -442,8 +466,9 @@ function ScoreBlock({ run }: { run: RobotRun }) {
 // Machine-log timeline. A single vertical rail threads every event so the run
 // reads as a sequence (a real timeline, not a flat divider list). Each node is
 // a Phosphor glyph on the rail; the sim-clock is a monospace, tabular chip so
-// the times align like a robot log. Motion is a one-shot staggered reveal that
-// mirrors the order events actually happened; it is disabled under
+// the times align like a robot log and the IST wall-clock (from the event's
+// `timestamp`) anchors it to real time. Motion is a one-shot staggered reveal
+// that mirrors the order events actually happened; it is disabled under
 // prefers-reduced-motion (handled in the scoped block below).
 function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
   if (timeline.length === 0) {
@@ -465,13 +490,19 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
 
   return (
     <div className="tl">
+      <div className="tl-legend">
+        <span className="tl-legend-item">
+          <code>t+Ns</code> = simulated seconds
+        </span>
+        <span className="tl-legend-item">· clock = IST (Asia/Kolkata)</span>
+      </div>
       <ol className="tl-list">
         {timeline.map((e, i) => {
           const kind = TIMELINE_KIND[e.icon] ?? TIMELINE_FALLBACK
           const Glyph = kind.glyph
           return (
             <li
-              key={e.key}
+              key={`${e.key}__${i}`}
               className="tl-row"
               style={{ "--tl-i": i, "--tl-tone": kind.tone, "--tl-color": kind.color } as React.CSSProperties}
             >
@@ -490,6 +521,11 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
                     <span className="tl-chip">{e.distance_m} m</span>
                   ) : null}
                   <span className="tl-clock">t+{e.sim_time}s</span>
+                  {e.timestamp ? (
+                    <span className="tl-clock tl-clock-ist" title="Indian Standard Time (Asia/Kolkata)">
+                      {fmtISTTimeOnly(e.timestamp)}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="tl-desc">{e.description}</div>
               </div>
@@ -527,6 +563,29 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
         }
         .tl-row:last-child::before {
           display: none;
+        }
+        .tl-legend {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          font-size: 11.5px;
+          color: var(--color-text-faint);
+          padding: 2px 0 12px;
+        }
+        .tl-legend code {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          background: var(--color-surface-2);
+          border: 1px solid var(--color-line);
+          border-radius: 6px;
+          padding: 0 5px;
+          color: var(--color-text-dim);
+        }
+        .tl-legend-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
         }
         .tl-node {
           position: relative;
@@ -591,6 +650,16 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
           font-variant-numeric: tabular-nums;
           letter-spacing: 0.02em;
         }
+        .tl-clock-ist {
+          margin-left: 8px;
+          font-size: 11px;
+          font-weight: 500;
+          color: var(--color-text-dim);
+          background: var(--color-surface-2);
+          border: 1px solid var(--color-line);
+          border-radius: 7px;
+          padding: 1px 6px;
+        }
         .tl-desc {
           margin-top: 3px;
           color: var(--color-text-dim);
@@ -634,16 +703,19 @@ function fmtDetail(detail: Record<string, unknown>): { k: string; v: string }[] 
 }
 
 // Robot log. A terminal-styled, monospace record with aligned columns
-// (clock · severity · event · detail) so entries scan like a real machine log.
-// Colours are on-palette and WCAG-safe on the light theme (the previous
-// near-white text on a white surface was unreadable). Presentation only — the
-// RobotLogEntry shape and ordering are untouched.
+// (IST clock · sim-time · severity · event · detail) so entries scan like a
+// real machine log. Colours are on-palette and WCAG-safe on the light theme
+// (the previous near-white text on a white surface was unreadable). Presentation
+// only — the RobotLogEntry shape and ordering are untouched.
 function RobotLog({ log }: { log: RobotLogEntry[] }) {
   return (
     <div className="rl">
       <div className="rl-bar">
         <span className="rl-dot" aria-hidden="true" />
         <span className="rl-name">robot.log</span>
+        <span className="rl-hint" title="First column = Indian Standard Time (Asia/Kolkata); t+Ns = simulated seconds">
+          IST clock · t+N = sim s
+        </span>
         <span className="rl-count">
           {log.length} {log.length === 1 ? "entry" : "entries"}
         </span>
@@ -657,7 +729,10 @@ function RobotLog({ log }: { log: RobotLogEntry[] }) {
             const detail = e.detail ? fmtDetail(e.detail) : []
             return (
               <div key={e.id} className="rl-row" style={{ "--rl-color": sev.color, "--rl-tone": sev.tone } as React.CSSProperties}>
-                <span className="rl-clock">t+{e.sim_time}</span>
+                <span className="rl-clock" title="Indian Standard Time (Asia/Kolkata)">
+                  {e.timestamp ? fmtISTTimeOnly(e.timestamp) : "—"}
+                </span>
+                <span className="rl-sim">t+{e.sim_time}</span>
                 <span className="rl-sev">{e.severity}</span>
                 <span className="rl-event">{e.event_type}</span>
                 {detail.length > 0 ? (
@@ -706,6 +781,14 @@ function RobotLog({ log }: { log: RobotLogEntry[] }) {
           color: var(--color-text-dim);
           letter-spacing: 0.02em;
         }
+        .rl-hint {
+          font-size: 11px;
+          color: var(--color-text-faint);
+          border: 1px solid var(--color-line);
+          border-radius: 7px;
+          padding: 1px 7px;
+          white-space: nowrap;
+        }
         .rl-count {
           margin-left: auto;
           font-family: var(--font-mono);
@@ -728,7 +811,7 @@ function RobotLog({ log }: { log: RobotLogEntry[] }) {
         }
         .rl-row {
           display: grid;
-          grid-template-columns: 62px 74px auto 1fr;
+          grid-template-columns: 96px 46px 70px auto 1fr;
           gap: 10px;
           align-items: baseline;
           padding: 3px 14px 3px 11px;
@@ -738,6 +821,11 @@ function RobotLog({ log }: { log: RobotLogEntry[] }) {
           background: var(--color-surface-2);
         }
         .rl-clock {
+          color: var(--color-text-faint);
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+        .rl-sim {
           color: var(--color-text-faint);
           font-variant-numeric: tabular-nums;
           text-align: right;
@@ -780,11 +868,37 @@ function RobotLog({ log }: { log: RobotLogEntry[] }) {
         }
         @media (max-width: 560px) {
           .rl-row {
-            grid-template-columns: 54px 66px 1fr;
+            grid-template-columns: auto 1fr;
+            gap: 2px 10px;
+          }
+          .rl-clock {
+            grid-column: 1;
+            grid-row: 1;
+          }
+          .rl-sim {
+            grid-column: 2;
+            grid-row: 1;
+            text-align: left;
+            justify-self: start;
+          }
+          .rl-sev {
+            grid-column: 1;
+            grid-row: 2;
+            justify-self: start;
+            min-width: 60px;
+          }
+          .rl-event {
+            grid-column: 2;
+            grid-row: 2;
+            white-space: normal;
           }
           .rl-detail {
             grid-column: 1 / -1;
-            padding-left: 64px;
+            grid-row: 3;
+            padding-left: 0;
+          }
+          .rl-hint {
+            display: none;
           }
         }
       `}</style>

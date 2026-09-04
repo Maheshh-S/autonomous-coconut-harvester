@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import AmbientClip from "@/components/AmbientClip";
 import { useReveal } from "@/lib/useReveal";
+import Pager from "@/components/Pager";
+import SkeletonRows from "@/components/SkeletonRows";
+import { usePagination } from "@/lib/usePagination";
+import { fmtIST } from "@/lib/formatTime";
 import {
   getMissions,
   createMission,
@@ -116,7 +120,7 @@ export default function SurveyPage() {
   const [tileGen, setTileGen] = useState<TileGeneration | null>(null);
   const [permTrees, setPermTrees] = useState<PermanentTrees | null>(null);
   const [permPage, setPermPage] = useState(1);
-  const PERM_PAGE_SIZE = 20;
+  const PERM_PAGE_SIZE = 8;
   const [expandedTree, setExpandedTree] = useState<number | null>(null);
   const [treeInspections, setTreeInspections] = useState<Record<number, Inspection[]>>({});
   const [inspectionImages, setInspectionImages] = useState<Record<number, InspectionImage[]>>({});
@@ -124,10 +128,12 @@ export default function SurveyPage() {
     Record<number, { currentId: number | null; snapshots: InventorySnapshot[] }>
   >({});
   const [inspLoading, setInspLoading] = useState(false);
+  const [treeExpandLoading, setTreeExpandLoading] = useState<Record<number, boolean>>({});
   const [inspUploading, setInspUploading] = useState<Record<number, boolean>>({});
   const [completeCount, setCompleteCount] = useState<Record<number, number>>({});
   const [harvestType, setHarvestType] = useState<HarvestType>("mature");
   const [harvestMissions, setHarvestMissions] = useState<HarvestMission[]>([]);
+  const [harvestLoading, setHarvestLoading] = useState(true);
   const [selectedHarvest, setSelectedHarvest] = useState<HarvestMission | null>(null);
   const [harvestGenerating, setHarvestGenerating] = useState(false);
   const [robotStatus, setRobotStatus] = useState<RobotStatus | null>(null);
@@ -136,6 +142,10 @@ export default function SurveyPage() {
   const loadSeq = useRef(0);
 
   const selectedMission = missions.find((m) => m.id === selectedMissionId) ?? null;
+
+  const imagePager = usePagination(images);
+  const harvestMissionPager = usePagination(harvestMissions);
+  const harvestQueuePager = usePagination(selectedHarvest?.items ?? []);
 
   async function loadMissions() {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -324,6 +334,7 @@ export default function SurveyPage() {
   }
 
   async function loadHarvestMissions() {
+    setHarvestLoading(true);
     try {
       const data = await getHarvestMissions();
       setHarvestMissions(data.missions);
@@ -334,6 +345,8 @@ export default function SurveyPage() {
       }
     } catch (err) {
       setError("Failed to load harvest missions: " + (err as Error).message);
+    } finally {
+      setHarvestLoading(false);
     }
   }
 
@@ -403,12 +416,18 @@ export default function SurveyPage() {
   }
 
   function toggleTree(treeId: number) {
+    const opening = expandedTree !== treeId;
     setExpandedTree((prev) => (prev === treeId ? null : treeId));
-    if (expandedTree !== treeId) {
-      loadTreeInspections(treeId).then((insps) =>
-        insps.forEach((i) => loadInspectionImages(i.id))
-      );
-      loadTreeInventory(treeId);
+    if (opening) {
+      setTreeExpandLoading((prev) => ({ ...prev, [treeId]: true }));
+      Promise.all([
+        loadTreeInspections(treeId).then((insps) =>
+          insps.forEach((i) => loadInspectionImages(i.id))
+        ),
+        loadTreeInventory(treeId),
+      ]).finally(() => {
+        setTreeExpandLoading((prev) => ({ ...prev, [treeId]: false }));
+      });
     }
   }
 
@@ -577,7 +596,7 @@ export default function SurveyPage() {
       <section className="step" data-reveal>
         <h2 className="block-title">Uploaded images ({images.length})</h2>
         <div className="grid4">
-          {images.map((img) => (
+          {imagePager.slice.map((img) => (
             <div key={img.id} className="thumb">
               <img src={img.url} alt={img.original_filename} loading="lazy" />
               <p className="thumb-name">{img.original_filename}</p>
@@ -585,6 +604,7 @@ export default function SurveyPage() {
           ))}
         </div>
         {images.length === 0 && <p className="muted">No images uploaded yet.</p>}
+        <Pager page={imagePager.page} totalPages={imagePager.totalPages} onPrev={imagePager.prev} onNext={imagePager.next} />
       </section>
 
       {/* Survey Tiles */}
@@ -592,7 +612,9 @@ export default function SurveyPage() {
         <section className="step" data-reveal>
           <h2 className="block-title">Survey Tiles</h2>
           {tileStats === null ? (
-            <p className="muted">Loading tile statistics…</p>
+            <div className="panel" style={{ overflow: "hidden" }}>
+              <SkeletonRows rows={3} height={56} />
+            </div>
           ) : tileStats.total === 0 ? (
             <p className="muted">No survey tiles have been generated yet.</p>
           ) : (
@@ -630,7 +652,9 @@ export default function SurveyPage() {
           {processing ? (
             <p className="muted">Processing… matching detections to permanent Tree IDs.</p>
           ) : permTrees === null ? (
-            <p className="muted">Loading permanent trees…</p>
+            <div className="panel" style={{ overflow: "hidden" }}>
+              <SkeletonRows rows={4} />
+            </div>
           ) : permTrees.total === 0 ? (
             <p className="muted">No permanent trees yet. Complete the mission to match detections to permanent Tree IDs.</p>
           ) : (
@@ -665,6 +689,9 @@ export default function SurveyPage() {
                         <div className="tree-detail">
                           {(() => {
                             const inv = treeInventory[t.id];
+                            if (treeExpandLoading[t.id]) {
+                              return <SkeletonRows rows={4} height={44} />;
+                            }
                             const snaps = inv?.snapshots || [];
                             const current = snaps.find((s) => s.id === inv?.currentId) || null;
                             return (
@@ -674,7 +701,7 @@ export default function SurveyPage() {
                                   <div className="snap current">
                                     <div className="snap-top">
                                       <span className="font-mono"><b>{current.snapshot_code}</b> · {current.total_coconuts} coconuts</span>
-                                      <span className="muted sm">{current.created_at ? new Date(current.created_at).toLocaleString() : ""}</span>
+                                      <span className="muted sm">{current.created_at ? fmtIST(current.created_at) : ""}</span>
                                     </div>
                                     <div className="chip-row">
                                       <span className="chip">Mature: {current.mature_count}</span>
@@ -697,7 +724,7 @@ export default function SurveyPage() {
                                               {s.snapshot_code}
                                               {s.id === inv?.currentId && <span className="tag-cur">CURRENT</span>}
                                             </span>
-                                            <span className="muted sm">{s.created_at ? new Date(s.created_at).toLocaleString() : ""}</span>
+                                            <span className="muted sm">{s.created_at ? fmtIST(s.created_at) : ""}</span>
                                           </div>
                                           <div className="muted sm">Total: {s.total_coconuts} · Mature: {s.mature_count} · Potential: {s.potential_count} · Premature: {s.premature_count}</div>
                                         </div>
@@ -724,9 +751,9 @@ export default function SurveyPage() {
                                       <div>
                                         <span className="font-mono">{insp.inspection_code}</span> <span className="status-pill">{insp.status}</span>
                                       </div>
-                                      <span className="muted sm">{insp.created_at ? new Date(insp.created_at).toLocaleString() : ""}</span>
+                                      <span className="muted sm">{insp.created_at ? fmtIST(insp.created_at) : ""}</span>
                                     </div>
-                                    <div className="muted sm">Images: {insp.inspection_image_count}{insp.completed_at ? ` · Completed ${new Date(insp.completed_at).toLocaleString()}` : ""}{insp.notes ? ` · ${insp.notes}` : ""}</div>
+                                    <div className="muted sm">Images: {insp.inspection_image_count}{insp.completed_at ? ` · Completed ${fmtIST(insp.completed_at)}` : ""}{insp.notes ? ` · ${insp.notes}` : ""}</div>
 
                                     {canAddImages && (
                                       <div className="row mt2">
@@ -759,7 +786,7 @@ export default function SurveyPage() {
                                       <div className="snap current mt2">
                                         <div className="snap-top">
                                           <span className="muted sm"><b>Inventory Snapshot</b> <span className="font-mono">{inspSnap.snapshot_code}</span></span>
-                                          <span className="muted sm">{inspSnap.created_at ? new Date(inspSnap.created_at).toLocaleString() : ""}</span>
+                                          <span className="muted sm">{inspSnap.created_at ? fmtIST(inspSnap.created_at) : ""}</span>
                                         </div>
                                         <div className="muted sm">Total: {inspSnap.total_coconuts} · Mature: {inspSnap.mature_count} · Potential: {inspSnap.potential_count} · Premature: {inspSnap.premature_count}</div>
                                       </div>
@@ -824,17 +851,20 @@ export default function SurveyPage() {
 
             <h3 className="sub">Ordered Tree Queue</h3>
             {selectedHarvest.items && selectedHarvest.items.length > 0 ? (
-              <ol className="queue" data-testid="harvest-queue">
-                {selectedHarvest.items.map((item) => (
-                  <li key={item.id} className={"q-item" + (item.status === "COMPLETED" ? " done" : item.status === "IN_PROGRESS" ? " active" : item.status === "CANCELLED" ? " cancelled" : "")}>
-                    <span className="q-n">{item.visit_order}</span>
-                    <span className="font-mono">{item.tree_code}</span>
-                    <span className="muted sm">Expected: {item.expected_coconuts}</span>
-                    {item.harvested !== null && item.harvested !== undefined && <span className="muted sm">Harvested: {item.harvested}</span>}
-                    <span className="status-pill sm ml">{item.status}</span>
-                  </li>
-                ))}
-              </ol>
+              <>
+                <ol className="queue" data-testid="harvest-queue">
+                  {harvestQueuePager.slice.map((item) => (
+                    <li key={item.id} className={"q-item" + (item.status === "COMPLETED" ? " done" : item.status === "IN_PROGRESS" ? " active" : item.status === "CANCELLED" ? " cancelled" : "")}>
+                      <span className="q-n">{item.visit_order}</span>
+                      <span className="font-mono">{item.tree_code}</span>
+                      <span className="muted sm">Expected: {item.expected_coconuts}</span>
+                      {item.harvested !== null && item.harvested !== undefined && <span className="muted sm">Harvested: {item.harvested}</span>}
+                      <span className="status-pill sm ml">{item.status}</span>
+                    </li>
+                  ))}
+                </ol>
+                <Pager page={harvestQueuePager.page} totalPages={harvestQueuePager.totalPages} onPrev={harvestQueuePager.prev} onNext={harvestQueuePager.next} />
+              </>
             ) : (
               <p className="muted">No trees in this mission.</p>
             )}
@@ -882,16 +912,31 @@ export default function SurveyPage() {
           </div>
         )}
 
-        {harvestMissions.length > 0 && (
+        {harvestLoading && (
+          <div className="mt2">
+            <h3 className="sub">Harvest Missions</h3>
+            <div className="panel" style={{ overflow: "hidden" }}>
+              <SkeletonRows rows={3} height={40} />
+            </div>
+          </div>
+        )}
+        {!harvestLoading && harvestMissions.length === 0 && (
+          <div className="mt2">
+            <h3 className="sub">Harvest Missions</h3>
+            <p className="muted">No harvest missions yet. Generate one above.</p>
+          </div>
+        )}
+        {!harvestLoading && harvestMissions.length > 0 && (
           <div className="mt2">
             <h3 className="sub">Harvest Missions</h3>
             <div className="mission-list">
-              {harvestMissions.map((m) => (
+              {harvestMissionPager.slice.map((m) => (
                 <button key={m.id} type="button" onClick={() => handleSelectHarvestMission(m.id)} className={"mission-row" + (selectedHarvest?.id === m.id ? " sel" : "")}>
-                  <span className="font-mono">{m.mission_code}</span> · {m.harvest_type} · {m.status} · {m.total_trees} tree(s) · {m.total_expected_coconuts} expected · {m.created_at ? new Date(m.created_at).toLocaleString() : ""}
+                  <span className="font-mono">{m.mission_code}</span> · {m.harvest_type} · {m.status} · {m.total_trees} tree(s) · {m.total_expected_coconuts} expected · {m.created_at ? fmtIST(m.created_at) : ""}
                 </button>
               ))}
             </div>
+            <Pager page={harvestMissionPager.page} totalPages={harvestMissionPager.totalPages} onPrev={harvestMissionPager.prev} onNext={harvestMissionPager.next} />
           </div>
         )}
       </section>
@@ -901,7 +946,9 @@ export default function SurveyPage() {
         <section className="step" data-reveal>
           <h2 className="block-title">Survey Tile Generation</h2>
           {tileGen === null ? (
-            <p className="muted">Loading generation progress…</p>
+            <div className="panel" style={{ overflow: "hidden" }}>
+              <SkeletonRows rows={3} height={56} />
+            </div>
           ) : (
             <div className="stat4">
               <Stat n={tileGen.images_uploaded} l="Images Uploaded" />
