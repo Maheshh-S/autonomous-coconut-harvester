@@ -99,7 +99,7 @@
     "seenTimes": "Seen {count}×",
     "matchConfidence": "Match confidence {pct}",
     "matchNew": "new",
-    "missionCreated": "{code} created — {trees} {trees, plural, one {tree} other {trees}}, {nuts} expected coconuts.",
+    "missionCreated": "{code} created — {trees, plural, one {# tree} other {# trees}}, {nuts} expected coconuts.",
     "execMission": "Mission",
     "execCurrentTree": "Current tree",
     "execCompleted": "Completed",
