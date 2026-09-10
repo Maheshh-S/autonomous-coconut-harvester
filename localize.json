@@ -1,0 +1,9 @@
+{
+  "translate": {
+    "dist": "frontend/messages",
+    "from": "en-IN",
+    "extension": "json",
+    "to": ["hi-IN", "ta-IN", "te-IN", "kn-IN", "ml-IN", "mr-IN"],
+    "model": "mayura:v1"
+  }
+}
