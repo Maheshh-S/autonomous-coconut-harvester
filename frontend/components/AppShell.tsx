@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import {
   House,
   Gauge,
@@ -85,6 +86,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="dot" aria-hidden="true" />
             <span>All systems online</span>
           </div>
+          <LocaleSwitcher variant="rail" />
         </div>
       </aside>
 
@@ -163,6 +165,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 );
               })}
             </nav>
+            <LocaleSwitcher variant="sheet" />
           </div>
         </>
       )}
