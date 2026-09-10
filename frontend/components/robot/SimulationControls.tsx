@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 
 // V3.6 — Simulation Controls (presentation only). These buttons call the
 // existing backend Simulation / Robot REST APIs. There is NO business logic in
@@ -97,6 +98,8 @@ export default function SimulationControls({
   error: string | null
 }) {
   const [localSpeed, setLocalSpeed] = useState(speedFactor)
+  // V5.0: command labels + explanatory titles come from the robot dictionary.
+  const t = useTranslations("robot")
 
   const running = simStatus === "running"
   const paused = simStatus === "paused"
@@ -132,9 +135,9 @@ export default function SimulationControls({
         disabled={running || busy}
         style={{ ...btn("primary"), opacity: running || busy ? 0.5 : 1, cursor: running || busy ? "default" : "pointer" }}
         onClick={() => onStart(missionId, localSpeed)}
-        title={running ? "Simulation is already running" : "Start the harvest simulation"}
+        title={running ? t("tipStartBusy") : t("tipStart")}
       >
-        Start
+        {t("btnStart")}
       </button>
       <button
         type="button"
@@ -142,9 +145,9 @@ export default function SimulationControls({
         disabled={!running || busy}
         style={{ ...btn("default"), opacity: !running || busy ? 0.5 : 1, cursor: !running || busy ? "default" : "pointer" }}
         onClick={onPause}
-        title={running ? "Pause the simulation" : "Nothing is running"}
+        title={running ? t("tipPauseYes") : t("tipPauseNo")}
       >
-        Pause
+        {t("btnPause")}
       </button>
       <button
         type="button"
@@ -152,9 +155,9 @@ export default function SimulationControls({
         disabled={!paused || busy}
         style={{ ...btn("default"), opacity: !paused || busy ? 0.5 : 1, cursor: !paused || busy ? "default" : "pointer" }}
         onClick={onResume}
-        title={paused ? "Resume the paused simulation" : "Nothing is paused"}
+        title={paused ? t("tipResumeYes") : t("tipResumeNo")}
       >
-        Resume
+        {t("btnResume")}
       </button>
 
       {/* Utilities */}
@@ -164,9 +167,9 @@ export default function SimulationControls({
         disabled={!active || busy}
         style={{ ...btn("warn"), opacity: !active || busy ? 0.5 : 1, cursor: !active || busy ? "default" : "pointer" }}
         onClick={onReturnToDock}
-        title="Recall the robot to its home dock (preserves mission progress)"
+        title={t("tipDock")}
       >
-        Return to Dock
+        {t("btnDock")}
       </button>
       <button
         type="button"
@@ -174,9 +177,9 @@ export default function SimulationControls({
         disabled={busy}
         style={{ ...btn("default"), opacity: busy ? 0.5 : 1 }}
         onClick={onRecharge}
-        title="Restore the battery to 100%"
+        title={t("tipRecharge")}
       >
-        Recharge
+        {t("btnRecharge")}
       </button>
 
       <Divider />
@@ -188,9 +191,9 @@ export default function SimulationControls({
         disabled={!active || busy}
         style={{ ...btn("stop"), opacity: !active || busy ? 0.5 : 1, cursor: !active || busy ? "default" : "pointer" }}
         onClick={onStop}
-        title={active ? "Stop the run entirely (robot stays where it is)" : "Nothing is running"}
+        title={active ? t("tipStopYes") : t("tipStopNo")}
       >
-        Stop
+        {t("btnStop")}
       </button>
       <button
         type="button"
@@ -198,13 +201,13 @@ export default function SimulationControls({
         disabled={busy}
         style={{ ...btn("danger"), opacity: busy ? 0.5 : 1 }}
         onClick={onReset}
-        title="Factory reset: halts any run and returns the robot to the dock, fully charged"
+        title={t("tipReset")}
       >
-        Reset
+        {t("btnReset")}
       </button>
 
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginLeft: 4, color: "var(--color-text-dim)" }}>
-        Speed
+        {t("speedLabel")}
         <input
           type="number"
           min={0.1}

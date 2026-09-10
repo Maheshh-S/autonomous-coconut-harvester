@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import { API_BASE_URL } from "@/lib/api/detection"
 import type {
   TreeOverlay,
@@ -56,13 +57,6 @@ type TreeDetail = {
   harvest: HarvestEntry | null
 }
 
-const HARVEST_TYPE_LABEL: Record<string, string> = {
-  mature: "Mature",
-  potential: "Potential",
-  premature: "Premature",
-  all: "All",
-}
-
 function fmtDate(iso: string | null): string {
   return fmtIST(iso)
 }
@@ -92,6 +86,20 @@ export default function TreeDetailsDrawer({
 }) {
   const isMobile = useIsMobile()
   const base = apiBaseUrl || API_BASE_URL
+  // V5.0: drawer chrome comes from the treeDetail/ripeness/common dictionaries.
+  const t = useTranslations("treeDetail")
+  const tr = useTranslations("ripeness")
+  const tc = useTranslations("common")
+  const harvestTypeLabel = (s: string) =>
+    s === "mature"
+      ? tr("mature")
+      : s === "potential"
+        ? tr("potential")
+        : s === "premature"
+          ? tr("premature")
+          : s === "all"
+            ? tc("all")
+            : s
 
   const [detail, setDetail] = useState<TreeDetail | null>(null)
   const [loading, setLoading] = useState(false)
@@ -271,7 +279,7 @@ export default function TreeDetailsDrawer({
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 15 }}>
-          {displayTree?.tree_code ?? `Tree #${displayTree?.tree_id ?? ""}`}
+          {displayTree?.tree_code ?? t("treeHash", { id: displayTree?.tree_id ?? "" })}
           {displayTree && (
             <span style={{ color: "#7d907d", fontWeight: 400, marginLeft: 6 }}>
               #{displayTree.tree_id}
@@ -280,7 +288,7 @@ export default function TreeDetailsDrawer({
         </div>
         <button
           type="button"
-          title="Close (clears selection)"
+          title={t("closeDrawer")}
           onClick={onClose}
           style={hdrBtn}
         >
@@ -298,21 +306,21 @@ export default function TreeDetailsDrawer({
         }}
       >
         {!displayTree ? null : loading && !detail ? (
-          <p style={{ color: "#9fb39f" }}>Loading tree details…</p>
+          <p style={{ color: "#9fb39f" }}>{t("loading")}</p>
         ) : (
           <>
             {/* Tree Information */}
-            <Card title="Tree Information">
-              <Row label="Tree code">
+            <Card title={t("infoTitle")}>
+              <Row label={t("treeCode")}>
                 {displayTree.tree_code ?? "—"}
               </Row>
-              <Row label="GPS">
+              <Row label={t("gps")}>
                 {displayTree.gps_lat != null && displayTree.gps_lon != null
                   ? `${displayTree.gps_lat.toFixed(6)}, ${displayTree.gps_lon.toFixed(6)}`
                   : "—"}
               </Row>
-              <Row label="Times seen">{displayTree.times_seen ?? "—"}</Row>
-              <Row label="Detection confidence">
+              <Row label={t("timesSeen")}>{displayTree.times_seen ?? "—"}</Row>
+              <Row label={t("confidence")}>
                 {displayTree.confidence != null
                   ? `${(displayTree.confidence * 100).toFixed(1)}%`
                   : "—"}
@@ -320,7 +328,7 @@ export default function TreeDetailsDrawer({
             </Card>
 
             {/* Current Inventory */}
-            <Card title="Current Inventory">
+            <Card title={t("inventory")}>
               {inv ? (
                 <div
                   style={{
@@ -329,18 +337,18 @@ export default function TreeDetailsDrawer({
                     gap: 8,
                   }}
                 >
-                  <Stat label="Total" value={total} />
-                  <Stat label="Mature" value={mature} />
-                  <Stat label="Potential" value={potential} />
-                  <Stat label="Premature" value={premature} />
+                  <Stat label={t("statTotal")} value={total} />
+                  <Stat label={tr("mature")} value={mature} />
+                  <Stat label={tr("potential")} value={potential} />
+                  <Stat label={tr("premature")} value={premature} />
                 </div>
               ) : (
-                <p style={{ color: "#9fb39f", margin: 0 }}>No inventory yet.</p>
+                <p style={{ color: "#9fb39f", margin: 0 }}>{t("noInventory")}</p>
               )}
             </Card>
 
             {/* Inspection History */}
-            <Card title="Inspection History">
+            <Card title={t("inspHistory")}>
               {(detail?.inspections?.length ?? 0) > 0 ? (
                 <ul style={listStyle}>
                   {(detail?.inspections || []).slice(0, 10).map((i) => (
@@ -350,7 +358,7 @@ export default function TreeDetailsDrawer({
                       </span>{" "}
                       — {i.status}
                       {i.inspection_image_count
-                        ? ` · ${i.inspection_image_count} imgs`
+                        ? t("imgsCount", { count: i.inspection_image_count })
                         : ""}{" "}
                       <span style={{ color: "#9fb39f" }}>
                         ({fmtDate(i.created_at)})
@@ -359,12 +367,12 @@ export default function TreeDetailsDrawer({
                   ))}
                 </ul>
               ) : (
-                <p style={{ color: "#9fb39f", margin: 0 }}>No inspections.</p>
+                <p style={{ color: "#9fb39f", margin: 0 }}>{t("noInspections")}</p>
               )}
             </Card>
 
             {/* Latest Inspection Images */}
-            <Card title="Latest Inspection Images">
+            <Card title={t("inspImages")}>
               {(detail?.images?.length ?? 0) > 0 ? (
                 <div
                   style={{
@@ -377,7 +385,7 @@ export default function TreeDetailsDrawer({
                     <img
                       key={img.id}
                       src={`${base}${img.url}`}
-                      alt={img.original_filename || "inspection"}
+                      alt={img.original_filename || t("inspImgAlt")}
                       style={{
                         width: "100%",
                         aspectRatio: "1 / 1",
@@ -390,31 +398,31 @@ export default function TreeDetailsDrawer({
                 </div>
               ) : (
                 <p style={{ color: "#9fb39f", margin: 0 }}>
-                  No inspection images.
+                  {t("noImages")}
                 </p>
               )}
             </Card>
 
             {/* Harvest Status */}
-            <Card title="Harvest Status">
-              <Row label="Eligible (current inventory)">
+            <Card title={t("harvestStatus")}>
+              <Row label={t("harvestEligible")}>
                 {inv
                   ? [
-                      mature > 0 ? `Mature (${mature})` : null,
-                      premature > 0 ? `Premature (${premature})` : null,
-                      total > 0 ? `All (${total})` : null,
+                      mature > 0 ? `${tr("mature")} (${mature})` : null,
+                      premature > 0 ? `${tr("premature")} (${premature})` : null,
+                      total > 0 ? `${tc("all")} (${total})` : null,
                     ]
                       .filter(Boolean)
-                      .join(", ") || "None"
+                      .join(", ") || t("noneValue")
                   : "—"}
               </Row>
-              <Row label="Status">
+              <Row label={t("status")}>
                 {detail?.harvest
-                  ? `In ${detail.harvest.mission_code ?? "mission"} — ${
-                      HARVEST_TYPE_LABEL[detail.harvest.status] ||
-                      detail.harvest.status
-                    }`
-                  : "Not in a harvest mission"}
+                  ? t("inMission", {
+                      mission: detail.harvest.mission_code ?? "mission",
+                      status: harvestTypeLabel(detail.harvest.status),
+                    })
+                  : t("notInMission")}
               </Row>
             </Card>
           </>

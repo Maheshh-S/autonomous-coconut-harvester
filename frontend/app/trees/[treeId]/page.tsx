@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, use } from "react"
+import { useTranslations } from "next-intl"
 import { getTreesSummary } from "@/lib/api/detection"
 import CoconutUploader from "@/components/CoconutUploader"
 
@@ -22,6 +23,10 @@ export default function TreePage({ params }: Props) {
 
   // ✅ unwrap async params (Next 16 rule)
   const { treeId } = use(params)
+  // V5.0: detail chrome comes from the treeDetail/ripeness/common dictionaries.
+  const t = useTranslations("treeDetail")
+  const tr = useTranslations("ripeness")
+  const tc = useTranslations("common")
 
   const [harvestType, setHarvestType] = useState("mature")
   const [tree, setTree] = useState<TreeSummary | null>(null)
@@ -55,7 +60,7 @@ export default function TreePage({ params }: Props) {
   if (notFound) {
     return (
       <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1100, margin: "0 auto" }}>
-        <div className="kicker">Tree Detail</div>
+        <div className="kicker">{t("detKicker")}</div>
         <h1 className="font-display" style={{ fontSize: 36, fontWeight: 700, margin: "8px 0 16px" }}>
           Tree Registry
         </h1>
@@ -68,7 +73,7 @@ export default function TreePage({ params }: Props) {
             padding: 18,
           }}
         >
-          Tree #{treeId} not found.
+          {t("detNotFound", { id: treeId })}
         </div>
       </div>
     )
@@ -77,7 +82,7 @@ export default function TreePage({ params }: Props) {
   if (loading) {
     return (
       <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1100, margin: "0 auto" }}>
-        <div className="kicker">Tree Detail</div>
+        <div className="kicker">{t("detKicker")}</div>
         <div style={{ height: 34, width: 260, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite", borderRadius: 8, margin: "8px 0 20px" }} />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, margin: "20px 0" }}>
           {Array.from({ length: 4 }).map((_, i) => (
@@ -90,7 +95,7 @@ export default function TreePage({ params }: Props) {
   }
 
   if (!tree) {
-    return <div style={{ padding: 24, color: "var(--color-text-dim)" }}>Loading...</div>
+    return <div style={{ padding: 24, color: "var(--color-text-dim)" }}>{t("loading")}</div>
   }
 
   const needsHarvest = tree.tasks_remaining > 0
@@ -99,9 +104,9 @@ export default function TreePage({ params }: Props) {
 
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1100, margin: "0 auto" }}>
 
-      <div className="kicker">Tree Detail · #{tree.tree_id}</div>
+      <div className="kicker">{t("detKickerId", { id: tree.tree_id })}</div>
       <h1 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 700, margin: "8px 0 4px", letterSpacing: "-0.03em" }}>
-        Tree <span className="lede-accent">{tree.tree_id}</span>
+        {t("detTitleA")} <span className="lede-accent">{tree.tree_id}</span>
       </h1>
 
       <div
@@ -113,11 +118,11 @@ export default function TreePage({ params }: Props) {
         }}
       >
         {/* 6dp matches the Tree Registry and the twin drawer (and fits the chip). */}
-        <Stat label="Latitude" value={tree.gps_lat.toFixed(6)} />
-        <Stat label="Longitude" value={tree.gps_lon.toFixed(6)} />
-        <Stat label="Coconuts detected" value={tree.coconuts_detected} />
+        <Stat label={t("statLatitude")} value={tree.gps_lat.toFixed(6)} />
+        <Stat label={t("statLongitude")} value={tree.gps_lon.toFixed(6)} />
+        <Stat label={t("statCoconuts")} value={tree.coconuts_detected} />
         <Stat
-          label="Tasks remaining"
+          label={t("statTasks")}
           value={tree.tasks_remaining}
           accent={needsHarvest ? "gold" : "green"}
         />
@@ -139,13 +144,13 @@ export default function TreePage({ params }: Props) {
         }}
       >
         <span className="dot" style={{ background: needsHarvest ? "var(--color-gold)" : "var(--color-accent)" }} />
-        {needsHarvest ? "Harvest required" : "No harvest needed"}
+        {needsHarvest ? t("needHarvest") : t("noHarvest")}
       </div>
 
       <hr style={{ border: "none", borderTop: "1px solid var(--color-line)", margin: "20px 0" }} />
 
       <h2 className="font-display" style={{ fontSize: 20, fontWeight: 600, margin: "0 0 16px" }}>
-        Coconut Detection
+        {t("detSection")}
       </h2>
 
       {/* -------------------- */}
@@ -155,17 +160,17 @@ export default function TreePage({ params }: Props) {
       <div style={{ marginTop: 8, marginBottom: 20 }}>
         <label style={{ display: "inline-flex", flexDirection: "column", gap: 6 }}>
           <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--color-text-faint)", fontFamily: "var(--font-mono)" }}>
-            Harvest Preference
+            {t("detPrefLabel")}
           </span>
           <select
             value={harvestType}
             onChange={(e) => setHarvestType(e.target.value)}
             className="select"
           >
-            <option value="mature">Mature only</option>
-            <option value="potential">Potential only</option>
-            <option value="premature">Premature only</option>
-            <option value="all">All</option>
+            <option value="mature">{t("fMatureOnly")}</option>
+            <option value="potential">{t("fPotentialOnly")}</option>
+            <option value="premature">{t("fPrematureOnly")}</option>
+            <option value="all">{tc("all")}</option>
           </select>
         </label>
       </div>

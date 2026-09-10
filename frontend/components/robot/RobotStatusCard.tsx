@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import type { RobotSnapshot, SimulationStatus, V3RobotState } from "@/lib/api/detection"
 
 export const ROBOT_STATE_COLORS: Record<V3RobotState, string> = {
@@ -50,9 +51,22 @@ export default function RobotStatusCard({
   distanceRemaining: number | null
   connection: "connecting" | "open" | "closed"
 }) {
+  // V5.0: labels come from the robot/status dictionaries. Unknown backend
+  // states render raw so a missing key can never crash the card.
+  const t = useTranslations("robot")
+  const ts = useTranslations("status")
   const state: V3RobotState = robot?.state ?? "IDLE"
   const color = ROBOT_STATE_COLORS[state] ?? "#6b7280"
   const battery = robot?.battery_pct ?? 0
+  // The snapshot sometimes carries the lowercase sim status (stopped/running/
+  // paused/finished) when no run is active — a pre-existing backend quirk.
+  // Both vocabularies translate; true unknowns still render raw.
+  const stateLabel =
+    state in ROBOT_STATE_COLORS || ["stopped", "running", "paused", "finished"].includes(state)
+      ? ts(state)
+      : state
+  const connectionLabel =
+    connection === "open" ? t("wsOpen") : connection === "connecting" ? t("wsConnecting") : t("wsClosed")
 
   return (
     <div
@@ -74,7 +88,7 @@ export default function RobotStatusCard({
           marginBottom: 10,
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>Robot Status</span>
+        <span style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)" }}>{t("cardTitle")}</span>
         <span
           data-testid="robot-state-badge"
           style={{
@@ -87,7 +101,7 @@ export default function RobotStatusCard({
             border: "1px solid color-mix(in srgb, " + color + " 40%, transparent)",
           }}
         >
-          {state}
+          {stateLabel}
         </span>
       </div>
 
@@ -111,30 +125,30 @@ export default function RobotStatusCard({
           />
         </div>
         <div style={{ fontSize: 12, color: "var(--color-text-faint)", marginTop: 4 }}>
-          Battery {battery.toFixed(1)}%
+          {t("batteryPct", { pct: battery.toFixed(1) })}
         </div>
       </div>
 
-      <Row label="Mission" value={sim?.mission_id != null ? `#${sim.mission_id}` : "—"} />
+      <Row label={t("rMission")} value={sim?.mission_id != null ? `#${sim.mission_id}` : "—"} />
       <Row
-        label="Current Tree"
+        label={t("rCurrentTree")}
         value={robot?.state === "HARVESTING" && currentTreeCode ? currentTreeCode : currentTreeCode ?? "—"}
       />
-      <Row label="Next Tree" value={nextTreeCode ?? "—"} />
+      <Row label={t("rNextTree")} value={nextTreeCode ?? "—"} />
       <Row
-        label="Distance Remaining"
+        label={t("rDistance")}
         value={distanceRemaining != null ? `${distanceRemaining.toFixed(0)} px` : "—"}
       />
       <Row
-        label="Simulation Time"
+        label={t("rSimTime")}
         value={sim ? `${sim.sim_time.toFixed(1)} s` : "—"}
       />
-      <Row label="Speed Factor" value={sim ? `${sim.speed_factor}×` : "—"} />
+      <Row label={t("rSpeed")} value={sim ? `${sim.speed_factor}×` : "—"} />
       <Row
-        label="WS"
+        label={t("rWs")}
         value={
           <span style={{ color: connection === "open" ? "var(--color-leaf)" : "var(--color-text-faint)" }}>
-            {connection}
+            {connectionLabel}
           </span>
         }
       />

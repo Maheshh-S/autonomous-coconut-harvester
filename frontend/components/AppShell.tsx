@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
 import {
@@ -19,22 +20,24 @@ import {
 
 type NavItem = { href: string; label: string; short: string; icon: Icon };
 
-const NAV: NavItem[] = [
-  { href: "/", label: "Overview", short: "Home", icon: House },
-  { href: "/dashboard", label: "Mission Control", short: "Control", icon: Gauge },
-  { href: "/survey", label: "Survey & Harvest", short: "Survey", icon: Drone },
-  { href: "/map", label: "Digital Twin", short: "Twin", icon: MapTrifold },
-  { href: "/robot", label: "Robot Ops", short: "Robot", icon: Robot },
-  { href: "/robot/history", label: "Mission History", short: "History", icon: ClockCounterClockwise },
-  { href: "/trees", label: "Tree Registry", short: "Trees", icon: Tree },
-];
-
 // Mobile: 5 primary destinations in the bottom bar; the rest live in "More".
 const MOBILE_PRIMARY = ["/", "/dashboard", "/map", "/robot", "/trees"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // V5.0: nav labels resolve from the nav dictionary.
+  const t = useTranslations("nav");
   const [moreOpen, setMoreOpen] = useState(false);
+
+  const NAV: NavItem[] = [
+    { href: "/", label: t("overview"), short: t("home"), icon: House },
+    { href: "/dashboard", label: t("missionControl"), short: t("control"), icon: Gauge },
+    { href: "/survey", label: t("surveyHarvest"), short: t("survey"), icon: Drone },
+    { href: "/map", label: t("digitalTwin"), short: t("twin"), icon: MapTrifold },
+    { href: "/robot", label: t("robotOps"), short: t("robot"), icon: Robot },
+    { href: "/robot/history", label: t("missionHistory"), short: t("history"), icon: ClockCounterClockwise },
+    { href: "/trees", label: t("treeRegistry"), short: t("trees"), icon: Tree },
+  ];
 
   // Longest-prefix match: `/robot/history/7` activates "Mission History"
   // (`/robot/history`) but NOT "Robot Ops" (`/robot`).
@@ -55,7 +58,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="shell">
       {/* ── Desktop rail ─────────────────────────────────────────── */}
       <aside className="rail">
-        <Link href="/" className="rail-brand" aria-label="Veraxis — home">
+        <Link href="/" className="rail-brand" aria-label={t("brandHome")}>
           <span className="rail-brand-mark">Veraxis</span>
           <span className="rail-brand-sub">An AI-Powered Autonomous Coconut Harvesting System</span>
         </Link>
@@ -84,7 +87,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="rail-foot">
           <div className="rail-status">
             <span className="dot" aria-hidden="true" />
-            <span>All systems online</span>
+            <span>{t("systemsOnline")}</span>
           </div>
           <LocaleSwitcher variant="rail" />
         </div>
@@ -114,14 +117,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           type="button"
           className="botnav-link botnav-more"
           data-active={moreOpen || overflowActive ? "true" : undefined}
-          aria-label="More destinations"
+          aria-label={t("moreDestinations")}
           aria-expanded={moreOpen}
           onClick={() => setMoreOpen((v) => !v)}
         >
           <span className="botnav-ico" aria-hidden="true">
             <DotsThreeOutline size={22} weight={moreOpen || overflowActive ? "fill" : "regular"} />
           </span>
-          <span className="botnav-label">More</span>
+          <span className="botnav-label">{t("more")}</span>
         </button>
       </nav>
 
@@ -133,13 +136,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setMoreOpen(false)}
             aria-hidden="true"
           />
-          <div className="sheet" role="dialog" aria-label="More destinations">
+          <div className="sheet" role="dialog" aria-label={t("moreDestinations")}>
             <div className="sheet-head">
-              <span className="sheet-title">More</span>
+              <span className="sheet-title">{t("more")}</span>
               <button
                 type="button"
                 className="sheet-close"
-                aria-label="Close"
+                aria-label={t("close")}
                 onClick={() => setMoreOpen(false)}
               >
                 <X size={18} weight="bold" />

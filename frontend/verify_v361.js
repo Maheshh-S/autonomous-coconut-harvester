@@ -176,7 +176,9 @@ async function getMissionId() {
   await page.click('[data-testid="btn-return-to-dock"]')
   const recalled = await pollUntil(async () => {
     const b = await page.locator('[data-testid="robot-state-badge"]').innerText().catch(() => "")
-    return /RETURNING|DOCKED/.test(b)
+    // V5.0: the badge renders the translated state (English default is
+    // title-case "Returning"/"Docked"), so match case-insensitively.
+    return /returning|docked/i.test(b)
   }, 20000)
   const rtdBadge = await page.locator('[data-testid="robot-state-badge"]').innerText().catch(() => "")
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import {
   API_BASE_URL,
   getMissions,
@@ -42,6 +43,9 @@ export default function DashboardFarmCard({
   harvestingTreeId?: number | null
   completedTreeIds?: number[]
 }) {
+  // V5.0: card chrome comes from the twin/common dictionaries.
+  const t = useTranslations("twin")
+  const tc = useTranslations("common")
   const [missions, setMissions] = useState<{ id: number; name?: string }[]>([])
   const [missionId, setMissionId] = useState<number | null>(null)
   const [tiles, setTiles] = useState<MosaicTile[]>([])
@@ -123,22 +127,21 @@ export default function DashboardFarmCard({
           >
             {missions.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.name ?? `Mission ${m.id}`}
+                {m.name ?? t("cardMission", { id: m.id })}
               </option>
             ))}
           </select>
         )}
       </div>
 
-      {loading && <p style={{ color: "var(--color-text-faint)" }}>Loading…</p>}
+      {loading && <p style={{ color: "var(--color-text-faint)" }}>{tc("loading")}</p>}
       {error && <p style={{ color: "var(--color-crit)" }}>{error}</p>}
       {!loading && !error && tiles.length === 0 && (
-        <p style={{ color: "var(--color-text-faint)" }}>No tiles found.</p>
+        <p style={{ color: "var(--color-text-faint)" }}>{t("cardNoTiles")}</p>
       )}
       {!loading && !error && isPreV2 && (
         <p style={{ color: "var(--color-husk)" }}>
-          This mission was surveyed before Version 2 and has no persisted
-          tile-grid metadata. Re-survey to enable the Digital Twin.
+          {t("cardPreV2")}
         </p>
       )}
       {!loading && !error && !isPreV2 && v2Tiles.length > 0 && (

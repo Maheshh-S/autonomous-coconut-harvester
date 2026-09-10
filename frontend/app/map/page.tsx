@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, Suspense } from "react"
+import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import {
   API_BASE_URL,
@@ -38,13 +39,23 @@ type MissionSummary = {
 // render bailout; wrap in Suspense so the production build can still prerender it.
 export default function FarmPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 24, color: "var(--color-text-dim)" }}>Loading farm…</div>}>
+    <Suspense fallback={<FarmSuspenseFallback />}>
       <FarmPageInner />
     </Suspense>
   )
 }
 
+// V5.0: the Suspense fallback is a client boundary so it can translate.
+function FarmSuspenseFallback() {
+  const t = useTranslations("twin")
+  return (
+    <div style={{ padding: 24, color: "var(--color-text-dim)" }}>{t("loadingFarm")}</div>
+  )
+}
+
 function FarmPageInner() {
+  // V5.0: twin chrome comes from the twin dictionary.
+  const t = useTranslations("twin")
   const [missions, setMissions] = useState<MissionSummary[]>([])
   const [missionId, setMissionId] = useState<number | null>(null)
   const [tiles, setTiles] = useState<MosaicTile[]>([])
@@ -118,10 +129,10 @@ function FarmPageInner() {
   }, [trees])
 
   const currentTreeCode = sim.harvestingTreeId
-    ? treeCodeById.get(sim.harvestingTreeId) ?? `Tree ${sim.harvestingTreeId}`
+    ? treeCodeById.get(sim.harvestingTreeId) ?? t("treeCode", { id: sim.harvestingTreeId })
     : null
   const nextTreeCode = sim.nextTreeId
-    ? treeCodeById.get(sim.nextTreeId) ?? `Tree ${sim.nextTreeId}`
+    ? treeCodeById.get(sim.nextTreeId) ?? t("treeCode", { id: sim.nextTreeId })
     : null
 
   const tilesMissingMeta = useMemo(
@@ -137,10 +148,10 @@ function FarmPageInner() {
   return (
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
       <PageHero
-        kicker="Digital Twin · Mosaic"
-        title="Farm"
-        accent="Digital Twin"
-        sub="A living reconstruction of the surveyed plantation — tile mosaic, tree detections, and the live robot overlaid in one shared coordinate space."
+        kicker={t("heroKicker")}
+        title={t("heroTitle")}
+        accent={t("heroAccent")}
+        sub={t("heroSub")}
         clip="/clips/4.mp4"
         once
       />
@@ -158,7 +169,7 @@ function FarmPageInner() {
       >
         <label style={{ display: "inline-flex", flexDirection: "column", gap: 5 }}>
           <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--color-text-faint)", fontFamily: "var(--font-mono)" }}>
-            Mission
+            {t("missionLabel")}
           </span>
           {!missionsLoaded ? (
             <div style={{ height: 38, width: "100%", borderRadius: 8, background: "var(--color-surface-2)", opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite" }} />
@@ -181,7 +192,7 @@ function FarmPageInner() {
 
         <label style={{ display: "inline-flex", flexDirection: "column", gap: 5, minWidth: 200 }}>
           <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--color-text-faint)", fontFamily: "var(--font-mono)" }}>
-            Seam gap · {gap}px
+            {t("seamGap", { gap })}
           </span>
           <input
             type="range"
@@ -196,11 +207,11 @@ function FarmPageInner() {
         <span style={{ width: 1, height: 30, background: "var(--color-line)" }} />
 
         {/* V3.6.1 — visualization-only toggles (no robot controls on this page) */}
-        <ToggleSwitch label="Show Robot" on={showRobot} set={setShowRobot} />
-        <ToggleSwitch label="Show Planned Path" on={showPath} set={setShowPath} />
-        <ToggleSwitch label="Show Current Target" on={showTarget} set={setShowTarget} />
+        <ToggleSwitch label={t("tglRobot")} on={showRobot} set={setShowRobot} />
+        <ToggleSwitch label={t("tglPath")} on={showPath} set={setShowPath} />
+        <ToggleSwitch label={t("tglTarget")} on={showTarget} set={setShowTarget} />
         <ToggleSwitch
-          label="Follow Robot"
+          label={t("tglFollow")}
           on={followRobot}
           set={setFollowRobot}
         />
@@ -214,7 +225,7 @@ function FarmPageInner() {
       {error && <p style={{ color: "var(--color-crit)" }}>{error}</p>}
       {!loading && !error && tiles.length === 0 && (
         <div className="panel-2" style={{ padding: 24, color: "var(--color-text-dim)" }}>
-          No tiles found for this mission.
+          {t("noTiles")}
         </div>
       )}
 
@@ -230,12 +241,11 @@ function FarmPageInner() {
           }}
         >
           <h2 className="font-display" style={{ marginTop: 0, fontSize: 18 }}>
-            Digital Twin not available
+            {t("preV2Title")}
           </h2>
           <p style={{ fontSize: 14, lineHeight: 1.5, color: "var(--color-text-dim)" }}>
-            This mission was surveyed before <strong>Version 2</strong> and has no
-            persisted tile-grid metadata (<code>grid_row</code> /{" "}
-            <code>grid_col</code>).
+            {t("preV2BodyA")} <strong>Version 2</strong> {t("preV2BodyB")}<code>grid_row</code> /{" "}
+            <code>grid_col</code>{t("preV2BodyC")}
           </p>
         </div>
       )}
@@ -243,8 +253,7 @@ function FarmPageInner() {
       {!loading && !error && !isPreV2 && v2Tiles.length > 0 && (
         <>
           <p style={{ color: "var(--color-text-faint)", fontSize: 13, margin: "0 0 12px" }}>
-            {v2Tiles.length} tiles · grid reconstructed from persisted Version 2
-            metadata.
+            {t("tilesMeta", { count: v2Tiles.length })}
           </p>
           <div className="map-layout">
             <div className="panel" style={{ padding: 10, overflow: "hidden" }}>

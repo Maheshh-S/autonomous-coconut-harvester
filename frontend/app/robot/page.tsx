@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import {
   API_BASE_URL,
   getMissions,
@@ -31,6 +32,8 @@ type Task = {
 // panel (commands, status card) plus the legacy task interface (still live).
 // The mosaic is a SURVEY mission; the robot simulation is a HARVEST mission.
 export default function RobotPage() {
+  // V5.0: robot chrome comes from the robot dictionary.
+  const t = useTranslations("robot")
   const [missions, setMissions] = useState<number[]>([])
   const [missionId, setMissionId] = useState<number | null>(null)
   const [harvestMissions, setHarvestMissions] = useState<
@@ -133,7 +136,7 @@ export default function RobotPage() {
           }
         }
       } catch {
-        if (active) setTaskMessage("Could not reach the robot service.")
+        if (active) setTaskMessage(t("errService"))
       }
     })()
     return () => {
@@ -149,7 +152,7 @@ export default function RobotPage() {
       body: JSON.stringify({ task_id: task.task_id }),
     })
     setTask(null)
-    setTaskMessage("Task completed. No further tasks.")
+    setTaskMessage(t("msgTaskDone"))
   }
 
   const treeCodeById = useMemo(() => {
@@ -159,10 +162,10 @@ export default function RobotPage() {
   }, [trees])
 
   const currentTreeCode = sim.harvestingTreeId
-    ? treeCodeById.get(sim.harvestingTreeId) ?? `Tree ${sim.harvestingTreeId}`
+    ? treeCodeById.get(sim.harvestingTreeId) ?? t("treeCode", { id: sim.harvestingTreeId })
     : null
   const nextTreeCode = sim.nextTreeId
-    ? treeCodeById.get(sim.nextTreeId) ?? `Tree ${sim.nextTreeId}`
+    ? treeCodeById.get(sim.nextTreeId) ?? t("treeCode", { id: sim.nextTreeId })
     : null
 
   const v2Tiles = useMemo(
@@ -173,10 +176,10 @@ export default function RobotPage() {
   return (
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
       <PageHero
-        kicker="Telemetry · Control"
-        title="Robot"
-        accent="Control Centre"
-        sub="Command the harvester simulation, watch live telemetry, and trace its route across the twin. Mission logic is owned by the backend."
+        kicker={t("heroKicker")}
+        title={t("heroTitle")}
+        accent={t("heroAccent")}
+        sub={t("heroSub")}
         clip="/clips/5.mp4"
       />
 
@@ -184,11 +187,11 @@ export default function RobotPage() {
       <section className="panel" style={{ padding: 22, marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
           <h2 className="font-display" style={{ fontSize: 18, margin: 0, fontWeight: 600 }}>
-            Simulation Control Centre
+            {t("simTitle")}
           </h2>
           <label style={{ display: "inline-flex", flexDirection: "column", gap: 5 }}>
             <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--color-text-faint)", fontFamily: "var(--font-mono)" }}>
-              Harvest Mission
+              {t("harvestMissionLabel")}
             </span>
             {harvestLoaded ? (
               <select
@@ -241,7 +244,7 @@ export default function RobotPage() {
             padding: "0 4px 10px",
           }}
         >
-          <ToggleSwitch label="Follow Robot" on={followRobot} set={setFollowRobot} />
+          <ToggleSwitch label={t("tglFollow")} on={followRobot} set={setFollowRobot} />
         </div>
 
         {loading && (
@@ -285,7 +288,7 @@ export default function RobotPage() {
       {/* Legacy V1 Task interface (still live) */}
       <section className="panel-2" style={{ padding: 22 }}>
         <h2 className="font-display" style={{ fontSize: 18, margin: "0 0 12px", fontWeight: 600 }}>
-          Legacy Task Queue
+          {t("legacyTitle")}
         </h2>
         {taskMessage && <p style={{ color: "var(--color-text-dim)" }}>{taskMessage}</p>}
         {task && (
@@ -297,17 +300,17 @@ export default function RobotPage() {
               alignItems: "end",
             }}
           >
-            <Field label="Task ID" value={task.task_id} />
-            <Field label="Tree ID" value={task.tree_id} />
-            <Field label="Coconut ID" value={task.coconut_id} />
-            <Field label="Status" value={task.status} />
+            <Field label={t("fTaskId")} value={task.task_id} />
+            <Field label={t("fTreeId")} value={task.tree_id} />
+            <Field label={t("fCoconutId")} value={task.coconut_id} />
+            <Field label={t("fStatus")} value={task.status} />
             <button
               type="button"
               onClick={completeTask}
               className="btn btn-primary"
               style={{ height: 42 }}
             >
-              Complete Task
+              {t("btnCompleteTask")}
             </button>
           </div>
         )}

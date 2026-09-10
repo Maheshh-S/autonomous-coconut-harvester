@@ -1,5 +1,7 @@
 "use client"
 
+import { useTranslations } from "next-intl"
+
 type PagerProps = {
   page: number
   totalPages: number
@@ -12,6 +14,8 @@ type PagerProps = {
  * so small datasets (<= 8 rows) render no pager footprint at all.
  */
 export default function Pager({ page, totalPages, onPrev, onNext }: PagerProps) {
+  // V5.0: pager chrome comes from the common dictionary.
+  const t = useTranslations("common")
   if (totalPages <= 1) return null
 
   return (
@@ -20,22 +24,22 @@ export default function Pager({ page, totalPages, onPrev, onNext }: PagerProps) 
         type="button"
         onClick={onPrev}
         disabled={page <= 1}
-        aria-label="Previous page"
+        aria-label={t("prevPage")}
         className="btn btn-ghost sm"
       >
-        Previous
+        {t("previous")}
       </button>
       <span className="muted">
-        Page {page} of {totalPages}
+        {t("pageOf", { page, total: totalPages })}
       </span>
       <button
         type="button"
         onClick={onNext}
         disabled={page >= totalPages}
-        aria-label="Next page"
+        aria-label={t("nextPage")}
         className="btn btn-ghost sm"
       >
-        Next
+        {t("next")}
       </button>
 
       <style jsx>{`

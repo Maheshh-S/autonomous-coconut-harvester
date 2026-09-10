@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { Crosshair } from "@phosphor-icons/react"
 import {
   detectCoconuts,
@@ -18,6 +19,9 @@ export default function CoconutUploader({
   treeId: number
   harvestType: string
 }) {
+  // V5.0: labels come from the uploader dictionary (English default unchanged,
+  // so the e2e text contracts still hold).
+  const t = useTranslations("uploader")
   const [image, setImage] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
@@ -60,9 +64,9 @@ export default function CoconutUploader({
       <label className="cu-dropzone">
         <input type="file" accept="image/*" onChange={handleChange} className="cu-file" />
         <Crosshair size={30} weight="regular" aria-hidden />
-        <span className="cu-title">Choose a close-up coconut photo</span>
+        <span className="cu-title">{t("dropTitle")}</span>
         <span className="cu-sub">
-          {image ? image.name : "JPG or PNG — detection runs on the device server."}
+          {image ? image.name : t("dropSub")}
         </span>
       </label>
 
@@ -73,26 +77,26 @@ export default function CoconutUploader({
           disabled={!image || busy}
           className="cu-detect"
           style={{ opacity: !image || busy ? 0.5 : 1, cursor: !image || busy ? "default" : "pointer" }}
-          title={image ? "Run ripeness detection on this photo" : "Choose a photo first"}
+          title={image ? t("runTitle") : t("needPhoto")}
         >
-          {busy ? "Detecting…" : "Detect Coconuts"}
+          {busy ? t("detecting") : t("detect")}
         </button>
       </div>
 
       {preview && (
         <div className="cu-card">
-          <p className="cu-card-h">Preview</p>
-          <img src={preview} alt="Preview of the uploaded coconut photo" />
+          <p className="cu-card-h">{t("preview")}</p>
+          <img src={preview} alt={t("previewAlt")} />
         </div>
       )}
 
       {result && (
         <div className="cu-card">
           <p className="cu-card-h">
-            Coconuts detected:
+            {t("detected")}
             <span className="cu-count font-mono">{count}</span>
           </p>
-          <img src={result} alt="Coconuts detected in the uploaded photo" />
+          <img src={result} alt={t("resultAlt")} />
         </div>
       )}
 

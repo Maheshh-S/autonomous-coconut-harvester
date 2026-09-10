@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTranslations } from "next-intl"
 import { getTreesSummary } from "@/lib/api/detection"
 import Link from "next/link"
 import PageHero from "@/components/PageHero"
@@ -16,6 +17,9 @@ type TreeSummary = {
 }
 
 export default function TreesPage() {
+  // V5.0: registry chrome comes from the trees/common dictionaries.
+  const t = useTranslations("trees")
+  const tc = useTranslations("common")
   const [trees, setTrees] = useState<TreeSummary[]>([])
   const [loading, setLoading] = useState(true)
   // V4.0.4 — client-side search + task filter (the registry previously had no
@@ -23,14 +27,14 @@ export default function TreesPage() {
   const [query, setQuery] = useState("")
   const [taskFilter, setTaskFilter] = useState<"all" | "pending" | "clear">("all")
 
-  const filtered = trees.filter((t) => {
+  const filtered = trees.filter((row) => {
     const q = query.trim().toLowerCase()
     if (q) {
-      const hay = `#${t.tree_id} ${t.tree_id} ${t.gps_lat.toFixed(6)} ${t.gps_lon.toFixed(6)}`
+      const hay = `#${row.tree_id} ${row.tree_id} ${row.gps_lat.toFixed(6)} ${row.gps_lon.toFixed(6)}`
       if (!hay.includes(q.replace(/^#/, ""))) return false
     }
-    if (taskFilter === "pending" && t.tasks_remaining === 0) return false
-    if (taskFilter === "clear" && t.tasks_remaining > 0) return false
+    if (taskFilter === "pending" && row.tasks_remaining === 0) return false
+    if (taskFilter === "clear" && row.tasks_remaining > 0) return false
     return true
   })
   const pager = usePagination(filtered)
@@ -50,8 +54,8 @@ export default function TreesPage() {
   if (loading) {
     return (
       <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
-        <div className="kicker">Inventory</div>
-        <h1 className="font-display" style={{ fontSize: 36, fontWeight: 700, margin: "8px 0 16px", letterSpacing: "-0.03em" }}>Tree Registry</h1>
+        <div className="kicker">{t("heroKicker")}</div>
+        <h1 className="font-display" style={{ fontSize: 36, fontWeight: 700, margin: "8px 0 16px", letterSpacing: "-0.03em" }}>{t("heroAccent")}</h1>
         <div className="panel" style={{ overflow: "hidden" }}>
           {[...Array(6)].map((_, i) => (
             <div
@@ -74,22 +78,22 @@ export default function TreesPage() {
   return (
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
       <PageHero
-        kicker="Inventory"
-        title="Permanent"
-        accent="Tree Registry"
-        sub="Every permanent tree the platform has resolved from drone surveys, with its GPS fix, detected coconuts, and remaining harvest tasks."
+        kicker={t("heroKicker")}
+        title={t("heroTitle")}
+        accent={t("heroAccent")}
+        sub={t("heroSub")}
         clip="/clips/7.mp4"
       />
 
       <div className="toolbar">
         <input
           className="input tree-search"
-          placeholder="Search by tree # or GPS…"
+          placeholder={t("searchPlaceholder")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search trees"
+          aria-label={t("searchLabel")}
         />
-        <div className="filter-chips" role="group" aria-label="Filter by tasks">
+        <div className="filter-chips" role="group" aria-label={t("filterTasks")}>
           {(["all", "pending", "clear"] as const).map((f) => (
             <button
               key={f}
@@ -97,12 +101,12 @@ export default function TreesPage() {
               className={"filter-chip" + (taskFilter === f ? " active" : "")}
               onClick={() => setTaskFilter(f)}
             >
-              {f === "all" ? "All" : f === "pending" ? "Tasks pending" : "Clear"}
+              {f === "all" ? t("fAll") : f === "pending" ? t("fPending") : t("fClear")}
             </button>
           ))}
         </div>
         <span className="toolbar-count font-mono">
-          {filtered.length} of {trees.length}
+          {tc("countOf", { filtered: filtered.length, total: trees.length })}
         </span>
       </div>
 
@@ -112,28 +116,28 @@ export default function TreesPage() {
             <thead>
               <tr>
                 <Th>ID</Th>
-                <Th align="right">Latitude</Th>
-                <Th align="right">Longitude</Th>
-                <Th align="right">Coconuts</Th>
-                <Th align="right">Tasks</Th>
-                <Th align="right">Open</Th>
+                <Th align="right">{t("thLatitude")}</Th>
+                <Th align="right">{t("thLongitude")}</Th>
+                <Th align="right">{t("thCoconuts")}</Th>
+                <Th align="right">{t("thTasks")}</Th>
+                <Th align="right">{t("thOpen")}</Th>
               </tr>
             </thead>
             <tbody>
-              {pager.slice.map((t: TreeSummary) => (
-                <tr key={t.tree_id}>
-                  <Td className="tab" style={{ fontWeight: 600, fontFamily: "var(--font-mono)" }}>#{t.tree_id}</Td>
-                  <Td align="right" className="tab" style={{ color: "var(--color-text-dim)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{t.gps_lat.toFixed(6)}</Td>
-                  <Td align="right" className="tab" style={{ color: "var(--color-text-dim)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{t.gps_lon.toFixed(6)}</Td>
-                  <Td align="right" className="tab" style={{ fontWeight: 600 }}>{t.coconuts_detected}</Td>
+              {pager.slice.map((row: TreeSummary) => (
+                <tr key={row.tree_id}>
+                  <Td className="tab" style={{ fontWeight: 600, fontFamily: "var(--font-mono)" }}>#{row.tree_id}</Td>
+                  <Td align="right" className="tab" style={{ color: "var(--color-text-dim)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{row.gps_lat.toFixed(6)}</Td>
+                  <Td align="right" className="tab" style={{ color: "var(--color-text-dim)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{row.gps_lon.toFixed(6)}</Td>
+                  <Td align="right" className="tab" style={{ fontWeight: 600 }}>{row.coconuts_detected}</Td>
                   <Td align="right">
-                    <span className={`task-pill ${t.tasks_remaining > 0 ? "pending" : "done"}`}>
-                      {t.tasks_remaining > 0 ? t.tasks_remaining : "Clear"}
+                    <span className={`task-pill ${row.tasks_remaining > 0 ? "pending" : "done"}`}>
+                      {row.tasks_remaining > 0 ? row.tasks_remaining : t("fClear")}
                     </span>
                   </Td>
                   <Td align="right">
-                    <Link href={`/trees/${t.tree_id}`} className="tree-open">
-                      Open →
+                    <Link href={`/trees/${row.tree_id}`} className="tree-open">
+                      {t("thOpen")} →
                     </Link>
                   </Td>
                 </tr>
@@ -142,9 +146,9 @@ export default function TreesPage() {
                 <tr>
                   <Td colSpan={6} style={{ padding: 0 }}>
                     <div className="tree-empty">
-                      <div className="tree-empty-title">No trees match</div>
+                      <div className="tree-empty-title">{t("noMatchTitle")}</div>
                       <p className="tree-empty-sub">
-                        Adjust the search or filter to see more of the registry.
+                        {t("noMatchSub")}
                       </p>
                     </div>
                   </Td>
@@ -154,10 +158,9 @@ export default function TreesPage() {
                 <tr>
                   <Td colSpan={6} style={{ padding: 0 }}>
                     <div className="tree-empty">
-                      <div className="tree-empty-title">No trees registered yet</div>
+                      <div className="tree-empty-title">{t("emptyTitle")}</div>
                       <p className="tree-empty-sub">
-                        Run a drone survey to resolve permanent trees. They will appear
-                        here with GPS fixes and harvest tasks.
+                        {t("emptySub")}
                       </p>
                     </div>
                   </Td>
