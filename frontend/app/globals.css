@@ -57,9 +57,13 @@
   --color-info: #3f7d34;
 
   /* Fonts — single precision-instrument family (docs/design/03 §1.2).
-     Geist for display + UI sans, Geist Mono for data/coordinates. */
-  --font-display: var(--font-sans), "Geist", system-ui, sans-serif;
-  --font-sans: var(--font-sans), "Geist", system-ui, sans-serif;
+     Geist for display + UI sans, Geist Mono for data/coordinates.
+     V5.0: --font-indic stacks the five Noto Sans Indic families (variables
+     set in app/layout.tsx); the browser falls through per-glyph, so Latin
+     keeps Geist while each Indic script gets its designed shapes. */
+  --font-indic: var(--font-deva), var(--font-tamil), var(--font-telugu), var(--font-kannada), var(--font-malayalam);
+  --font-display: var(--font-sans), "Geist", var(--font-indic), system-ui, sans-serif;
+  --font-sans: var(--font-sans), "Geist", var(--font-indic), system-ui, sans-serif;
   --font-mono: var(--font-mono), "Geist Mono", ui-monospace, monospace;
 
   /* Radii — one locked scale (cards 12 / inputs 8 / buttons pill) */

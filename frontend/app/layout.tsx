@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Noto_Sans_Devanagari,
+  Noto_Sans_Tamil,
+  Noto_Sans_Telugu,
+  Noto_Sans_Kannada,
+  Noto_Sans_Malayalam,
+} from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
@@ -18,6 +26,17 @@ const mono = Geist_Mono({
   variable: "--font-mono",
   display: "swap",
 });
+// V5.0 — Indic fallbacks (Geist ships latin only). One Noto Sans per script;
+// the browser picks per-glyph automatically, and next/font unicode-range
+// subsetting means only the script in use is ever downloaded. Hindi + Marathi
+// share Devanagari.
+const deva = Noto_Sans_Devanagari({ weight: ["400", "600", "700"], display: "swap", variable: "--font-deva" });
+const tamil = Noto_Sans_Tamil({ weight: ["400", "600", "700"], display: "swap", variable: "--font-tamil" });
+const telugu = Noto_Sans_Telugu({ weight: ["400", "600", "700"], display: "swap", variable: "--font-telugu" });
+const kannada = Noto_Sans_Kannada({ weight: ["400", "600", "700"], display: "swap", variable: "--font-kannada" });
+const malayalam = Noto_Sans_Malayalam({ weight: ["400", "600", "700"], display: "swap", variable: "--font-malayalam" });
+
+const indicClass = `${deva.variable} ${tamil.variable} ${telugu.variable} ${kannada.variable} ${malayalam.variable}`;
 
 export const metadata: Metadata = {
   title: "Veraxis — Autonomous Coconut Harvesting Platform",
@@ -37,7 +56,7 @@ export default async function RootLayout({
   const locale = await getLocale();
   const messages = await getMessages();
   return (
-    <html lang={locale} className={`${sans.variable} ${mono.variable}`}>
+    <html lang={locale} className={`${sans.variable} ${mono.variable} ${indicClass}`}>
       <body>
         <NextIntlClientProvider
           locale={locale}
