@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import {
   getRobotRuns,
@@ -32,15 +33,12 @@ function fmtTime(iso: string | null) {
   return fmtIST(iso)
 }
 
-const STATUS_LABEL: Record<RunStatus, string> = {
-  COMPLETED: "Completed",
-  ABORTED: "Aborted",
-  FAILED: "Failed",
-}
-
 type SortKey = "finished_at" | "mission_score" | "harvested_trees" | "duration_s"
 
 export default function MissionHistoryPage() {
+  // V5.0: run-status labels come from the shared status dictionary.
+  const t = useTranslations("history")
+  const ts = useTranslations("status")
   const [runs, setRuns] = useState<RobotRun[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,10 +92,10 @@ export default function MissionHistoryPage() {
   return (
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1500, margin: "0 auto" }}>
       <PageHero
-        kicker="Analytics"
-        title="Mission"
-        accent="History & Analytics"
-        sub="Every completed robot run, with the backend-computed summary, score, and per-tree activity. All metrics are derived server-side."
+        kicker={t("heroKicker")}
+        title={t("heroTitle")}
+        accent={t("heroAccent")}
+        sub={t("heroSub")}
         clip="/clips/6.mp4"
       />
 
@@ -109,18 +107,18 @@ export default function MissionHistoryPage() {
       {error && <p style={{ color: "var(--color-crit)" }}>{error}</p>}
       {!loading && !error && runs.length === 0 && (
         <div className="panel-2" style={{ padding: 24, color: "var(--color-text-dim)" }}>
-          No runs yet. Start a robot simulation from the{" "}
+          {t("emptyCtaA")}{" "}
           <Link href="/robot" style={{ color: "var(--color-accent)", textDecoration: "none", borderBottom: "1px solid var(--color-accent-dim)" }}>
-            Robot
+            {t("emptyCtaLink")}
           </Link>{" "}
-          page to record one.
+          {t("emptyCtaB")}
         </div>
       )}
 
       {sorted.length > 0 && (
         <div className="panel" style={{ overflow: "hidden" }}>
           <div className="hist-toolbar">
-            <div className="hist-chips" role="group" aria-label="Filter by status">
+            <div className="hist-chips" role="group" aria-label={t("filterAria")}>
               {(["all", "COMPLETED", "ABORTED", "FAILED"] as const).map((f) => (
                 <button
                   key={f}
@@ -128,30 +126,30 @@ export default function MissionHistoryPage() {
                   className={"hist-chip" + (statusFilter === f ? " active" : "")}
                   onClick={() => setStatusFilter(f)}
                 >
-                  {f === "all" ? "All runs" : STATUS_LABEL[f]}
+                  {f === "all" ? t("allRuns") : ts(f)}
                 </button>
               ))}
             </div>
-            <span className="hist-count font-mono">{sorted.length} runs</span>
+            <span className="hist-count font-mono">{t("runsCount", { count: sorted.length })}</span>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
                 <tr style={{ background: "var(--color-surface-2)", textAlign: "left" }}>
                   <Th>#</Th>
-                  <Th>Status</Th>
-                  <Th>Mission</Th>
-                  <Th>Finished</Th>
+                  <Th>{t("thStatus")}</Th>
+                  <Th>{t("thMission")}</Th>
+                  <Th>{t("thFinished")}</Th>
                   <Th align="right" sortable dir={sortKey === "duration_s" ? sortDir : null} onClick={() => toggleSort("duration_s")}>
-                    Duration
+                    {t("thDuration")}
                   </Th>
                   <Th align="right" sortable dir={sortKey === "harvested_trees" ? sortDir : null} onClick={() => toggleSort("harvested_trees")}>
-                    Harvested
+                    {t("thHarvested")}
                   </Th>
-                  <Th align="right">Battery used</Th>
-                  <Th align="right">Distance</Th>
+                  <Th align="right">{t("thBattery")}</Th>
+                  <Th align="right">{t("thDistance")}</Th>
                   <Th align="right" sortable dir={sortKey === "mission_score" ? sortDir : null} onClick={() => toggleSort("mission_score")}>
-                    Score
+                    {t("thScore")}
                   </Th>
                 </tr>
               </thead>
@@ -168,7 +166,7 @@ export default function MissionHistoryPage() {
                     </Td>
                     <Td>
                       <span style={statusPill(statusColor[r.status])}>
-                        {STATUS_LABEL[r.status]}
+                        {ts(r.status)}
                       </span>
                     </Td>
                     <Td>{r.mission_id ?? "—"}</Td>
@@ -192,7 +190,7 @@ export default function MissionHistoryPage() {
       )}
       {!loading && !error && runs.length > 0 && sorted.length === 0 && (
         <div className="panel-2" style={{ padding: 24, color: "var(--color-text-dim)" }}>
-          No runs with status “{STATUS_LABEL[statusFilter as RunStatus]}”.
+          {t("emptyFilter", { status: ts(statusFilter as RunStatus) })}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, use } from "react"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import {
   Play,
@@ -77,11 +78,12 @@ const TIMELINE_FALLBACK: TimelineKind = {
 }
 
 // The four transparent score factors shown to the user (backend-derived order).
-const SCORE_FACTORS: { key: keyof ScoreBreakdown; label: string }[] = [
-  { key: "completion", label: "Completion" },
-  { key: "battery_economy", label: "Battery Efficiency" },
-  { key: "safe_return", label: "Safe Return" },
-  { key: "error_free", label: "Error Free" },
+// V5.0: labels resolve from the runDetail dictionary inside ScoreBlock.
+const SCORE_FACTORS: { key: keyof ScoreBreakdown; labelKey: "fCompletion" | "fBattery" | "fReturn" | "fErrorFree" }[] = [
+  { key: "completion", labelKey: "fCompletion" },
+  { key: "battery_economy", labelKey: "fBattery" },
+  { key: "safe_return", labelKey: "fReturn" },
+  { key: "error_free", labelKey: "fErrorFree" },
 ]
 
 function fmtDuration(s: number | null) {
@@ -93,12 +95,6 @@ function fmtDuration(s: number | null) {
 
 function fmtTime(iso: string | null) {
   return fmtIST(iso)
-}
-
-const STATUS_LABEL: Record<RunStatus, string> = {
-  COMPLETED: "Completed",
-  ABORTED: "Aborted",
-  FAILED: "Failed",
 }
 
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
@@ -124,6 +120,9 @@ export default function RunDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
+  // V5.0: all chrome strings come from the runDetail/status dictionaries.
+  const t = useTranslations("runDetail")
+  const ts = useTranslations("status")
   const runId = Number(id)
   const [run, setRun] = useState<RobotRun | null>(null)
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
@@ -174,36 +173,43 @@ export default function RunDetailPage({
     )
   }
   if (error) return <div style={{ padding: 24, color: "var(--color-crit)" }}>{error}</div>
-  if (!run) return <div style={{ padding: 24, color: "var(--color-text-dim)" }}>Run not found.</div>
+  if (!run) return <div style={{ padding: 24, color: "var(--color-text-dim)" }}>{t("runNotFound")}</div>
 
   return (
     <div style={{ padding: "28px clamp(16px, 4vw, 48px) 56px", maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ marginBottom: 16 }}>
         <Link href="/robot/history" style={{ color: "var(--color-accent)", textDecoration: "none", fontSize: 14, borderBottom: "1px solid var(--color-accent-dim)" }}>
-          ← Back to Mission History
+          ← {t("backHistory")}
         </Link>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6, flexWrap: "wrap" }}>
         <h1 className="font-display" style={{ fontSize: 26, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>
-          Run #{run.id}
+          {t("runTitle", { id: run.id })}
         </h1>
-        <span style={statusPill(statusColor[run.status])}>{STATUS_LABEL[run.status]}</span>
+        <span style={statusPill(statusColor[run.status])}>{ts(run.status)}</span>
       </div>
       <p style={{ color: "var(--color-text-dim)", marginTop: 4 }}>
-        Mission {run.mission_id ?? "—"} · finished {fmtTime(run.finished_at)} ·
-        speed ×{run.speed_factor ?? 1}
+        {t("metaMission", { id: run.mission_id ?? "—" })} · {t("metaFinished", { date: fmtTime(run.finished_at) })} ·
+        {t("metaSpeed", { n: run.speed_factor ?? 1 })}
       </p>
 
       <div style={{ display: "flex", gap: 8, margin: "20px 0", flexWrap: "wrap" }}>
-        {tabNames.map((t) => (
+        {(
+          [
+            ["summary", t("tabSummary")],
+            ["timeline", t("tabTimeline")],
+            ["tree-activity", t("tabTree")],
+            ["robot-log", t("tabLog")],
+          ] as [Tab, string][]
+        ).map(([key, label]) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={tab === t ? "btn btn-primary" : "btn btn-ghost"}
+            key={key}
+            onClick={() => setTab(key)}
+            className={tab === key ? "btn btn-primary" : "btn btn-ghost"}
             style={{ height: 38, padding: "8px 16px", textTransform: "capitalize", fontSize: 13 }}
           >
-            {t.replace("-", " ")}
+            {label}
           </button>
         ))}
       </div>
@@ -219,18 +225,18 @@ export default function RunDetailPage({
               margin: "16px 0",
             }}
           >
-            <Metric label="Harvested / Total" value={`${run.harvested_trees}/${run.total_trees}`} />
-            <Metric label="Skipped" value={run.skipped_trees} />
-            <Metric label="Duration" value={fmtDuration(run.duration_s)} />
-            <Metric label="Distance" value={`${run.distance_travelled} m`} />
-            <Metric label="Battery used" value={`${run.battery_used_pct}%`} />
-            <Metric label="Recharges" value={run.recharge_count} />
+            <Metric label={t("mHarvested")} value={`${run.harvested_trees}/${run.total_trees}`} />
+            <Metric label={t("mSkipped")} value={run.skipped_trees} />
+            <Metric label={t("mDuration")} value={fmtDuration(run.duration_s)} />
+            <Metric label={t("mDistance")} value={`${run.distance_travelled} m`} />
+            <Metric label={t("mBattery")} value={`${run.battery_used_pct}%`} />
+            <Metric label={t("mRecharges")} value={run.recharge_count} />
             <Metric
-              label="Avg harvest time"
+              label={t("mAvgHarvest")}
               value={run.avg_harvest_time_s != null ? `${run.avg_harvest_time_s}s` : "—"}
             />
             <Metric
-              label="Fastest / Slowest"
+              label={t("mFastSlow")}
               value={
                 run.fastest_harvest_s != null && run.slowest_harvest_s != null
                   ? `${run.fastest_harvest_s}s / ${run.slowest_harvest_s}s`
@@ -238,17 +244,17 @@ export default function RunDetailPage({
               }
             />
             <Metric
-              label="Avg speed"
+              label={t("mAvgSpeed")}
               value={run.avg_speed != null ? `${run.avg_speed}` : "—"}
             />
-            <Metric label="Idle time" value={`${run.idle_time_s}s`} />
+            <Metric label={t("mIdle")} value={`${run.idle_time_s}s`} />
             <Metric
-              label="Efficiency"
+              label={t("mEfficiency")}
               value={run.efficiency != null ? run.efficiency.toFixed(2) : "—"}
             />
           </div>
           <div style={{ color: "var(--color-text-faint)", fontSize: 13 }}>
-            Started {fmtTime(run.started_at)} · finished {fmtTime(run.finished_at)}
+            {t("startedAt", { a: fmtTime(run.started_at) })} · {t("finishedAt", { b: fmtTime(run.finished_at) })}
           </div>
         </div>
       )}
@@ -266,39 +272,39 @@ export default function RunDetailPage({
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
                 <tr style={{ background: "var(--color-surface-2)", textAlign: "left" }}>
-                  <Th2>Tree</Th2>
-                  <Th2>Result</Th2>
-                  <Th2>Visit (sim t)</Th2>
-                  <Th2>Harvest time</Th2>
-                  <Th2>Battery</Th2>
-                  <Th2>Inventory</Th2>
+                  <Th2>{t("thTree")}</Th2>
+                  <Th2>{t("thResult")}</Th2>
+                  <Th2>{t("thVisit")}</Th2>
+                  <Th2>{t("thHarvestTime")}</Th2>
+                  <Th2>{t("thBattery")}</Th2>
+                  <Th2>{t("thInventory")}</Th2>
                 </tr>
               </thead>
               <tbody>
                 {trees.length === 0 && (
                   <tr>
                     <Td2 colSpan={6} style={{ color: "var(--color-text-dim)" }}>
-                      No trees visited.
+                      {t("emptyTrees")}
                     </Td2>
                   </tr>
                 )}
-                {treePager.slice.map((t) => (
-                  <tr key={t.tree_id} style={{ borderTop: "1px solid var(--color-line)" }}>
+                {treePager.slice.map((row) => (
+                  <tr key={row.tree_id} style={{ borderTop: "1px solid var(--color-line)" }}>
                     <Td2>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <Link
-                          href={`/trees/${t.tree_id}`}
+                          href={`/trees/${row.tree_id}`}
                           style={{ color: "var(--color-accent)", textDecoration: "none", fontWeight: 600, borderBottom: "1px solid var(--color-accent-dim)" }}
                         >
-                          #{t.tree_id}
-                          {t.tree_code ? ` (${t.tree_code})` : ""}
+                          #{row.tree_id}
+                          {row.tree_code ? ` (${row.tree_code})` : ""}
                         </Link>
                         <span style={{ display: "inline-flex", gap: 6 }}>
-                          <ActionLink href={`/trees/${t.tree_id}`} color="var(--color-accent)">
-                            Open Tree
+                          <ActionLink href={`/trees/${row.tree_id}`} color="var(--color-accent)">
+                            {t("openTree")}
                           </ActionLink>
-                          <ActionLink href={`/map?tree=${t.tree_id}`} color="var(--color-gold-ink)">
-                            Open Digital Twin
+                          <ActionLink href={`/map?tree=${row.tree_id}`} color="var(--color-gold-ink)">
+                            {t("openTwin")}
                           </ActionLink>
                         </span>
                       </div>
@@ -310,21 +316,21 @@ export default function RunDetailPage({
                           borderRadius: 99,
                           fontSize: 12,
                           fontWeight: 600,
-                          color: t.harvest_result === "harvested" ? "var(--color-accent)" : "var(--color-text-dim)",
+                          color: row.harvest_result === "harvested" ? "var(--color-accent)" : "var(--color-text-dim)",
                           background:
-                            t.harvest_result === "harvested"
+                            row.harvest_result === "harvested"
                               ? "rgba(63,125,52,0.12)"
                               : "var(--color-surface-2)",
-                          border: `1px solid ${t.harvest_result === "harvested" ? "rgba(63,125,52,0.4)" : "var(--color-line)"}`,
+                          border: `1px solid ${row.harvest_result === "harvested" ? "rgba(63,125,52,0.4)" : "var(--color-line)"}`,
                         }}
                       >
-                        {t.harvest_result}
+                        {row.harvest_result}
                       </span>
                     </Td2>
-                    <Td2>{t.visit_time != null ? `${t.visit_time}s` : "—"}</Td2>
-                    <Td2>{t.harvest_duration_s != null ? `${t.harvest_duration_s}s` : "—"}</Td2>
-                    <Td2>{t.battery_at_visit != null ? `${t.battery_at_visit.toFixed(1)}%` : "—"}</Td2>
-                    <Td2>{t.inventory_collected ?? "—"}</Td2>
+                    <Td2>{row.visit_time != null ? `${row.visit_time}s` : "—"}</Td2>
+                    <Td2>{row.harvest_duration_s != null ? `${row.harvest_duration_s}s` : "—"}</Td2>
+                    <Td2>{row.battery_at_visit != null ? `${row.battery_at_visit.toFixed(1)}%` : "—"}</Td2>
+                    <Td2>{row.inventory_collected ?? "—"}</Td2>
                   </tr>
                 ))}
               </tbody>
@@ -396,6 +402,7 @@ function statusPill(color: string): React.CSSProperties {
 // and the per-factor breakdown so the user can see exactly how it was derived.
 // The frontend never computes the score — only displays the backend breakdown.
 function ScoreBlock({ run }: { run: RobotRun }) {
+  const t = useTranslations("runDetail")
   const score = run.mission_score ?? 0
   const bd = run.score_breakdown
   return (
@@ -408,7 +415,7 @@ function ScoreBlock({ run }: { run: RobotRun }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span style={{ fontSize: 12, color: "var(--color-text-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Mission Score</span>
+        <span style={{ fontSize: 12, color: "var(--color-text-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("scoreTitle")}</span>
         <span className="font-display" style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-0.02em" }}>
           {score}
           <span style={{ fontSize: 16, color: "var(--color-text-faint)", fontWeight: 600 }}> / 100</span>
@@ -429,7 +436,7 @@ function ScoreBlock({ run }: { run: RobotRun }) {
                     marginBottom: 4,
                   }}
                 >
-                  <span style={{ color: "var(--color-text-dim)" }}>{f.label}</span>
+                  <span style={{ color: "var(--color-text-dim)" }}>{t(f.labelKey)}</span>
                   <span style={{ fontWeight: 600, color: "var(--color-text)" }}>{pct}%</span>
                 </div>
                 <div
@@ -456,7 +463,7 @@ function ScoreBlock({ run }: { run: RobotRun }) {
         </div>
       ) : (
         <div style={{ marginTop: 8, color: "var(--color-text-faint)", fontSize: 13 }}>
-          Breakdown not available for this run.
+          {t("scoreEmpty")}
         </div>
       )}
     </div>
@@ -471,6 +478,7 @@ function ScoreBlock({ run }: { run: RobotRun }) {
 // that mirrors the order events actually happened; it is disabled under
 // prefers-reduced-motion (handled in the scoped block below).
 function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
+  const t = useTranslations("runDetail")
   if (timeline.length === 0) {
     return (
       <div
@@ -483,7 +491,7 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
           fontSize: 14,
         }}
       >
-        No events recorded for this run.
+        {t("tlEmpty")}
       </div>
     )
   }
@@ -492,9 +500,9 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
     <div className="tl">
       <div className="tl-legend">
         <span className="tl-legend-item">
-          <code>t+Ns</code> = simulated seconds
+          <code>t+Ns</code> = {t("tlSimUnit")}
         </span>
-        <span className="tl-legend-item">· clock = IST (Asia/Kolkata)</span>
+        <span className="tl-legend-item">· {t("tlClockUnit")}</span>
       </div>
       <ol className="tl-list">
         {timeline.map((e, i) => {
@@ -522,7 +530,7 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
                   ) : null}
                   <span className="tl-clock">t+{e.sim_time}s</span>
                   {e.timestamp ? (
-                    <span className="tl-clock tl-clock-ist" title="Indian Standard Time (Asia/Kolkata)">
+                    <span className="tl-clock tl-clock-ist" title={t("istTitle")}>
                       {fmtISTTimeOnly(e.timestamp)}
                     </span>
                   ) : null}
@@ -708,28 +716,29 @@ function fmtDetail(detail: Record<string, unknown>): { k: string; v: string }[] 
 // (the previous near-white text on a white surface was unreadable). Presentation
 // only — the RobotLogEntry shape and ordering are untouched.
 function RobotLog({ log }: { log: RobotLogEntry[] }) {
+  const t = useTranslations("runDetail")
   return (
     <div className="rl">
       <div className="rl-bar">
         <span className="rl-dot" aria-hidden="true" />
         <span className="rl-name">robot.log</span>
-        <span className="rl-hint" title="First column = Indian Standard Time (Asia/Kolkata); t+Ns = simulated seconds">
-          IST clock · t+N = sim s
+        <span className="rl-hint" title={t("logHintTitle")}>
+          {t("logHint")}
         </span>
         <span className="rl-count">
-          {log.length} {log.length === 1 ? "entry" : "entries"}
+          {t("logCount", { count: log.length })}
         </span>
       </div>
       <div className="rl-body">
         {log.length === 0 ? (
-          <div className="rl-empty">No log entries recorded for this run.</div>
+          <div className="rl-empty">{t("logEmpty")}</div>
         ) : (
           log.map((e) => {
             const sev = SEVERITY[e.severity] ?? SEVERITY.INFO
             const detail = e.detail ? fmtDetail(e.detail) : []
             return (
               <div key={e.id} className="rl-row" style={{ "--rl-color": sev.color, "--rl-tone": sev.tone } as React.CSSProperties}>
-                <span className="rl-clock" title="Indian Standard Time (Asia/Kolkata)">
+                <span className="rl-clock" title={t("istTitle")}>
                   {e.timestamp ? fmtISTTimeOnly(e.timestamp) : "—"}
                 </span>
                 <span className="rl-sim">t+{e.sim_time}</span>
