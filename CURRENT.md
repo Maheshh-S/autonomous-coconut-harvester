@@ -1,7 +1,7 @@
 # CURRENT.md
 
-- **Project Version:** 4.0.3 (Version 4 line; UI/UX quality track)
-- **Current Status:** Version 3 pipeline complete through V4.0.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System). All work is implemented and verified but **not yet committed** — awaiting explicit approval.
+- **Project Version:** 4.0.4 (Version 4 line; UI/UX quality track)
+- **Current Status:** Committed through V4.0.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System). **V4.0.4 is implemented and verified but not yet committed** — awaiting explicit approval. Do NOT commit until approved.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
     tree-matching into permanent `Tree` records, V1 `Task`/`Detection` model, V1 robot
@@ -19,9 +19,10 @@
     Telemetry & WebSocket (V3.5 / V3.5.1), Live Robot Visualization (V3.6 / V3.6.1),
     Mission History & Analytics (V3.7 / V3.7.1), Workflow Integration (V3.7.2),
     Speed & Battery Calibration (V3.7.3).
-  - **Current state:** all V1–V3 work is implemented and verified (Playwright 0 console
-    errors, `tsc --noEmit` / `next build` clean) but **not yet committed** — awaiting
-    explicit approval. Do NOT commit until approved.
+  - **Current state:** all V1–V4.0.3 work is implemented, verified, and **committed**
+    (Playwright 0 console errors, `tsc --noEmit` / `next build` clean). Only **V4.0.4**
+    (below) is implemented + verified but **not yet committed** — awaiting explicit
+    approval. Do NOT commit until approved.
   - **Performance Hardening (backend read-path + indexes; behavior-preserving — awaiting
     commit approval):** an end-to-end audit of the Neon-serverless-bound read paths (dashboard,
     survey → Digital Twin, harvest status/items, Mission History timeline/tree-activity/
@@ -53,7 +54,7 @@
     - **Honest limitation:** the dominant remaining latency is Neon's pooled round-trip floor
       (~2 s warm per request, higher on cold scale-to-zero) — a network/serverless-layer cost
       no query optimization removes. Verified: `py_compile`, app import, `test_db.py`, live
-      endpoint smoke (all 200), and `tsc --noEmit` clean. **NOT committed — awaiting approval.**
+      endpoint smoke (all 200), and `tsc --noEmit` clean. **Committed as `02c8156`.**
   - **Frontend Polish — list pagination + loading skeletons (presentation-only; behavior & testids
     preserved — awaiting commit approval):** a UI/UX pass over the list-heavy pages to tame the
     Neon round-trip latency and long lists. No API contract, route, schema, `detection.ts` export,
@@ -78,7 +79,7 @@
       "Page 1 of 32"; Recent Activity 8/page; timeline "Page 1 of 5" pager advances; ≤8 lists
       auto-hide the pager; skeletons resolve). Standalone `verify_v371.js` couldn't run because
       its Playwright Chromium binary isn't installed (env), so the equivalent live MCP browser
-      pass was used instead. **NOT committed — awaiting approval.**
+      pass was used instead. **Committed as `83bdbce` / `2dbbcaa` / `fe75e4f`.**
   - **IST Time Handling — presentation-only fix (awaiting commit approval):** back-end
     timestamps are stored **naive UTC** (`datetime.utcnow()` in `models.py`) and serialised via
     `.isoformat()` with no `Z`/offset. The frontend previously did raw `new Date(iso).toLocaleString()`,
@@ -100,7 +101,7 @@
     - **Verified (observed):** `01:52 UTC` renders `7:22 am IST` (+5:30); timeline `t+24s` +
       `7:22 am`; robot log `7:22 am / t+24 / WARNING / Event`; summary `finished 28 Jul 2026,
       3:42 pm`; history/survey/dashboard all correct IST. `tsc --noEmit` clean, `next build` clean,
-      live browser **0 console errors** on every touched page. **NOT committed — awaiting approval.**
+      live browser **0 console errors** on every touched page. **Committed as `2dbbcaa` / `fe75e4f`.**
   - **Version 2 (FROZEN v2.0 — architecture locked; data foundation implemented):**
   - **Digital Twin Farm Viewer** amendment frozen in `PROJECT_SPECIFICATION.md §V2`.
     A seam-de-emphasised tile mosaic (tiles by grid row/col; YOLO bounding boxes as the
@@ -1773,8 +1774,8 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         transform none, `.beats` `::before` gradient present, closer is a dark on-palette panel,
         0 horizontal overflow; reduced-motion emulation → chapters static & visible; mobile 390px →
         0 overflow, glass translucent. **Not committed** — awaiting approval.
-    - **Digital Twin Interaction Overhaul — "FarmViewer v2" (V3.8.8, completed; awaiting commit
-      approval):** a presentation-only rebuild of the twin's gesture engine + visual LOD, from the
+    - **Digital Twin Interaction Overhaul — "FarmViewer v2" (V3.8.8, completed; committed as
+      `7d34cdd`):** a presentation-only rebuild of the twin's gesture engine + visual LOD, from the
       V3.8.8 UI/UX audit. **No backend / API / route / `detection.ts` / `computeMosaicLayout` /
       `useRobotSimulation` contract / `data-testid` / user-flow changes.** Architecture unchanged
       (DOM transform stage + memoized mosaic + viewport culling — renderer freeze honoured); only
@@ -1823,10 +1824,10 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         zoom), `verify_v361.js` **complete PASS** (marker drive, recharge, return-to-dock) —
         all with **0 console errors**. Before/after screenshots in `frontend/shots/audit/`
         (`after-map-*.png`); audit trail in `docs/UI_UX_AUDIT.md`. Manual feel-test: trackpad
-        zoom no longer overshoots, momentum + bounds feel native, follow-camera works. **Not
-        committed** — awaiting approval.
-    - **Dashboard Mini-Map + Robot Simulation Upgrade (V3.8.9, completed; awaiting commit
-      approval):** presentation-only upgrade of the Mission Control mini-map and the Robot Ops
+        zoom no longer overshoots, momentum + bounds feel native, follow-camera works.
+        **Committed as `7d34cdd`.**
+    - **Dashboard Mini-Map + Robot Simulation Upgrade (V3.8.9, completed; committed as
+      `7d34cdd`):** presentation-only upgrade of the Mission Control mini-map and the Robot Ops
       command centre, from the V3.8.8 audit + user direction. **No backend / API / route /
       `detection.ts` / `computeMosaicLayout` / `useRobotSimulation` contract / existing
       `data-testid` / user-flow changes.**
@@ -1865,8 +1866,8 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         `IDLE` + 100% + docked. Dashboard mini-map real-wheel zoom verified via stage-transform
         MutationObserver (smooth rAF animation; readout rounding hides sub-1% steps at fit zoom —
         cosmetic). Screenshots: `frontend/shots/audit/after-dashboard-minimap*.png`,
-        `after-robot-*.png`. **Not committed** — awaiting approval.
-    - **Batch A quick wins + Batch B hero system (V4.0.3, completed; awaiting commit approval):**
+        `after-robot-*.png`. **Committed as `7d34cdd`.**
+    - **Batch A quick wins + Batch B hero system (V4.0.3, completed; committed as `4cc9c11`):**
       the audit's cross-cutting fixes and the shared hero component. Presentation-only; no
       backend / API / contract / flow changes.
       - **Nav double-active fixed** (`AppShell.tsx`): exact-or-segment match — `/robot/history/7`
@@ -1898,8 +1899,44 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
       - **Verification:** `tsc --noEmit` — 0 errors; `next build` — success (10 routes);
         `verify_v26.js` 15/15, `verify_v251.js` 11/11, `verify_v361.js` complete PASS;
         `verify_console.js` — **8 pages, 0 failures, 0 console errors**. Hero screenshots:
-        `frontend/shots/audit/after-hero-*.png`, `after-landing-hero-rest.png`. **Not committed**
-        — awaiting approval.
+        `frontend/shots/audit/after-hero-*.png`, `after-landing-hero-rest.png`. **Committed as
+        `4cc9c11`.**
+    - **Registry + discovery pass (V4.0.4, implemented + verified; NOT committed — awaiting
+      approval):** presentation-only follow-through on the remaining audit-noted UX gaps.
+      **No backend / API / route / `detection.ts` / `computeMosaicLayout` / `useRobotSimulation`
+      contract / `data-testid` / user-flow changes.** e2e text contracts preserved
+      (`Detect Coconuts`, `Coconuts detected:`, `webkitdirectory` folder input,
+      `harvest-planner` testid).
+      - **Dashboard (`app/dashboard/page.tsx`):** status/activity colors moved from hardcoded
+        hexes to AA tokens (`--color-text-faint/gold-ink/accent/leaf/info/husk/ok/crit`);
+        `Badge` uses `color-mix` tints; Farm Summary converted from a 6-tile grid to compact
+        striped `.sum-row`s; Overview tile 4 is now **Latest Run Score** (`Run #id` sub); the
+        duplicated Robot panel removed (mini-map + Latest Run already carry it); MiniBar
+        segments on tokens.
+      - **Landing (`app/page.tsx`):** bento rhythm — Drone Survey + Robot Execution capability
+        cells span 2 cols on desktop with accent-weak fill (the two hero capabilities).
+      - **Mission History (`app/robot/history/page.tsx`):** status-filter chips
+        (All runs / Completed / Aborted / Failed) + run count; table numerics right-aligned
+        with tabular-nums; `Th` sort affordance (`↕` inactive → `▲/▼` active, accent); finished
+        timestamps `nowrap`; empty-filter state ("No runs with status …"). `usePagination`
+        safe-clamps so filtering can never strand the pager off-range.
+      - **Survey (`app/survey/page.tsx`):** sticky `StepRail` scroll-spy (01 Mission / 02
+        Imagery / 03 Upload / 04 Harvest; hash anchors `step-1..4`, IntersectionObserver band,
+        static on mobile); step-02 folder picker restyled as a dropzone (hidden file input +
+        folder glyph); match line shows confidence as `%`; Start Inspection de-emphasised to
+        ghost (was primary); exec status converted to label/value rows; mission rows + toast
+        use singular/plural ("1 tree" / "N trees").
+      - **Trees (`app/trees/page.tsx`):** client-side search (tree # / GPS, matches the
+        registry's 6dp rendering) + task-filter chips (All / Tasks pending / Clear) + "N of M"
+        count + no-match empty state. The registry previously had no way to find one tree
+        across 32 paginated pages.
+      - **`CoconutUploader.tsx`:** restyled to the survey dropzone language (was a raw file
+        input + hardcoded-green button); busy state ("Detecting…", disabled until an image is
+        chosen); null-safe detection count (`coconuts_detected ?? detections?.length ?? 0`).
+      - **Verification (observed this session):** `tsc --noEmit` — 0 errors; `next build` —
+        success (10 routes); `verify_console.js` **8/8, 0 console errors**; `verify_v26.js`
+        **15/15**; `verify_v251.js` **11/11**; `verify_v361.js` **complete PASS, 0 console
+        errors**. **NOT committed — awaiting approval.**
     - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`

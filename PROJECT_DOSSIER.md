@@ -758,6 +758,15 @@ RootLayout (layout.tsx)
 | `usePagination.ts` | **Client-side list pagination** — `usePagination(items, pageSize = 8)`; auto-hides when ≤ 8 items |
 | `formatTime.ts` | **Shared IST formatters** — `fmtIST` / `fmtISTTimeOnly` / `fmtISTDateOnly` render naive-UTC back-end timestamps as `Asia/Kolkata` wall-clock |
 
+### 10.6b Shared Frontend Components (`frontend/components/`)
+
+| Component | Purpose |
+|-----------|---------|
+| `PageHero` | **Shared page header** — strengthened scrim + single light-ink headline + kicker/sub over one ambient clip; used by `/map`, `/robot`, `/robot/history`, `/trees` |
+| `ToggleSwitch` | **Shared pill toggle** — extracted from the map control bar; shared with `/robot` (e.g. Follow Robot) |
+| `Pager` | Prev/Next + "Page X of Y" list pager (pairs with `usePagination`) |
+| `SkeletonRows` | Pulsing skeleton rows for loading states |
+
 ### 10.7 Desktop vs Mobile Behaviour
 
 | Aspect | Desktop | Mobile |

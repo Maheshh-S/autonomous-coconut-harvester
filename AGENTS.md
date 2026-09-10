@@ -49,7 +49,7 @@ Do not skip steps. If a listed doc does not yet exist, note it and proceed.
   - `backend/main.py` — app assembly, CORS, router mounting, `init_db()` at startup.
 - `frontend/` — React/Next.js UI (App Router).
   - `frontend/app/` — pages: `/` (Home — scroll-driven brand landing), `/dashboard`, `/survey`, `/map` (Digital Twin), `/robot`, `/robot/history`, `/robot/history/[id]`, `/trees`, `/trees/[treeId]`.
-  - `frontend/components/` — `AppShell` (desktop rail + mobile bottom nav + More sheet), `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `CoconutUploader`, `SmoothScroll` (Lenis), `AmbientClip`, `Pager`, `SkeletonRows`, `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
+  - `frontend/components/` — `AppShell` (desktop rail + mobile bottom nav + More sheet), `FarmMosaic`, `OverlayLayer`, `FarmViewer`, `TreeDetailsDrawer`, `DashboardFarmCard`, `CoconutUploader`, `SmoothScroll` (Lenis), `AmbientClip`, `Pager`, `SkeletonRows`, `PageHero` (shared page header), `ToggleSwitch` (shared pill toggle), `robot/` (RobotLayer, RobotMarker, RobotPathLayer, RobotStatusCard, SimulationControls).
   - `frontend/lib/` — `api/detection.ts` (single API client), `mosaicLayout.ts` (shared farm-pixel transform), `useRobotSimulation.ts` (WS hook), `usePagination.ts` (client-side list pagination), `formatTime.ts` (IST time formatters — render naive-UTC backend timestamps as `Asia/Kolkata`).
 - `models/` — YOLOv8 weights (`tree_model/`, `coconut_model/`), gitignored.
 

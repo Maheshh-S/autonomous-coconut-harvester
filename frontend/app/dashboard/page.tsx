@@ -24,19 +24,23 @@ import { fmtIST } from "@/lib/formatTime";
 const POLL_MS = 5000;
 
 const ROBOT_COLORS: Record<string, string> = {
-  IDLE: "#6b7a6b",
-  HARVESTING: "#3f7d34",
-  PAUSED: "#9a6a24",
-  COMPLETED: "#2f6f8f",
-  CANCELLED: "#b23a2a",
+  IDLE: "var(--color-text-faint)",
+  HARVESTING: "var(--color-accent)",
+  PAUSED: "var(--color-gold-ink)",
+  COMPLETED: "var(--color-ok)",
+  CANCELLED: "var(--color-crit)",
 };
 
 function Badge({ text }: { text: string }) {
-  const color = ROBOT_COLORS[text] ?? "#6b7280";
+  const color = ROBOT_COLORS[text] ?? "var(--color-text-faint)";
   return (
     <span
       className="badge"
-      style={{ background: `${color}1f`, color, borderColor: `${color}55` }}
+      style={{
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        color,
+        borderColor: `color-mix(in srgb, ${color} 40%, transparent)`,
+      }}
     >
       <span className="dot" style={{ background: color }} />
       {text}
@@ -87,12 +91,12 @@ function MiniBar({ segments }: { segments: { label: string; count: number; color
 }
 
 const ACTIVITY_COLORS: Record<string, string> = {
-  SURVEY_COMPLETED: "#6cc6ff",
-  INSPECTION_CREATED: "#b98bff",
-  INSPECTION_COMPLETED: "#8b5cf6",
-  INVENTORY_CREATED: "#f5c451",
-  HARVEST_MISSION_CREATED: "#4fe39a",
-  HARVEST_MISSION_COMPLETED: "#6cc6ff",
+  SURVEY_COMPLETED: "var(--color-accent)",
+  INSPECTION_CREATED: "var(--color-gold-ink)",
+  INSPECTION_COMPLETED: "var(--color-leaf)",
+  INVENTORY_CREATED: "var(--color-info)",
+  HARVEST_MISSION_CREATED: "var(--color-husk)",
+  HARVEST_MISSION_COMPLETED: "var(--color-ok)",
 };
 
 export default function DashboardPage() {
@@ -244,20 +248,26 @@ export default function DashboardPage() {
           <StatTile label="Trees Inspected" val={o.trees_inspected} />
           <StatTile label="Inventory Snapshots" val={o.inventory_snapshots} />
           <StatTile label="Harvest Missions" val={o.harvest_missions} />
-          <StatTile label="Robot Status" val={<Badge text={robotState} />} />
+          <StatTile
+            label="Latest Run Score"
+            val={latestRun?.mission_score ?? "—"}
+            sub={latestRun ? `Run #${latestRun.id}` : "no runs yet"}
+          />
         </div>
       </section>
 
-      {/* Farm Summary */}
+      {/* Farm Summary — compact striped rows (Overview above carries the tiles) */}
       <section className="block">
         <h2 className="block-title">Farm Summary</h2>
-        <div className="tile-grid cols-6">
-          <StatTile label="Total Trees" val={fs.total_trees} />
-          <StatTile label="Total Coconuts" val={fs.total_coconuts} />
-          <StatTile label="Mature" val={fs.mature} />
-          <StatTile label="Potential" val={fs.potential} />
-          <StatTile label="Premature" val={fs.premature} />
-          <StatTile label="Harvested" val={fs.harvested_count} />
+        <div className="panel" data-reveal>
+          <div className="sum-grid">
+            <div className="sum-row"><span>Total Trees</span><b>{fs.total_trees}</b></div>
+            <div className="sum-row"><span>Total Coconuts</span><b>{fs.total_coconuts}</b></div>
+            <div className="sum-row"><span>Mature</span><b>{fs.mature}</b></div>
+            <div className="sum-row"><span>Potential</span><b>{fs.potential}</b></div>
+            <div className="sum-row"><span>Premature</span><b>{fs.premature}</b></div>
+            <div className="sum-row"><span>Harvested</span><b>{fs.harvested_count}</b></div>
+          </div>
         </div>
       </section>
 
@@ -278,17 +288,6 @@ export default function DashboardPage() {
             <Field name="Queue" val={robot ? `${robot.completed_count}/${robot.total_trees}` : "—"} />
             <Field name="Trees Remaining" val={robot ? robot.remaining_count : "—"} />
             <Field name="Expected Harvest" val={hm ? hm.total_expected_coconuts : "—"} />
-          </div>
-
-          <div className="panel" data-reveal>
-            <h3 className="panel-h">Robot</h3>
-            <Field name="State" val={<Badge text={robotState} />} />
-            <Field name="Mission" val={robot ? robot.mission_code ?? `#${robot.mission_id}` : "—"} />
-            <Field
-              name="Current Tree"
-              val={robot?.current_item ? robot.current_item.tree_code ?? `Tree ${robot.current_item.tree_id}` : "—"}
-            />
-            <Field name="Queue" val={robot ? `${robot.completed_count}/${robot.total_trees}` : "—"} />
           </div>
 
           <div className="panel" data-reveal>
@@ -324,9 +323,9 @@ export default function DashboardPage() {
             <h3 className="panel-h">Ripeness Distribution</h3>
             <MiniBar
               segments={[
-                { label: "Mature", count: rip.mature, color: "#4fe39a" },
-                { label: "Potential", count: rip.potential, color: "#f5c451" },
-                { label: "Premature", count: rip.premature, color: "#ff6b5e" },
+                { label: "Mature", count: rip.mature, color: "var(--color-leaf)" },
+                { label: "Potential", count: rip.potential, color: "var(--color-gold)" },
+                { label: "Premature", count: rip.premature, color: "var(--color-crit)" },
               ]}
             />
           </div>
@@ -334,8 +333,8 @@ export default function DashboardPage() {
             <h3 className="panel-h">Inspection Coverage</h3>
             <MiniBar
               segments={[
-                { label: "Inspected", count: cov.inspected, color: "#6cc6ff" },
-                { label: "Remaining", count: Math.max(cov.total - cov.inspected, 0), color: "#2c4034" },
+                { label: "Inspected", count: cov.inspected, color: "var(--color-accent)" },
+                { label: "Remaining", count: Math.max(cov.total - cov.inspected, 0), color: "var(--color-line-strong)" },
               ]}
             />
           </div>
@@ -343,8 +342,8 @@ export default function DashboardPage() {
             <h3 className="panel-h">Harvest Progress</h3>
             <MiniBar
               segments={[
-                { label: "Completed", count: hp.completed, color: "#4fe39a" },
-                { label: "Remaining", count: Math.max(hp.total - hp.completed, 0), color: "#2c4034" },
+                { label: "Completed", count: hp.completed, color: "var(--color-accent)" },
+                { label: "Remaining", count: Math.max(hp.total - hp.completed, 0), color: "var(--color-line-strong)" },
               ]}
             />
           </div>
@@ -483,6 +482,29 @@ export default function DashboardPage() {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
           gap: 14px;
+        }
+        .sum-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 0 32px;
+        }
+        .sum-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+          padding: 11px 2px;
+          border-bottom: 1px solid var(--color-line);
+          font-size: 13px;
+        }
+        .sum-row span { color: var(--color-text-dim); }
+        .sum-row b {
+          font-variant-numeric: tabular-nums;
+          font-size: 15px;
+          color: var(--color-text);
+        }
+        @media (max-width: 900px) {
+          .sum-grid { grid-template-columns: 1fr; }
         }
         .page-hero {
           position: relative;

@@ -196,16 +196,16 @@ export default function Landing() {
         </div>
         <div className="caps-grid">
           {[
-            { t: "Drone Survey", d: "Autonomous flight planning and tile capture across the whole plantation." },
+            { t: "Drone Survey", d: "Autonomous flight planning and tile capture across the whole plantation.", f: true },
             { t: "Tree Intelligence", d: "Permanent Tree IDs from GPS + computer-vision matching across surveys." },
             { t: "Digital Twin", d: "A seamless mosaic of the farm with live YOLO detection overlays." },
             { t: "Ripeness AI", d: "Per-coconut maturity classification: mature, potential, premature." },
             { t: "Harvest Planning", d: "Frozen, nearest-neighbour missions built from the latest inventory." },
-            { t: "Robot Execution", d: "A climbing harvester navigates, ascends, and harvests autonomously." },
+            { t: "Robot Execution", d: "A climbing harvester navigates, ascends, and harvests autonomously.", f: true },
             { t: "Mission Control", d: "Live state, battery, and position streamed over a real-time channel." },
             { t: "Analytics", d: "Every run scored on yield, battery economy, and efficiency." },
           ].map((c) => (
-            <div className="cap panel-2" key={c.t} data-reveal>
+            <div className={"cap panel-2" + (c.f ? " cap-f" : "")} key={c.t} data-reveal>
               <h3 className="cap-t">{c.t}</h3>
               <p className="cap-d">{c.d}</p>
             </div>
@@ -466,6 +466,15 @@ export default function Landing() {
           padding: 26px 22px;
           transition: transform 0.3s var(--ease-out), border-color 0.3s;
         }
+        /* Bento rhythm: two featured cells carry the two hero capabilities. */
+        @media (min-width: 900px) {
+          .cap-f { grid-column: span 2; }
+        }
+        .cap-f {
+          background: var(--color-accent-weak);
+          border: 1px solid var(--color-accent-dim);
+        }
+        .cap-f .cap-t { font-size: 20px; }
         .cap:hover {
           transform: translateY(-3px);
           border-color: var(--color-accent-dim);

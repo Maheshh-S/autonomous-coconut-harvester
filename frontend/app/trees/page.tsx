@@ -18,7 +18,22 @@ type TreeSummary = {
 export default function TreesPage() {
   const [trees, setTrees] = useState<TreeSummary[]>([])
   const [loading, setLoading] = useState(true)
-  const pager = usePagination(trees)
+  // V4.0.4 — client-side search + task filter (the registry previously had no
+  // way to find one tree among paginated pages).
+  const [query, setQuery] = useState("")
+  const [taskFilter, setTaskFilter] = useState<"all" | "pending" | "clear">("all")
+
+  const filtered = trees.filter((t) => {
+    const q = query.trim().toLowerCase()
+    if (q) {
+      const hay = `#${t.tree_id} ${t.tree_id} ${t.gps_lat.toFixed(6)} ${t.gps_lon.toFixed(6)}`
+      if (!hay.includes(q.replace(/^#/, ""))) return false
+    }
+    if (taskFilter === "pending" && t.tasks_remaining === 0) return false
+    if (taskFilter === "clear" && t.tasks_remaining > 0) return false
+    return true
+  })
+  const pager = usePagination(filtered)
 
   useEffect(() => {
     async function load() {
@@ -66,6 +81,31 @@ export default function TreesPage() {
         clip="/clips/7.mp4"
       />
 
+      <div className="toolbar">
+        <input
+          className="input tree-search"
+          placeholder="Search by tree # or GPS…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search trees"
+        />
+        <div className="filter-chips" role="group" aria-label="Filter by tasks">
+          {(["all", "pending", "clear"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={"filter-chip" + (taskFilter === f ? " active" : "")}
+              onClick={() => setTaskFilter(f)}
+            >
+              {f === "all" ? "All" : f === "pending" ? "Tasks pending" : "Clear"}
+            </button>
+          ))}
+        </div>
+        <span className="toolbar-count font-mono">
+          {filtered.length} of {trees.length}
+        </span>
+      </div>
+
       <div className="panel" style={{ overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table className="tree-table">
@@ -98,6 +138,18 @@ export default function TreesPage() {
                   </Td>
                 </tr>
               ))}
+              {filtered.length === 0 && trees.length > 0 && (
+                <tr>
+                  <Td colSpan={6} style={{ padding: 0 }}>
+                    <div className="tree-empty">
+                      <div className="tree-empty-title">No trees match</div>
+                      <p className="tree-empty-sub">
+                        Adjust the search or filter to see more of the registry.
+                      </p>
+                    </div>
+                  </Td>
+                </tr>
+              )}
               {trees.length === 0 && (
                 <tr>
                   <Td colSpan={6} style={{ padding: 0 }}>
@@ -118,6 +170,33 @@ export default function TreesPage() {
       </div>
 
       <style jsx>{`
+        .toolbar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-bottom: 14px;
+        }
+        .tree-search { max-width: 320px; flex: 1; min-width: 200px; }
+        .filter-chips { display: flex; gap: 6px; }
+        .filter-chip {
+          padding: 7px 14px;
+          border-radius: 999px;
+          border: 1px solid var(--color-line-strong);
+          background: var(--color-surface);
+          color: var(--color-text-dim);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), color 140ms var(--ease-out);
+        }
+        .filter-chip:hover { border-color: var(--color-accent-dim); }
+        .filter-chip.active {
+          border-color: var(--color-accent);
+          background: var(--color-accent-weak);
+          color: var(--color-accent);
+        }
+        .toolbar-count { font-size: 12px; color: var(--color-text-faint); margin-left: auto; }
         .tree-table {
           width: 100%;
           border-collapse: collapse;

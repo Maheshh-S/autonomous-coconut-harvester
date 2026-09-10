@@ -186,7 +186,8 @@ frontend/
   components/     AppShell (desktop rail + mobile bottom nav + More sheet),
                   FarmMosaic, OverlayLayer, FarmViewer, TreeDetailsDrawer,
                   DashboardFarmCard, CoconutUploader, SmoothScroll (Lenis),
-                  AmbientClip, Pager, SkeletonRows, robot/ (RobotLayer,
+                  AmbientClip, Pager, SkeletonRows, PageHero (shared header),
+                  ToggleSwitch (shared pill toggle), robot/ (RobotLayer,
                   RobotMarker, RobotPathLayer, RobotStatusCard,
                   SimulationControls)
   lib/            api/detection.ts (single API client), mosaicLayout.ts,

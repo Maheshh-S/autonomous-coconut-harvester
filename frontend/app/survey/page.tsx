@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { FolderSimple } from "@phosphor-icons/react";
 import AmbientClip from "@/components/AmbientClip";
 import { useReveal } from "@/lib/useReveal";
 import Pager from "@/components/Pager";
@@ -103,6 +104,69 @@ type PermanentTrees = {
 const IMAGE_EXT = /\.(jpe?g|png)$/i;
 const FARM_DEFAULT_LAT = 12.1947222;
 const FARM_DEFAULT_LON = 76.6100556;
+
+const STEPS: [string, string, string][] = [
+  ["step-1", "01", "Mission"],
+  ["step-2", "02", "Imagery"],
+  ["step-3", "03", "Upload"],
+  ["step-4", "04", "Harvest"],
+];
+
+// V4.0.4 — step rail with scroll-spy (module scope: the page re-renders often).
+// Gives the long pipeline page a persistent sense of place; anchors jump via
+// native hash links, the band observer highlights the step on screen.
+function StepRail() {
+  const [active, setActive] = useState(1);
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const en of entries) {
+          if (en.isIntersecting) setActive(Number(en.target.getAttribute("data-step")));
+        }
+      },
+      { rootMargin: "-30% 0px -55% 0px" }
+    );
+    for (const [id] of STEPS) {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el);
+    }
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <nav className="step-rail" aria-label="Pipeline steps">
+      {STEPS.map(([id, n, label]) => (
+        <a key={id} href={`#${id}`} className={"step-link" + (active === Number(n) ? " active" : "")}>
+          <span className="step-link-n">{n}</span>
+          {label}
+        </a>
+      ))}
+      <style jsx>{`
+        .step-rail {
+          display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px;
+          position: sticky; top: 10px; z-index: 8;
+        }
+        .step-link {
+          display: inline-flex; align-items: center; gap: 8px;
+          font-size: 13px; font-weight: 600; color: var(--color-text-dim);
+          background: var(--color-surface); border: 1px solid var(--color-line);
+          border-radius: 999px; padding: 7px 14px 7px 7px; text-decoration: none;
+          box-shadow: 0 1px 3px rgba(28, 38, 27, 0.07);
+          transition: border-color 140ms var(--ease-out), color 140ms var(--ease-out), background 140ms var(--ease-out);
+        }
+        .step-link:hover { border-color: var(--color-accent-dim); color: var(--color-text); }
+        .step-link-n {
+          font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+          color: var(--color-accent); background: var(--color-accent-weak);
+          border-radius: 999px; padding: 3px 8px;
+        }
+        .step-link.active { border-color: var(--color-accent); color: var(--color-text); background: var(--color-accent-weak); }
+        @media (max-width: 900px) {
+          .step-rail { position: static; }
+        }
+      `}</style>
+    </nav>
+  );
+}
 
 export default function SurveyPage() {
   const reveal = useReveal();
@@ -358,7 +422,7 @@ export default function SurveyPage() {
       const mission = await createHarvestMission(harvestType);
       setSelectedHarvest(mission);
       setSuccess(
-        `${mission.mission_code} created — ${mission.total_trees} tree(s), ${mission.total_expected_coconuts} expected coconuts.`
+        `${mission.mission_code} created — ${mission.total_trees} ${mission.total_trees === 1 ? "tree" : "trees"}, ${mission.total_expected_coconuts} expected coconuts.`
       );
       await loadHarvestMissions();
     } catch (err) {
@@ -539,8 +603,10 @@ export default function SurveyPage() {
       {error && <div className="banner err"><span className="dot" style={{ background: "var(--color-crit)" }} />{error}</div>}
       {success && <div className="banner ok"><span className="dot" style={{ background: "var(--color-ok)" }} />{success}</div>}
 
+      <StepRail />
+
       {/* 1. Mission selection / creation */}
-      <section className="step panel" data-reveal>
+      <section className="step panel" data-reveal id="step-1" data-step={1}>
         <div className="step-head"><span className="step-n">01</span><h2>Select or create a mission</h2></div>
         <div className="row">
           <select
@@ -562,14 +628,19 @@ export default function SurveyPage() {
       </section>
 
       {/* 2. Folder selection */}
-      <section className="step panel" data-reveal>
+      <section className="step panel" data-reveal id="step-2" data-step={2}>
         <div className="step-head"><span className="step-n">02</span><h2>Select folder of drone imagery</h2></div>
-        <input ref={folderInputRef} type="file" multiple accept="image/*" {...({ webkitdirectory: "", directory: "" } as any)} onChange={handleFolderSelect} className="file" />
+        <label className="dropzone">
+          <input ref={folderInputRef} type="file" multiple accept="image/*" {...({ webkitdirectory: "", directory: "" } as any)} onChange={handleFolderSelect} className="file-hidden" />
+          <FolderSimple size={30} weight="regular" aria-hidden />
+          <span className="dz-title">Choose the drone-imagery folder</span>
+          <span className="dz-sub">Click to browse — files are only uploaded in step 03.</span>
+        </label>
         <p className="hint">Total images selected: <b>{total}</b></p>
       </section>
 
       {/* 3. Upload + complete */}
-      <section className="step panel" data-reveal>
+      <section className="step panel" data-reveal id="step-3" data-step={3}>
         <div className="step-head"><span className="step-n">03</span><h2>Upload &amp; activate</h2></div>
         <div className="row">
           <button className="btn btn-primary" onClick={handleUpload} disabled={uploading || selectedMissionId === null || total === 0 || selectedMission?.status !== "PROCESSING"}>
@@ -676,12 +747,12 @@ export default function SurveyPage() {
                         <div>
                           <div className="tree-code font-mono">{t.tree_code}</div>
                           <div className="tree-meta">
-                            Seen {t.times_seen}× · Match {t.last_matching_confidence !== null ? t.last_matching_confidence.toFixed(3) : "new"} · {t.gps_lat.toFixed(6)}, {t.gps_lon.toFixed(6)}
+                            Seen {t.times_seen}× · Match confidence {t.last_matching_confidence !== null ? `${Math.round(t.last_matching_confidence * 100)}%` : "new"} · {t.gps_lat.toFixed(6)}, {t.gps_lon.toFixed(6)}
                           </div>
                         </div>
                         <div className="row">
                           <button type="button" onClick={() => toggleTree(t.id)} className="btn btn-ghost sm">{isOpen ? "Hide History" : "Inspection History"}</button>
-                          <button type="button" onClick={() => handleStartInspection(t.id)} disabled={inspLoading} className="btn btn-primary sm">Start Inspection</button>
+                          <button type="button" onClick={() => handleStartInspection(t.id)} disabled={inspLoading} className="btn sm">Start Inspection</button>
                         </div>
                       </div>
 
@@ -823,7 +894,7 @@ export default function SurveyPage() {
       )}
 
       {/* Harvest Planner & Mission Builder */}
-      <section className="step panel" data-testid="harvest-planner" data-reveal>
+      <section className="step panel" data-testid="harvest-planner" data-reveal id="step-4" data-step={4}>
         <div className="step-head"><span className="step-n">04</span><h2>Harvest Planner</h2></div>
         <p className="muted">Generate a Harvest Mission from the latest Inventory Snapshots. Eligible trees are ordered by a Nearest-Neighbour route. Execute it below to drive the robot through the queue and update Inventory History.</p>
         <div className="row">
@@ -879,12 +950,12 @@ export default function SurveyPage() {
               </div>
               {robotStatus && robotStatus.mission_id === selectedHarvest.id ? (
                 <div className="exec-grid">
-                  <div className="exec-cell">Mission: <b>{robotStatus.mission_status}</b></div>
-                  <div className="exec-cell">Current tree: <b>{robotStatus.current_item ? robotStatus.current_item.tree_code : "—"}</b></div>
-                  <div className="exec-cell">Completed: <b>{robotStatus.completed_count}</b></div>
-                  <div className="exec-cell">Remaining: <b>{robotStatus.remaining_count}</b></div>
-                  <div className="exec-cell">Harvested: <b>{robotStatus.harvested_coconuts}</b></div>
-                  <div className="exec-cell">Next tree: <b>{robotStatus.next_item ? robotStatus.next_item.tree_code : "—"}</b></div>
+                  <div className="exec-row"><span>Mission</span><b>{robotStatus.mission_status}</b></div>
+                  <div className="exec-row"><span>Current tree</span><b>{robotStatus.current_item ? robotStatus.current_item.tree_code : "—"}</b></div>
+                  <div className="exec-row"><span>Completed</span><b>{robotStatus.completed_count}</b></div>
+                  <div className="exec-row"><span>Remaining</span><b>{robotStatus.remaining_count}</b></div>
+                  <div className="exec-row"><span>Harvested</span><b>{robotStatus.harvested_coconuts}</b></div>
+                  <div className="exec-row"><span>Next tree</span><b>{robotStatus.next_item ? robotStatus.next_item.tree_code : "—"}</b></div>
                 </div>
               ) : (
                 <p className="muted">Start the mission to see robot status.</p>
@@ -932,7 +1003,7 @@ export default function SurveyPage() {
             <div className="mission-list">
               {harvestMissionPager.slice.map((m) => (
                 <button key={m.id} type="button" onClick={() => handleSelectHarvestMission(m.id)} className={"mission-row" + (selectedHarvest?.id === m.id ? " sel" : "")}>
-                  <span className="font-mono">{m.mission_code}</span> · {m.harvest_type} · <span className="status-pill">{m.status}</span> · {m.total_trees} tree(s) · {m.total_expected_coconuts} expected · {m.created_at ? fmtIST(m.created_at) : ""}
+                  <span className="font-mono">{m.mission_code}</span> · {m.harvest_type} · <span className="status-pill">{m.status}</span> · {m.total_trees} {m.total_trees === 1 ? "tree" : "trees"} · {m.total_expected_coconuts} expected · {m.created_at ? fmtIST(m.created_at) : ""}
                 </button>
               ))}
             </div>
@@ -1003,6 +1074,18 @@ export default function SurveyPage() {
           text-transform: uppercase; color: var(--color-text-faint); margin-bottom: 16px;
         }
 
+        .file-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
+
+        .dropzone {
+          display: flex; flex-direction: column; align-items: center; gap: 6px;
+          border: 1.5px dashed var(--color-line-strong); border-radius: var(--radius-md);
+          background: var(--color-surface-sunken); padding: 30px 20px; cursor: pointer;
+          text-align: center; color: var(--color-accent); transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
+        }
+        .dropzone:hover { border-color: var(--color-accent); background: var(--color-accent-glow); }
+        .dz-title { font-weight: 600; font-size: 14px; color: var(--color-text); }
+        .dz-sub { font-size: 12px; color: var(--color-text-dim); }
+
         .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
         .hint { margin-top: 10px; font-size: 13px; color: var(--color-text-dim); }
         .hint.ok { color: var(--color-accent); }
@@ -1072,9 +1155,10 @@ export default function SurveyPage() {
 
         .exec { margin-top: 16px; border: 1px solid var(--color-line); border-radius: 10px; padding: 16px; background: var(--color-bg-elevated); }
         .exec-head { display: flex; align-items: center; justify-content: space-between; }
-        .exec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
-        .exec-cell { background: var(--color-surface-2); border-radius: 8px; padding: 9px 11px; font-size: 12px; color: var(--color-text-dim); }
-        .exec-cell b { color: var(--color-text); }
+        .exec-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 22px; margin-top: 12px; }
+        .exec-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--color-line); }
+        .exec-row span { color: var(--color-text-dim); }
+        .exec-row b { color: var(--color-text); font-variant-numeric: tabular-nums; }
 
         .mission-list { display: flex; flex-direction: column; gap: 6px; }
         .mission-row { text-align: left; border: 1px solid var(--color-line); border-radius: 9px; padding: 9px 12px; font-size: 12px; color: var(--color-text-dim); background: var(--color-surface); cursor: pointer; }
@@ -1089,7 +1173,7 @@ export default function SurveyPage() {
 
         @media (max-width: 900px) {
           .grid4, .stat5 { grid-template-columns: repeat(2, 1fr); }
-          .exec-grid { grid-template-columns: repeat(2, 1fr); }
+          .exec-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 620px) {
           .page { padding: 28px 20px 60px; }

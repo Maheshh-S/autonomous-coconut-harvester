@@ -46,6 +46,7 @@ export default function MissionHistoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<SortKey>("finished_at")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+  const [statusFilter, setStatusFilter] = useState<"all" | RunStatus>("all")
   useEffect(() => {
     setLoading(true)
     getRobotRuns(200)
@@ -55,7 +56,7 @@ export default function MissionHistoryPage() {
   }, [])
 
   const sorted = useMemo(() => {
-    const arr = [...runs]
+    const arr = [...runs].filter((r) => statusFilter === "all" || r.status === statusFilter)
     arr.sort((a, b) => {
       let av: number | string
       let bv: number | string
@@ -77,7 +78,7 @@ export default function MissionHistoryPage() {
       return 0
     })
     return arr
-  }, [runs, sortKey, sortDir])
+  }, [runs, sortKey, sortDir, statusFilter])
 
   const pager = usePagination(sorted)
 
@@ -118,6 +119,21 @@ export default function MissionHistoryPage() {
 
       {sorted.length > 0 && (
         <div className="panel" style={{ overflow: "hidden" }}>
+          <div className="hist-toolbar">
+            <div className="hist-chips" role="group" aria-label="Filter by status">
+              {(["all", "COMPLETED", "ABORTED", "FAILED"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  className={"hist-chip" + (statusFilter === f ? " active" : "")}
+                  onClick={() => setStatusFilter(f)}
+                >
+                  {f === "all" ? "All runs" : STATUS_LABEL[f]}
+                </button>
+              ))}
+            </div>
+            <span className="hist-count font-mono">{sorted.length} runs</span>
+          </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
@@ -126,16 +142,16 @@ export default function MissionHistoryPage() {
                   <Th>Status</Th>
                   <Th>Mission</Th>
                   <Th>Finished</Th>
-                  <Th sortable onClick={() => toggleSort("duration_s")}>
-                    Duration {sortKey === "duration_s" ? arrow(sortDir) : ""}
+                  <Th align="right" sortable dir={sortKey === "duration_s" ? sortDir : null} onClick={() => toggleSort("duration_s")}>
+                    Duration
                   </Th>
-                  <Th sortable onClick={() => toggleSort("harvested_trees")}>
-                    Harvested {sortKey === "harvested_trees" ? arrow(sortDir) : ""}
+                  <Th align="right" sortable dir={sortKey === "harvested_trees" ? sortDir : null} onClick={() => toggleSort("harvested_trees")}>
+                    Harvested
                   </Th>
-                  <Th>Battery used</Th>
-                  <Th>Distance</Th>
-                  <Th sortable onClick={() => toggleSort("mission_score")}>
-                    Score {sortKey === "mission_score" ? arrow(sortDir) : ""}
+                  <Th align="right">Battery used</Th>
+                  <Th align="right">Distance</Th>
+                  <Th align="right" sortable dir={sortKey === "mission_score" ? sortDir : null} onClick={() => toggleSort("mission_score")}>
+                    Score
                   </Th>
                 </tr>
               </thead>
@@ -156,14 +172,14 @@ export default function MissionHistoryPage() {
                       </span>
                     </Td>
                     <Td>{r.mission_id ?? "—"}</Td>
-                    <Td style={{ color: "var(--color-text-dim)" }}>{fmtTime(r.finished_at)}</Td>
-                    <Td>{fmtDuration(r.duration_s)}</Td>
-                    <Td>
+                    <Td style={{ color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{fmtTime(r.finished_at)}</Td>
+                    <Td align="right" className="tab">{fmtDuration(r.duration_s)}</Td>
+                    <Td align="right" className="tab">
                       {r.harvested_trees}/{r.total_trees}
                     </Td>
-                    <Td>{r.battery_used_pct}%</Td>
-                    <Td>{r.distance_travelled} m</Td>
-                    <Td style={{ fontWeight: 700, color: "var(--color-accent-bright)" }}>
+                    <Td align="right" className="tab">{r.battery_used_pct}%</Td>
+                    <Td align="right" className="tab">{r.distance_travelled} m</Td>
+                    <Td align="right" className="tab" style={{ fontWeight: 700, color: "var(--color-accent)" }}>
                       {r.mission_score ?? "—"}
                     </Td>
                   </tr>
@@ -174,6 +190,42 @@ export default function MissionHistoryPage() {
           <Pager page={pager.page} totalPages={pager.totalPages} onPrev={pager.prev} onNext={pager.next} />
         </div>
       )}
+      {!loading && !error && runs.length > 0 && sorted.length === 0 && (
+        <div className="panel-2" style={{ padding: 24, color: "var(--color-text-dim)" }}>
+          No runs with status “{STATUS_LABEL[statusFilter as RunStatus]}”.
+        </div>
+      )}
+
+      <style jsx>{`
+        .hist-toolbar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--color-line);
+        }
+        .hist-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+        .hist-chip {
+          padding: 6px 13px;
+          border-radius: 999px;
+          border: 1px solid var(--color-line-strong);
+          background: var(--color-surface);
+          color: var(--color-text-dim);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out), color 140ms var(--ease-out);
+        }
+        .hist-chip:hover { border-color: var(--color-accent-dim); }
+        .hist-chip.active {
+          border-color: var(--color-accent);
+          background: var(--color-accent-weak);
+          color: var(--color-accent);
+        }
+        .hist-count { font-size: 12px; color: var(--color-text-faint); margin-left: auto; }
+        td.tab { font-variant-numeric: tabular-nums; }
+      `}</style>
     </div>
   )
 }
@@ -181,11 +233,16 @@ export default function MissionHistoryPage() {
 function Th({
   children,
   sortable,
+  dir,
   onClick,
+  align = "left",
 }: {
   children: React.ReactNode
   sortable?: boolean
+  /** null = inactive (muted ↕ affordance); "asc"/"desc" = active arrow. */
+  dir?: "asc" | "desc" | null
   onClick?: () => void
+  align?: "left" | "right"
 }) {
   return (
     <th
@@ -200,9 +257,23 @@ function Th({
         cursor: sortable ? "pointer" : "default",
         userSelect: sortable ? "none" : "auto",
         whiteSpace: "nowrap",
+        textAlign: align,
       }}
     >
       {children}
+      {sortable && (
+        <span
+          aria-hidden
+          style={{
+            marginLeft: 6,
+            fontSize: 10,
+            opacity: dir ? 1 : 0.35,
+            color: dir ? "var(--color-accent)" : "var(--color-text-faint)",
+          }}
+        >
+          {dir === "asc" ? "▲" : dir === "desc" ? "▼" : "↕"}
+        </span>
+      )}
     </th>
   )
 }
@@ -210,12 +281,16 @@ function Th({
 function Td({
   children,
   style,
+  align = "left",
+  className,
 }: {
   children: React.ReactNode
   style?: React.CSSProperties
+  align?: "left" | "right"
+  className?: string
 }) {
   return (
-    <td style={{ padding: "12px 16px", verticalAlign: "middle", ...style }}>{children}</td>
+    <td className={className} style={{ padding: "12px 16px", verticalAlign: "middle", textAlign: align, ...style }}>{children}</td>
   )
 }
 
@@ -230,8 +305,4 @@ function statusPill(color: string): React.CSSProperties {
     fontSize: 12,
     fontWeight: 600,
   }
-}
-
-function arrow(dir: "asc" | "desc") {
-  return dir === "asc" ? "▲" : "▼"
 }
