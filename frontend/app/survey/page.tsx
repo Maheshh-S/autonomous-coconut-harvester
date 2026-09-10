@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FolderSimple } from "@phosphor-icons/react";
 import AmbientClip from "@/components/AmbientClip";
 import { useReveal } from "@/lib/useReveal";
@@ -105,18 +106,19 @@ const IMAGE_EXT = /\.(jpe?g|png)$/i;
 const FARM_DEFAULT_LAT = 12.1947222;
 const FARM_DEFAULT_LON = 76.6100556;
 
-const STEPS: [string, string, string][] = [
-  ["step-1", "01", "Mission"],
-  ["step-2", "02", "Imagery"],
-  ["step-3", "03", "Upload"],
-  ["step-4", "04", "Harvest"],
-];
-
 // V4.0.4 — step rail with scroll-spy (module scope: the page re-renders often).
 // Gives the long pipeline page a persistent sense of place; anchors jump via
 // native hash links, the band observer highlights the step on screen.
+// V5.0: labels come from the survey dictionary via useTranslations.
 function StepRail() {
+  const t = useTranslations("survey");
   const [active, setActive] = useState(1);
+  const STEPS: [string, string, string][] = [
+    ["step-1", "01", t("railMission")],
+    ["step-2", "02", t("railImagery")],
+    ["step-3", "03", t("railUpload")],
+    ["step-4", "04", t("railHarvest")],
+  ];
   useEffect(() => {
     const obs = new IntersectionObserver(
       (entries) => {
@@ -133,7 +135,7 @@ function StepRail() {
     return () => obs.disconnect();
   }, []);
   return (
-    <nav className="step-rail" aria-label="Pipeline steps">
+    <nav className="step-rail" aria-label={t("pipelineSteps")}>
       {STEPS.map(([id, n, label]) => (
         <a key={id} href={`#${id}`} className={"step-link" + (active === Number(n) ? " active" : "")}>
           <span className="step-link-n">{n}</span>
@@ -170,6 +172,9 @@ function StepRail() {
 
 export default function SurveyPage() {
   const reveal = useReveal();
+  const t = useTranslations("survey");
+  const tc = useTranslations("common");
+  const tr = useTranslations("ripeness");
   const [missions, setMissions] = useState<Mission[]>([]);
   const [selectedMissionId, setSelectedMissionId] = useState<number | null>(null);
   const [newFolder, setNewFolder] = useState("");
@@ -321,22 +326,20 @@ export default function SurveyPage() {
 
   async function handleComplete() {
     if (selectedMissionId === null) return;
-    const confirmed = window.confirm(
-      "Complete this Survey Mission? It becomes the active source of truth and further uploads will be disabled."
-    );
+    const confirmed = window.confirm(t("confirmComplete"));
     if (!confirmed) return;
     setProcessing(true);
     setError(null);
     setSuccess(null);
     try {
       await completeMission(selectedMissionId);
-      setSuccess("Survey Mission completed and set active.");
+      setSuccess(t("toastCompleted"));
       await loadMissions();
       await loadTileStats(selectedMissionId);
       await loadTileGeneration(selectedMissionId);
       await loadPermanentTrees(selectedMissionId);
     } catch (err) {
-      setError("Failed to complete mission: " + (err as Error).message);
+      setError(t("errCompleteMission", { msg: (err as Error).message }));
     } finally {
       setProcessing(false);
     }
@@ -348,7 +351,7 @@ export default function SurveyPage() {
       setTreeInspections((prev) => ({ ...prev, [treeId]: data.inspections }));
       return data.inspections;
     } catch (err) {
-      setError("Failed to load inspections: " + (err as Error).message);
+      setError(t("errLoadInspections", { msg: (err as Error).message }));
       return [];
     }
   }
@@ -361,7 +364,7 @@ export default function SurveyPage() {
       await startInspection(created.id);
       await loadTreeInspections(treeId);
     } catch (err) {
-      setError("Failed to start inspection: " + (err as Error).message);
+      setError(t("errStartInspection", { msg: (err as Error).message }));
     } finally {
       setInspLoading(false);
     }
@@ -376,7 +379,7 @@ export default function SurveyPage() {
       await loadTreeInspections(treeId);
       await loadTreeInventory(treeId);
     } catch (err) {
-      setError("Failed to complete inspection: " + (err as Error).message);
+      setError(t("errCompleteInspection", { msg: (err as Error).message }));
     } finally {
       setInspLoading(false);
     }
@@ -393,7 +396,7 @@ export default function SurveyPage() {
         },
       }));
     } catch (err) {
-      setError("Failed to load inventory: " + (err as Error).message);
+      setError(t("errLoadInventory", { msg: (err as Error).message }));
     }
   }
 
@@ -408,7 +411,7 @@ export default function SurveyPage() {
         await refreshRobotStatus(full.id);
       }
     } catch (err) {
-      setError("Failed to load harvest missions: " + (err as Error).message);
+      setError(t("errLoadHarvestMissions", { msg: (err as Error).message }));
     } finally {
       setHarvestLoading(false);
     }
@@ -422,11 +425,15 @@ export default function SurveyPage() {
       const mission = await createHarvestMission(harvestType);
       setSelectedHarvest(mission);
       setSuccess(
-        `${mission.mission_code} created — ${mission.total_trees} ${mission.total_trees === 1 ? "tree" : "trees"}, ${mission.total_expected_coconuts} expected coconuts.`
+        t("missionCreated", {
+          code: mission.mission_code ?? "",
+          trees: mission.total_trees,
+          nuts: mission.total_expected_coconuts,
+        })
       );
       await loadHarvestMissions();
     } catch (err) {
-      setError("Failed to generate harvest mission: " + (err as Error).message);
+      setError(t("errGenHarvest", { msg: (err as Error).message }));
     } finally {
       setHarvestGenerating(false);
     }
@@ -438,7 +445,7 @@ export default function SurveyPage() {
       setSelectedHarvest(full);
       await refreshRobotStatus(missionId);
     } catch (err) {
-      setError("Failed to load harvest mission: " + (err as Error).message);
+      setError(t("errLoadHarvestMission", { msg: (err as Error).message }));
     }
   }
 
@@ -447,7 +454,7 @@ export default function SurveyPage() {
       const status = await getRobotStatus(missionId);
       setRobotStatus(status);
     } catch (err) {
-      setError("Failed to load robot status: " + (err as Error).message);
+      setError(t("errRobotStatus", { msg: (err as Error).message }));
     }
   }
 
@@ -473,7 +480,17 @@ export default function SurveyPage() {
       await loadHarvestMissions();
       await refreshRobotStatus(missionId);
     } catch (err) {
-      setError("Failed to " + action + " mission: " + (err as Error).message);
+      const verb =
+        action === "start"
+          ? t("verbStart")
+          : action === "pause"
+            ? t("verbPause")
+            : action === "resume"
+              ? t("verbResume")
+              : action === "cancel"
+                ? t("verbCancel")
+                : t("verbAdvance");
+      setError(t("errHarvestAction", { action: verb, msg: (err as Error).message }));
     } finally {
       setHarvestExecuting(false);
     }
@@ -500,7 +517,7 @@ export default function SurveyPage() {
       const data = await getInspectionImages(inspId);
       setInspectionImages((prev) => ({ ...prev, [inspId]: data.images }));
     } catch (err) {
-      setError("Failed to load inspection images: " + (err as Error).message);
+      setError(t("errLoadInspectionImages", { msg: (err as Error).message }));
     }
   }
 
@@ -518,7 +535,7 @@ export default function SurveyPage() {
       await loadInspectionImages(inspId);
       await loadTreeInspections(treeId);
     } catch (err) {
-      setError("Failed to upload inspection images: " + (err as Error).message);
+      setError(t("errUploadInspectionImages", { msg: (err as Error).message }));
     } finally {
       setInspUploading((prev) => ({ ...prev, [inspId]: false }));
     }
@@ -532,7 +549,7 @@ export default function SurveyPage() {
       await loadInspectionImages(inspId);
       await loadTreeInspections(treeId);
     } catch (err) {
-      setError("Failed to process inspection images: " + (err as Error).message);
+      setError(t("errProcessInspectionImages", { msg: (err as Error).message }));
     } finally {
       setInspLoading(false);
     }
@@ -550,7 +567,7 @@ export default function SurveyPage() {
       setMissions((prev) => [mission, ...prev]);
       setSelectedMissionId(mission.id);
     } catch (err) {
-      setError("Could not create mission: " + (err as Error).message);
+      setError(t("errCreateMission", { msg: (err as Error).message }));
     }
   }
 
@@ -578,7 +595,7 @@ export default function SurveyPage() {
       }
       setDone(true);
     } catch (err) {
-      setError("Upload failed: " + (err as Error).message);
+      setError(t("errUpload", { msg: (err as Error).message }));
     } finally {
       setUploading(false);
     }
@@ -595,8 +612,8 @@ export default function SurveyPage() {
         <AmbientClip src="/clips/3.mp4" opacity={0.2} />
         <div className="page-head-scrim" />
         <div className="page-head-inner">
-          <p className="kicker">Pipeline · Survey → Harvest</p>
-          <h1 className="page-title font-display tracking-tightest">Survey &amp; Harvest Control</h1>
+          <p className="kicker">{t("headerKicker")}</p>
+          <h1 className="page-title font-display tracking-tightest">{t("headerTitle")}</h1>
         </div>
       </header>
 
@@ -607,65 +624,65 @@ export default function SurveyPage() {
 
       {/* 1. Mission selection / creation */}
       <section className="step panel" data-reveal id="step-1" data-step={1}>
-        <div className="step-head"><span className="step-n">01</span><h2>Select or create a mission</h2></div>
+        <div className="step-head"><span className="step-n">01</span><h2>{t("stepMission")}</h2></div>
         <div className="row">
           <select
             className="select"
             value={selectedMissionId ?? ""}
             onChange={(e) => setSelectedMissionId(Number(e.target.value))}
           >
-            <option value="" disabled>— choose mission —</option>
+            <option value="" disabled>{t("chooseMission")}</option>
             {missions.map((m) => (
               <option key={m.id} value={m.id}>#{m.id} — {m.source_folder} ({m.status})</option>
             ))}
           </select>
-          <input className="input" placeholder="new folder name" value={newFolder} onChange={(e) => setNewFolder(e.target.value)} />
-          <button className="btn btn-ghost" onClick={handleCreateMission}>Create mission</button>
+          <input className="input" placeholder={t("newFolderPh")} value={newFolder} onChange={(e) => setNewFolder(e.target.value)} />
+          <button className="btn btn-ghost" onClick={handleCreateMission}>{t("createMission")}</button>
         </div>
         {selectedMissionId !== null && (
-          <p className="hint">Selected mission #{selectedMissionId}</p>
+          <p className="hint">{t("selectedMission", { id: selectedMissionId })}</p>
         )}
       </section>
 
       {/* 2. Folder selection */}
       <section className="step panel" data-reveal id="step-2" data-step={2}>
-        <div className="step-head"><span className="step-n">02</span><h2>Select folder of drone imagery</h2></div>
+        <div className="step-head"><span className="step-n">02</span><h2>{t("stepImagery")}</h2></div>
         <label className="dropzone">
           <input ref={folderInputRef} type="file" multiple accept="image/*" {...({ webkitdirectory: "", directory: "" } as any)} onChange={handleFolderSelect} className="file-hidden" />
           <FolderSimple size={30} weight="regular" aria-hidden />
-          <span className="dz-title">Choose the drone-imagery folder</span>
-          <span className="dz-sub">Click to browse — files are only uploaded in step 03.</span>
+          <span className="dz-title">{t("dropTitle")}</span>
+          <span className="dz-sub">{t("dropSub")}</span>
         </label>
-        <p className="hint">Total images selected: <b>{total}</b></p>
+        <p className="hint">{t("totalSelected")} <b>{total}</b></p>
       </section>
 
       {/* 3. Upload + complete */}
       <section className="step panel" data-reveal id="step-3" data-step={3}>
-        <div className="step-head"><span className="step-n">03</span><h2>Upload &amp; activate</h2></div>
+        <div className="step-head"><span className="step-n">03</span><h2>{t("stepUpload")}</h2></div>
         <div className="row">
           <button className="btn btn-primary" onClick={handleUpload} disabled={uploading || selectedMissionId === null || total === 0 || selectedMission?.status !== "PROCESSING"}>
-            {uploading ? "Uploading…" : "Upload images"}
+            {uploading ? t("uploading") : t("uploadImages")}
           </button>
           <button className="btn" onClick={handleComplete} disabled={!canComplete || processing}
-            title={canComplete ? "Mark this mission complete and active" : "Available once a PROCESSING mission has at least one uploaded image"}>
-            {processing ? "Processing…" : "Complete Survey Mission"}
+            title={canComplete ? t("completeReady") : t("completeBlocked")}>
+            {processing ? t("processing") : t("completeMissionBtn")}
           </button>
         </div>
 
         <div className="progress">
           <div className="progress-bar"><div className="progress-fill" style={{ transform: `scaleX(${progress / 100})` }} /></div>
           <div className="progress-meta font-mono">
-            <span>Uploaded <b>{uploadedCount}</b></span>
-            <span>Remaining <b>{remaining}</b></span>
-            <span>Total <b>{total}</b></span>
+            <span>{t("uploaded")} <b>{uploadedCount}</b></span>
+            <span>{t("remaining")} <b>{remaining}</b></span>
+            <span>{t("total")} <b>{total}</b></span>
           </div>
-          {done && total > 0 && <p className="hint ok">✓ Upload completed — {uploadedCount} image(s) stored.</p>}
+          {done && total > 0 && <p className="hint ok">{t("uploadDone", { count: uploadedCount })}</p>}
         </div>
       </section>
 
       {/* Uploaded assets */}
       <section className="step" data-reveal>
-        <h2 className="block-title">Uploaded images ({images.length})</h2>
+        <h2 className="block-title">{t("uploadedImages", { count: images.length })}</h2>
         <div className="grid4">
           {imagePager.slice.map((img) => (
             <div key={img.id} className="thumb">
@@ -674,27 +691,27 @@ export default function SurveyPage() {
             </div>
           ))}
         </div>
-        {images.length === 0 && <p className="muted">No images uploaded yet.</p>}
+        {images.length === 0 && <p className="muted">{t("noImages")}</p>}
         <Pager page={imagePager.page} totalPages={imagePager.totalPages} onPrev={imagePager.prev} onNext={imagePager.next} />
       </section>
 
       {/* Survey Tiles */}
       {selectedMissionId !== null && (
         <section className="step" data-reveal>
-          <h2 className="block-title">Survey Tiles</h2>
+          <h2 className="block-title">{t("tilesTitle")}</h2>
           {tileStats === null ? (
             <div className="panel" style={{ overflow: "hidden" }}>
               <SkeletonRows rows={3} height={56} />
             </div>
           ) : tileStats.total === 0 ? (
-            <p className="muted">No survey tiles have been generated yet.</p>
+            <p className="muted">{t("noTiles")}</p>
           ) : (
             <div className="stat5">
-              <Stat n={tileStats.total} l="Total Survey Tiles" />
-              <Stat n={tileStats.pending} l="Pending" />
-              <Stat n={tileStats.processing} l="Processing" />
-              <Stat n={tileStats.completed} l="Completed" />
-              <Stat n={tileStats.failed} l="Failed" />
+              <Stat n={tileStats.total} l={t("tileTotal")} />
+              <Stat n={tileStats.pending} l={t("tilePending")} />
+              <Stat n={tileStats.processing} l={t("tileProcessing")} />
+              <Stat n={tileStats.completed} l={t("tileCompleted")} />
+              <Stat n={tileStats.failed} l={t("tileFailed")} />
             </div>
           )}
         </section>
@@ -703,14 +720,14 @@ export default function SurveyPage() {
       {/* Detected Trees */}
       {selectedMissionId !== null && (
         <section className="step" data-reveal>
-          <h2 className="block-title">Detected Trees</h2>
+          <h2 className="block-title">{t("detectedTitle")}</h2>
           {tileStats === null ? (
-            <p className="muted">Loading detection progress…</p>
+            <p className="muted">{t("loadingDetection")}</p>
           ) : (
             <div className="stat3">
-              <Stat n={tileStats.detections_total} l="Total detections" />
-              <Stat n={tileStats.processed_tiles} l="Processed tiles" />
-              <Stat n={tileStats.remaining_tiles} l="Remaining tiles" />
+              <Stat n={tileStats.detections_total} l={t("detTotal")} />
+              <Stat n={tileStats.processed_tiles} l={t("detProcessed")} />
+              <Stat n={tileStats.remaining_tiles} l={t("detRemaining")} />
             </div>
           )}
         </section>
@@ -719,55 +736,55 @@ export default function SurveyPage() {
       {/* Permanent Trees */}
       {selectedMissionId !== null && (
         <section className="step" data-reveal>
-          <h2 className="block-title">Permanent Trees</h2>
+          <h2 className="block-title">{t("permTitle")}</h2>
           {processing ? (
-            <p className="muted">Processing… matching detections to permanent Tree IDs.</p>
+            <p className="muted">{t("matchingMsg")}</p>
           ) : permTrees === null ? (
             <div className="panel" style={{ overflow: "hidden" }}>
               <SkeletonRows rows={4} />
             </div>
           ) : permTrees.total === 0 ? (
-            <p className="muted">No permanent trees yet. Complete the mission to match detections to permanent Tree IDs.</p>
+            <p className="muted">{t("noPermTrees")}</p>
           ) : (
             <>
               <div className="stat4">
-                <Stat n={permTrees.total} l="Total Trees" />
-                <Stat n={permTrees.newly_created} l="Newly Created" />
-                <Stat n={permTrees.matched_existing} l="Matched Existing" />
-                <Stat n={permTrees.avg_match_confidence !== null ? permTrees.avg_match_confidence.toFixed(3) : "—"} l="Avg Match Confidence" />
+                <Stat n={permTrees.total} l={t("permTotal")} />
+                <Stat n={permTrees.newly_created} l={t("permNew")} />
+                <Stat n={permTrees.matched_existing} l={t("permMatched")} />
+                <Stat n={permTrees.avg_match_confidence !== null ? permTrees.avg_match_confidence.toFixed(3) : "—"} l={t("permAvg")} />
               </div>
 
               <div className="tree-list">
-                {permTrees.trees.map((t) => {
-                  const insps = treeInspections[t.id] || [];
-                  const isOpen = expandedTree === t.id;
+                {permTrees.trees.map((tree) => {
+                  const insps = treeInspections[tree.id] || [];
+                  const isOpen = expandedTree === tree.id;
                   return (
-                    <div key={t.id} className="tree-card">
+                    <div key={tree.id} className="tree-card">
                       <div className="tree-top">
                         <div>
-                          <div className="tree-code font-mono">{t.tree_code}</div>
+                          <div className="tree-code font-mono">{tree.tree_code}</div>
                           <div className="tree-meta">
-                            Seen {t.times_seen}× · Match confidence {t.last_matching_confidence !== null ? `${Math.round(t.last_matching_confidence * 100)}%` : "new"} · {t.gps_lat.toFixed(6)}, {t.gps_lon.toFixed(6)}
+                            {t("seenTimes", { count: tree.times_seen })} · {t("matchConfidence", { pct: tree.last_matching_confidence !== null ? `${Math.round(tree.last_matching_confidence * 100)}%` : t("matchNew") })} · {tree.gps_lat.toFixed(6)}, {tree.gps_lon.toFixed(6)}
                           </div>
                         </div>
                         <div className="row">
-                          <button type="button" onClick={() => toggleTree(t.id)} className="btn btn-ghost sm">{isOpen ? "Hide History" : "Inspection History"}</button>
-                          <button type="button" onClick={() => handleStartInspection(t.id)} disabled={inspLoading} className="btn sm">Start Inspection</button>
+                          <button type="button" onClick={() => toggleTree(tree.id)} className="btn btn-ghost sm">{isOpen ? t("hideHistory") : t("showHistory")}</button>
+                          <button type="button" onClick={() => handleStartInspection(tree.id)} disabled={inspLoading} className="btn sm">{t("startInspection")}</button>
                         </div>
                       </div>
 
                       {isOpen && (
                         <div className="tree-detail">
                           {(() => {
-                            const inv = treeInventory[t.id];
-                            if (treeExpandLoading[t.id]) {
+                            const inv = treeInventory[tree.id];
+                            if (treeExpandLoading[tree.id]) {
                               return <SkeletonRows rows={4} height={44} />;
                             }
                             const snaps = inv?.snapshots || [];
                             const current = snaps.find((s) => s.id === inv?.currentId) || null;
                             return (
                               <div className="mb3">
-                                <h4 className="sub">Current Inventory</h4>
+                                <h4 className="sub">{t("invCurrent")}</h4>
                                 {current ? (
                                   <div className="snap current">
                                     <div className="snap-top">
@@ -775,18 +792,18 @@ export default function SurveyPage() {
                                       <span className="muted sm">{current.created_at ? fmtIST(current.created_at) : ""}</span>
                                     </div>
                                     <div className="chip-row">
-                                      <span className="chip">Mature: {current.mature_count}</span>
-                                      <span className="chip">Potential: {current.potential_count}</span>
-                                      <span className="chip">Premature: {current.premature_count}</span>
+                                      <span className="chip">{tr("mature")}: {current.mature_count}</span>
+                                      <span className="chip">{tr("potential")}: {current.potential_count}</span>
+                                      <span className="chip">{tr("premature")}: {current.premature_count}</span>
                                     </div>
                                   </div>
                                 ) : (
-                                  <p className="muted">No inventory yet. Complete an inspection to build one.</p>
+                                  <p className="muted">{t("invEmpty")}</p>
                                 )}
 
                                 {snaps.length > 0 && (
                                   <div className="mt2">
-                                    <h4 className="sub">Inventory History</h4>
+                                    <h4 className="sub">{t("invHistory")}</h4>
                                     <div className="snap-list">
                                       {snaps.map((s) => (
                                         <div key={s.id} className={"snap" + (s.id === inv?.currentId ? " current" : "")}>
@@ -797,7 +814,7 @@ export default function SurveyPage() {
                                             </span>
                                             <span className="muted sm">{s.created_at ? fmtIST(s.created_at) : ""}</span>
                                           </div>
-                                          <div className="muted sm">Total: {s.total_coconuts} · Mature: {s.mature_count} · Potential: {s.potential_count} · Premature: {s.premature_count}</div>
+                                          <div className="muted sm">{t("invTotals", { total: s.total_coconuts, mature: s.mature_count, potential: s.potential_count, premature: s.premature_count })}</div>
                                         </div>
                                       ))}
                                     </div>
@@ -807,15 +824,15 @@ export default function SurveyPage() {
                             );
                           })()}
 
-                          <h4 className="sub">Inspection History</h4>
+                          <h4 className="sub">{t("showHistory")}</h4>
                           {insps.length === 0 ? (
-                            <p className="muted">No inspections yet for this tree.</p>
+                            <p className="muted">{t("noTreeInspections")}</p>
                           ) : (
                             <div className="insp-list">
                               {insps.map((insp) => {
                                 const imgs = inspectionImages[insp.id] || [];
                                 const canAddImages = insp.status === "CREATED" || insp.status === "IN_PROGRESS";
-                                const inspSnap = (treeInventory[t.id]?.snapshots || []).find((s) => s.inspection_id === insp.id);
+                                const inspSnap = (treeInventory[tree.id]?.snapshots || []).find((s) => s.inspection_id === insp.id);
                                 return (
                                   <div key={insp.id} className="insp">
                                     <div className="insp-top">
@@ -824,30 +841,30 @@ export default function SurveyPage() {
                                       </div>
                                       <span className="muted sm">{insp.created_at ? fmtIST(insp.created_at) : ""}</span>
                                     </div>
-                                    <div className="muted sm">Images: {insp.inspection_image_count}{insp.completed_at ? ` · Completed ${fmtIST(insp.completed_at)}` : ""}{insp.notes ? ` · ${insp.notes}` : ""}</div>
+                                    <div className="muted sm">{t("imagesCount", { count: insp.inspection_image_count })}{insp.completed_at ? ` · ${t("completedAt", { date: fmtIST(insp.completed_at) })}` : ""}{insp.notes ? ` · ${insp.notes}` : ""}</div>
 
                                     {canAddImages && (
                                       <div className="row mt2">
                                         <input type="file" multiple accept="image/*" onChange={(e) => {
                                           const f = e.target.files ? Array.from(e.target.files) : [];
-                                          handleUploadInspectionImages(t.id, insp.id, f);
+                                          handleUploadInspectionImages(tree.id, insp.id, f);
                                           e.target.value = "";
                                         }} className="file sm" disabled={inspUploading[insp.id]} />
-                                        <button type="button" onClick={() => handleProcessInspectionImages(t.id, insp.id)} disabled={inspLoading || inspUploading[insp.id]} className="btn btn-ghost sm">Process / Re-scan</button>
-                                        <span className="muted sm">{inspUploading[insp.id] ? "Uploading & scanning…" : ""}</span>
+                                        <button type="button" onClick={() => handleProcessInspectionImages(tree.id, insp.id)} disabled={inspLoading || inspUploading[insp.id]} className="btn btn-ghost sm">{t("processRescan")}</button>
+                                        <span className="muted sm">{inspUploading[insp.id] ? t("uploadingScanning") : ""}</span>
                                       </div>
                                     )}
 
                                     {imgs.length > 0 && (
                                       <div className="mt2">
-                                        <div className="sub sm">Inspection Images</div>
+                                        <div className="sub sm">{t("inspImages")}</div>
                                         {imgs.map((img) => (
                                           <div key={img.id} className="img-row">
                                             <div className="img-row-top">
                                               <span className="trunc">{img.original_filename}</span>
                                               <span className="status-pill">{img.status}</span>
                                             </div>
-                                            <div className="muted sm">Detections: {img.detection_count}{img.detection_count > 0 && <span> ({Object.entries(img.detection_summary).map(([k, v]) => `${k}: ${v}`).join(", ")})</span>}</div>
+                                            <div className="muted sm">{t("detectionsCount", { count: img.detection_count, summary: img.detection_count > 0 ? `(${Object.entries(img.detection_summary).map(([k, v]) => `${k}: ${v}`).join(", ")})` : "" })}</div>
                                           </div>
                                         ))}
                                       </div>
@@ -856,17 +873,17 @@ export default function SurveyPage() {
                                     {inspSnap && (
                                       <div className="snap current mt2">
                                         <div className="snap-top">
-                                          <span className="muted sm"><b>Inventory Snapshot</b> <span className="font-mono">{inspSnap.snapshot_code}</span></span>
+                                          <span className="muted sm"><b>{t("invSnapshot")}</b> <span className="font-mono">{inspSnap.snapshot_code}</span></span>
                                           <span className="muted sm">{inspSnap.created_at ? fmtIST(inspSnap.created_at) : ""}</span>
                                         </div>
-                                        <div className="muted sm">Total: {inspSnap.total_coconuts} · Mature: {inspSnap.mature_count} · Potential: {inspSnap.potential_count} · Premature: {inspSnap.premature_count}</div>
+                                        <div className="muted sm">{t("invTotals", { total: inspSnap.total_coconuts, mature: inspSnap.mature_count, potential: inspSnap.potential_count, premature: inspSnap.premature_count })}</div>
                                       </div>
                                     )}
 
                                     {(insp.status === "CREATED" || insp.status === "IN_PROGRESS") && (
                                       <div className="row mt2">
                                         <input type="number" min={0} value={completeCount[insp.id] ?? Math.max(imgs.length, 1)} onChange={(e) => setCompleteCount((prev) => ({ ...prev, [insp.id]: Number(e.target.value) }))} className="num" />
-                                        <button type="button" onClick={() => handleCompleteInspection(t.id, insp.id)} disabled={inspLoading} className="btn btn-primary sm">Complete</button>
+                                        <button type="button" onClick={() => handleCompleteInspection(tree.id, insp.id)} disabled={inspLoading} className="btn btn-primary sm">{t("completeBtn")}</button>
                                       </div>
                                     )}
                                   </div>
@@ -883,9 +900,9 @@ export default function SurveyPage() {
 
               {permTrees && permTrees.total_pages > 1 && (
                 <div className="pager">
-                  <button type="button" onClick={() => { const p = Math.max(1, permPage - 1); setPermPage(p); if (selectedMissionId !== null) loadPermanentTrees(selectedMissionId, p); }} disabled={permPage <= 1} className="btn btn-ghost sm">Previous</button>
-                  <span className="muted">Page {permTrees.page} of {permTrees.total_pages}</span>
-                  <button type="button" onClick={() => { const p = Math.min(permTrees.total_pages, permPage + 1); setPermPage(p); if (selectedMissionId !== null) loadPermanentTrees(selectedMissionId, p); }} disabled={permPage >= permTrees.total_pages} className="btn btn-ghost sm">Next</button>
+                  <button type="button" onClick={() => { const p = Math.max(1, permPage - 1); setPermPage(p); if (selectedMissionId !== null) loadPermanentTrees(selectedMissionId, p); }} disabled={permPage <= 1} className="btn btn-ghost sm">{tc("previous")}</button>
+                  <span className="muted">{tc("pageOf", { page: permTrees.page, total: permTrees.total_pages })}</span>
+                  <button type="button" onClick={() => { const p = Math.min(permTrees.total_pages, permPage + 1); setPermPage(p); if (selectedMissionId !== null) loadPermanentTrees(selectedMissionId, p); }} disabled={permPage >= permTrees.total_pages} className="btn btn-ghost sm">{tc("next")}</button>
                 </div>
               )}
             </>
@@ -895,17 +912,17 @@ export default function SurveyPage() {
 
       {/* Harvest Planner & Mission Builder */}
       <section className="step panel" data-testid="harvest-planner" data-reveal id="step-4" data-step={4}>
-        <div className="step-head"><span className="step-n">04</span><h2>Harvest Planner</h2></div>
-        <p className="muted">Generate a Harvest Mission from the latest Inventory Snapshots. Eligible trees are ordered by a Nearest-Neighbour route. Execute it below to drive the robot through the queue and update Inventory History.</p>
+        <div className="step-head"><span className="step-n">04</span><h2>{t("stepHarvest")}</h2></div>
+        <p className="muted">{t("plannerBlurb")}</p>
         <div className="row">
-          <label className="muted sm" htmlFor="harvest-type">Harvest type</label>
+          <label className="muted sm" htmlFor="harvest-type">{t("harvestTypeLabel")}</label>
           <select id="harvest-type" className="select" value={harvestType} onChange={(e) => setHarvestType(e.target.value as HarvestType)}>
-            <option value="mature">Mature</option>
-            <option value="potential">Potential</option>
-            <option value="premature">Premature</option>
-            <option value="all">All</option>
+            <option value="mature">{tr("mature")}</option>
+            <option value="potential">{tr("potential")}</option>
+            <option value="premature">{tr("premature")}</option>
+            <option value="all">{tc("all")}</option>
           </select>
-          <button type="button" onClick={handleGenerateHarvestMission} disabled={harvestGenerating} className="btn btn-primary">{harvestGenerating ? "Generating…" : "Generate Harvest Mission"}</button>
+          <button type="button" onClick={handleGenerateHarvestMission} disabled={harvestGenerating} className="btn btn-primary">{harvestGenerating ? t("generating") : t("generateBtn")}</button>
         </div>
 
         {selectedHarvest && (
@@ -915,12 +932,12 @@ export default function SurveyPage() {
               <span className="status-pill big">{selectedHarvest.status}</span>
             </div>
             <div className="chip-row">
-              <span className="chip">Harvest type: <b>{selectedHarvest.harvest_type}</b></span>
-              <span className="chip">Total trees: <b>{selectedHarvest.total_trees}</b></span>
-              <span className="chip">Expected coconuts: <b>{selectedHarvest.total_expected_coconuts}</b></span>
+              <span className="chip">{t("chipType")} <b>{selectedHarvest.harvest_type}</b></span>
+              <span className="chip">{t("chipTrees")} <b>{selectedHarvest.total_trees}</b></span>
+              <span className="chip">{t("chipExpected")} <b>{selectedHarvest.total_expected_coconuts}</b></span>
             </div>
 
-            <h3 className="sub">Ordered Tree Queue</h3>
+            <h3 className="sub">{t("queueTitle")}</h3>
             {selectedHarvest.items && selectedHarvest.items.length > 0 ? (
               <>
                 <ol className="queue" data-testid="harvest-queue">
@@ -928,8 +945,8 @@ export default function SurveyPage() {
                     <li key={item.id} className={"q-item" + (item.status === "COMPLETED" ? " done" : item.status === "IN_PROGRESS" ? " active" : item.status === "CANCELLED" ? " cancelled" : "")}>
                       <span className="q-n">{item.visit_order}</span>
                       <span className="font-mono">{item.tree_code}</span>
-                      <span className="muted sm">Expected: {item.expected_coconuts}</span>
-                      {item.harvested !== null && item.harvested !== undefined && <span className="muted sm">Harvested: {item.harvested}</span>}
+                      <span className="muted sm">{t("queueExpected")} {item.expected_coconuts}</span>
+                      {item.harvested !== null && item.harvested !== undefined && <span className="muted sm">{t("queueHarvested")} {item.harvested}</span>}
                       <span className="status-pill sm ml">{item.status}</span>
                     </li>
                   ))}
@@ -937,55 +954,55 @@ export default function SurveyPage() {
                 <Pager page={harvestQueuePager.page} totalPages={harvestQueuePager.totalPages} onPrev={harvestQueuePager.prev} onNext={harvestQueuePager.next} />
               </>
             ) : (
-              <p className="muted">No trees in this mission.</p>
+              <p className="muted">{t("queueEmpty")}</p>
             )}
 
             {/* Robot Mission Execution */}
             <div className="exec">
               <div className="exec-head">
-                <h3 className="sub">Robot Status</h3>
+                <h3 className="sub">{t("robotStatusTitle")}</h3>
                 {robotStatus && robotStatus.mission_id === selectedHarvest.id && (
                   <span className="status-pill big" data-testid="robot-state">{robotStatus.robot_state}</span>
                 )}
               </div>
               {robotStatus && robotStatus.mission_id === selectedHarvest.id ? (
                 <div className="exec-grid">
-                  <div className="exec-row"><span>Mission</span><b>{robotStatus.mission_status}</b></div>
-                  <div className="exec-row"><span>Current tree</span><b>{robotStatus.current_item ? robotStatus.current_item.tree_code : "—"}</b></div>
-                  <div className="exec-row"><span>Completed</span><b>{robotStatus.completed_count}</b></div>
-                  <div className="exec-row"><span>Remaining</span><b>{robotStatus.remaining_count}</b></div>
-                  <div className="exec-row"><span>Harvested</span><b>{robotStatus.harvested_coconuts}</b></div>
-                  <div className="exec-row"><span>Next tree</span><b>{robotStatus.next_item ? robotStatus.next_item.tree_code : "—"}</b></div>
+                  <div className="exec-row"><span>{t("execMission")}</span><b>{robotStatus.mission_status}</b></div>
+                  <div className="exec-row"><span>{t("execCurrentTree")}</span><b>{robotStatus.current_item ? robotStatus.current_item.tree_code : "—"}</b></div>
+                  <div className="exec-row"><span>{t("execCompleted")}</span><b>{robotStatus.completed_count}</b></div>
+                  <div className="exec-row"><span>{t("execRemaining")}</span><b>{robotStatus.remaining_count}</b></div>
+                  <div className="exec-row"><span>{t("execHarvested")}</span><b>{robotStatus.harvested_coconuts}</b></div>
+                  <div className="exec-row"><span>{t("execNextTree")}</span><b>{robotStatus.next_item ? robotStatus.next_item.tree_code : "—"}</b></div>
                 </div>
               ) : (
-                <p className="muted">Start the mission to see robot status.</p>
+                <p className="muted">{t("execEmpty")}</p>
               )}
 
               <div className="row mt2">
                 {selectedHarvest.status === "CREATED" && (
-                  <button type="button" data-testid="harvest-start" onClick={() => runHarvestAction("start", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-primary">Start Mission</button>
+                  <button type="button" data-testid="harvest-start" onClick={() => runHarvestAction("start", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-primary">{t("btnStart")}</button>
                 )}
                 {selectedHarvest.status === "RUNNING" && (
                   <>
-                    <button type="button" data-testid="harvest-advance" onClick={() => runHarvestAction("advance", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-primary">Advance to Next Tree</button>
-                    <button type="button" data-testid="harvest-pause" onClick={() => runHarvestAction("pause", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-ghost">Pause</button>
+                    <button type="button" data-testid="harvest-advance" onClick={() => runHarvestAction("advance", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-primary">{t("btnAdvance")}</button>
+                    <button type="button" data-testid="harvest-pause" onClick={() => runHarvestAction("pause", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-ghost">{t("btnPause")}</button>
                   </>
                 )}
                 {selectedHarvest.status === "PAUSED" && (
-                  <button type="button" data-testid="harvest-resume" onClick={() => runHarvestAction("resume", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-primary">Resume</button>
+                  <button type="button" data-testid="harvest-resume" onClick={() => runHarvestAction("resume", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-primary">{t("btnResume")}</button>
                 )}
                 {selectedHarvest.status !== "COMPLETED" && selectedHarvest.status !== "CANCELLED" && (
-                  <button type="button" data-testid="harvest-cancel" onClick={() => runHarvestAction("cancel", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-danger">Cancel Mission</button>
+                  <button type="button" data-testid="harvest-cancel" onClick={() => runHarvestAction("cancel", selectedHarvest.id)} disabled={harvestExecuting} className="btn btn-danger">{t("btnCancel")}</button>
                 )}
               </div>
-              {harvestExecuting && <p className="muted mt2">Working…</p>}
+              {harvestExecuting && <p className="muted mt2">{t("working")}</p>}
             </div>
           </div>
         )}
 
         {harvestLoading && (
           <div className="mt2">
-            <h3 className="sub">Harvest Missions</h3>
+            <h3 className="sub">{t("missionsTitle")}</h3>
             <div className="panel" style={{ overflow: "hidden" }}>
               <SkeletonRows rows={3} height={40} />
             </div>
@@ -993,17 +1010,17 @@ export default function SurveyPage() {
         )}
         {!harvestLoading && harvestMissions.length === 0 && (
           <div className="mt2">
-            <h3 className="sub">Harvest Missions</h3>
-            <p className="muted">No harvest missions yet. Generate one above.</p>
+            <h3 className="sub">{t("missionsTitle")}</h3>
+            <p className="muted">{t("missionsEmpty")}</p>
           </div>
         )}
         {!harvestLoading && harvestMissions.length > 0 && (
           <div className="mt2">
-            <h3 className="sub">Harvest Missions</h3>
+            <h3 className="sub">{t("missionsTitle")}</h3>
             <div className="mission-list">
               {harvestMissionPager.slice.map((m) => (
                 <button key={m.id} type="button" onClick={() => handleSelectHarvestMission(m.id)} className={"mission-row" + (selectedHarvest?.id === m.id ? " sel" : "")}>
-                  <span className="font-mono">{m.mission_code}</span> · {m.harvest_type} · <span className="status-pill">{m.status}</span> · {m.total_trees} {m.total_trees === 1 ? "tree" : "trees"} · {m.total_expected_coconuts} expected · {m.created_at ? fmtIST(m.created_at) : ""}
+                  <span className="font-mono">{m.mission_code}</span> · {m.harvest_type} · <span className="status-pill">{m.status}</span> · {tc("treesCount", { count: m.total_trees })} · {tc("coconutsExpected", { count: m.total_expected_coconuts })} · {m.created_at ? fmtIST(m.created_at) : ""}
                 </button>
               ))}
             </div>
@@ -1015,17 +1032,17 @@ export default function SurveyPage() {
       {/* Survey Tile Generation */}
       {selectedMissionId !== null && (
         <section className="step" data-reveal>
-          <h2 className="block-title">Survey Tile Generation</h2>
+          <h2 className="block-title">{t("tileGenTitle")}</h2>
           {tileGen === null ? (
             <div className="panel" style={{ overflow: "hidden" }}>
               <SkeletonRows rows={3} height={56} />
             </div>
           ) : (
             <div className="stat4">
-              <Stat n={tileGen.images_uploaded} l="Images Uploaded" />
-              <Stat n={tileGen.tiles_generated} l="Tiles Generated" />
-              <Stat n={tileGen.remaining} l="Remaining" />
-              <Stat n={tileGen.generation_status === "complete" ? "Complete" : tileGen.generation_status === "in_progress" ? "In Progress" : "Not Started"} l="Generation Status" />
+              <Stat n={tileGen.images_uploaded} l={t("genImages")} />
+              <Stat n={tileGen.tiles_generated} l={t("genTiles")} />
+              <Stat n={tileGen.remaining} l={t("genRemaining")} />
+              <Stat n={tileGen.generation_status === "complete" ? t("genComplete") : tileGen.generation_status === "in_progress" ? t("genProgress") : t("genNotStarted")} l={t("genStatus")} />
             </div>
           )}
         </section>
