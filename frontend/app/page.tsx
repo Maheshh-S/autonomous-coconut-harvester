@@ -2,60 +2,47 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useReveal } from "@/lib/useReveal";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const CHAPTERS = [
-  {
-    tag: "01 · The Challenge",
-    title: ["Tall trees.", "Manual harvest."],
-    body: "Coconut palms reach 25 metres. Climbing them by hand is slow, dangerous, and unscalable. The world's harvest depends on a vanishing skill.",
-  },
-  {
-    tag: "02 · Aerial Survey",
-    title: ["A drone maps", "every tree."],
-    body: "An autonomous flight planner sweeps the plantation. Computer vision detects each palm and assigns a permanent Tree ID, so no tree is left uncounted.",
-  },
-  {
-    tag: "03 · Digital Twin",
-    title: ["The farm,", "rebuilt in silicon."],
-    body: "Survey tiles assemble into a living Digital Twin. Every tree, its GPS, and its detection geometry become queryable, actionable intelligence.",
-  },
-  {
-    tag: "04 · Ripeness Intelligence",
-    title: ["AI reads", "each coconut."],
-    body: "Close-up inspection classifies every fruit as mature, potential, or premature. An immutable inventory snapshot is written for the record.",
-  },
-  {
-    tag: "05 · Mission Planning",
-    title: ["Optimal routes,", "computed."],
-    body: "The Harvest Planner builds a frozen, nearest-neighbour mission from the latest inventory: a precise, auditable work order for the field.",
-  },
-  {
-    tag: "06 · The Robot",
-    title: ["It climbs.", "It harvests."],
-    body: "A tree-climbing harvester navigates the twin, ascends the trunk, and plucks only the mature coconuts: safely, repeatedly, autonomously.",
-  },
-  {
-    tag: "07 · Mission Analytics",
-    title: ["Every run,", "measured."],
-    body: "Each mission closes with a scored analytics record: distance, battery economy, yield, and efficiency. The operation improves with every pass.",
-  },
-];
-
-const STATS = [
-  { n: "243", l: "Trees surveyed / mission" },
-  { n: "100%", l: "Autonomous routing" },
-  { n: "3", l: "Maturity classes detected" },
-  { n: "∞", l: "Missions, replayed & scored" },
-];
-
 export default function Landing() {
   const root = useRef<HTMLDivElement>(null);
   const reveal = useReveal();
+  const t = useTranslations("landing");
+  const tn = useTranslations("nav");
+
+  // V5.0: chapter + stat copy lives in the landing dictionary (ch1..ch7, st1..st4).
+  const CHAPTERS = [
+    { tag: t("ch1tag"), title: [t("ch1t1"), t("ch1t2")], body: t("ch1body") },
+    { tag: t("ch2tag"), title: [t("ch2t1"), t("ch2t2")], body: t("ch2body") },
+    { tag: t("ch3tag"), title: [t("ch3t1"), t("ch3t2")], body: t("ch3body") },
+    { tag: t("ch4tag"), title: [t("ch4t1"), t("ch4t2")], body: t("ch4body") },
+    { tag: t("ch5tag"), title: [t("ch5t1"), t("ch5t2")], body: t("ch5body") },
+    { tag: t("ch6tag"), title: [t("ch6t1"), t("ch6t2")], body: t("ch6body") },
+    { tag: t("ch7tag"), title: [t("ch7t1"), t("ch7t2")], body: t("ch7body") },
+  ];
+
+  const STATS = [
+    { n: "243", l: t("st1") },
+    { n: "100%", l: t("st2") },
+    { n: "3", l: t("st3") },
+    { n: "∞", l: t("st4") },
+  ];
+
+  const CAPS = [
+    { tk: "capSurveyTitle", dk: "capSurveyDesc", f: true },
+    { tk: "capIntelTitle", dk: "capIntelDesc" },
+    { tk: "capTwinTitle", dk: "capTwinDesc" },
+    { tk: "capRipenessTitle", dk: "capRipenessDesc" },
+    { tk: "capPlanTitle", dk: "capPlanDesc" },
+    { tk: "capRobotTitle", dk: "capRobotDesc", f: true },
+    { tk: "capControlTitle", dk: "capControlDesc" },
+    { tk: "capAnalyticsTitle", dk: "capAnalyticsDesc" },
+  ] as const;
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -108,7 +95,7 @@ export default function Landing() {
   return (
     <div ref={(r) => { root.current = r; reveal(r); }}>
       {/* ══════════ HERO FILM ══════════ */}
-      <section className="film" aria-label="Product film">
+      <section className="film" aria-label={t("filmAria")}>
         <div className="film-stage">
           <div className="film-hero depth-3" aria-hidden="true">
             <video
@@ -125,27 +112,26 @@ export default function Landing() {
 
           <div className="film-cap cap-open">
             <div className="film-cap-inner">
-              <p className="kicker">Veraxis · An AI-Powered Autonomous Coconut Harvesting System</p>
+              <p className="kicker">{t("heroKicker")}</p>
               <h1 className="font-display tracking-tightest">
-                The farm that <span className="lede-accent">harvests itself.</span>
+                {t("heroTitleA")} <span className="lede-accent">{t("heroTitleB")}</span>
               </h1>
               <p className="film-sub">
-                Drone intelligence, a living Digital Twin, and a tree-climbing robot.
-                One precision-agriculture operating system.
+                {t("heroSub")}
               </p>
               <div className="film-cta">
-                <Link href="/dashboard" className="btn btn-glass btn-glass-primary">Enter Mission Control</Link>
-                <Link href="#story" className="btn btn-glass">See the system</Link>
+                <Link href="/dashboard" className="btn btn-glass btn-glass-primary">{t("ctaControl")}</Link>
+                <Link href="#story" className="btn btn-glass">{t("ctaStory")}</Link>
               </div>
             </div>
           </div>
 
-          <div className="scroll-cue" aria-hidden="true">Scroll</div>
+          <div className="scroll-cue" aria-hidden="true">{t("scrollCue")}</div>
         </div>
       </section>
 
       {/* ══════════ CHAPTER BEATS ══════════ */}
-      <section className="beats" aria-label="How it works">
+      <section className="beats" aria-label={t("beatsAria")}>
         {CHAPTERS.map((c, i) => (
           <div className="chapter" key={i}>
             <div className="chapter-inner">
@@ -178,36 +164,26 @@ export default function Landing() {
 
       {/* ══════════ STORY / MANIFESTO ══════════ */}
       <section className="manifesto" id="story" data-reveal>
-        <p className="kicker">The belief</p>
+        <p className="kicker">{t("manifestoKicker")}</p>
         <h2 className="font-display tracking-tightest">
-          Precision agriculture should be <span className="lede-accent">autonomous, observable, and accountable.</span>
+          {t("manifestoTitleA")} <span className="lede-accent">{t("manifestoTitleB")}</span>
         </h2>
         <p className="manifesto-sub">
-          Veraxis turns a dangerous, manual craft into a measured, repeatable system,
-          without losing the intelligence of the people who know the land.
+          {t("manifestoSub")}
         </p>
       </section>
 
       {/* ══════════ CAPABILITY GRID ══════════ */}
-      <section className="caps" aria-label="Capabilities">
+      <section className="caps" aria-label={t("capsAria")}>
         <div className="caps-head" data-reveal>
-          <p className="kicker">One platform</p>
-          <h2 className="font-display tracking-tightest">Every layer of the harvest, engineered.</h2>
+          <p className="kicker">{t("capsKicker")}</p>
+          <h2 className="font-display tracking-tightest">{t("capsTitle")}</h2>
         </div>
         <div className="caps-grid">
-          {[
-            { t: "Drone Survey", d: "Autonomous flight planning and tile capture across the whole plantation.", f: true },
-            { t: "Tree Intelligence", d: "Permanent Tree IDs from GPS + computer-vision matching across surveys." },
-            { t: "Digital Twin", d: "A seamless mosaic of the farm with live YOLO detection overlays." },
-            { t: "Ripeness AI", d: "Per-coconut maturity classification: mature, potential, premature." },
-            { t: "Harvest Planning", d: "Frozen, nearest-neighbour missions built from the latest inventory." },
-            { t: "Robot Execution", d: "A climbing harvester navigates, ascends, and harvests autonomously.", f: true },
-            { t: "Mission Control", d: "Live state, battery, and position streamed over a real-time channel." },
-            { t: "Analytics", d: "Every run scored on yield, battery economy, and efficiency." },
-          ].map((c) => (
-            <div className={"cap panel-2" + (c.f ? " cap-f" : "")} key={c.t} data-reveal>
-              <h3 className="cap-t">{c.t}</h3>
-              <p className="cap-d">{c.d}</p>
+          {CAPS.map((c) => (
+            <div className={"cap panel-2" + ("f" in c && c.f ? " cap-f" : "")} key={c.tk} data-reveal>
+              <h3 className="cap-t">{t(c.tk)}</h3>
+              <p className="cap-d">{t(c.dk)}</p>
             </div>
           ))}
         </div>
@@ -216,28 +192,28 @@ export default function Landing() {
       {/* ══════════ CLOSING CTA ══════════ */}
       <section className="closer" data-reveal>
         <h2 className="font-display tracking-tightest">
-          Open the <span className="lede-accent">Control Center.</span>
+          {t("closerTitleA")} <span className="lede-accent">{t("closerTitleB")}</span>
         </h2>
-        <p className="closer-sub">Survey a plantation, watch the twin build, and send the robot to work.</p>
+        <p className="closer-sub">{t("closerSub")}</p>
         <div className="closer-cta">
-          <Link href="/survey" className="btn btn-glass btn-glass-primary">Start a Survey</Link>
-          <Link href="/map" className="btn btn-glass">View the Digital Twin</Link>
+          <Link href="/survey" className="btn btn-glass btn-glass-primary">{t("closerSurvey")}</Link>
+          <Link href="/map" className="btn btn-glass">{t("closerTwin")}</Link>
         </div>
       </section>
 
       <footer className="land-foot">
         <div className="land-foot-in">
           <span className="land-foot-mark font-display">Veraxis</span>
-          <span className="land-foot-tag">An AI-Powered Autonomous Coconut Harvesting System · Control Build v3.8</span>
+          <span className="land-foot-tag">{t("footTag")}</span>
         </div>
         <div className="land-foot-links">
-          <Link href="/dashboard">Mission Control</Link>
-          <Link href="/survey">Survey</Link>
-          <Link href="/map">Digital Twin</Link>
-          <Link href="/robot">Robot Ops</Link>
-          <Link href="/robot/history">History</Link>
+          <Link href="/dashboard">{tn("missionControl")}</Link>
+          <Link href="/survey">{tn("survey")}</Link>
+          <Link href="/map">{tn("digitalTwin")}</Link>
+          <Link href="/robot">{tn("robotOps")}</Link>
+          <Link href="/robot/history">{tn("history")}</Link>
         </div>
-        <p className="land-foot-fine">A precision-agriculture concept. All system imagery procedurally generated.</p>
+        <p className="land-foot-fine">{t("footFine")}</p>
       </footer>
 
       <style jsx>{`

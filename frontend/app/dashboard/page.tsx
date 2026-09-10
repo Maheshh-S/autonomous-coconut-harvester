@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   getDashboardOverview,
@@ -32,7 +33,11 @@ const ROBOT_COLORS: Record<string, string> = {
 };
 
 function Badge({ text }: { text: string }) {
+  const ts = useTranslations("status");
   const color = ROBOT_COLORS[text] ?? "var(--color-text-faint)";
+  // Only dictionary-known codes translate; backend novelties render raw so a
+  // missing key can never crash the badge.
+  const label = text in ROBOT_COLORS ? ts(text) : text;
   return (
     <span
       className="badge"
@@ -43,7 +48,7 @@ function Badge({ text }: { text: string }) {
       }}
     >
       <span className="dot" style={{ background: color }} />
-      {text}
+      {label}
     </span>
   );
 }
@@ -59,12 +64,13 @@ function StatTile({ label, val, sub }: { label: string; val: React.ReactNode; su
 }
 
 function MiniBar({ segments }: { segments: { label: string; count: number; color: string }[] }) {
+  const t = useTranslations("dashboard");
   const total = segments.reduce((s, x) => s + x.count, 0);
   return (
     <div className="minibar">
       <div className="minibar-track">
         {total === 0 ? (
-          <span className="minibar-empty">no data</span>
+          <span className="minibar-empty">{t("minibarEmpty")}</span>
         ) : (
           segments.map((s) =>
             s.count > 0 ? (
@@ -106,10 +112,13 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
+  const t = useTranslations("dashboard");
+  const tr = useTranslations("ripeness");
   const missionId = data?.current_harvest_mission?.id ?? null;
   const sim = useRobotSimulation(missionId);
-  const currentTreeCode = sim.harvestingTreeId != null ? `Tree ${sim.harvestingTreeId}` : null;
-  const nextTreeCode = sim.nextTreeId != null ? `Tree ${sim.nextTreeId}` : null;
+  const format = useFormatter();
+  const currentTreeCode = sim.harvestingTreeId != null ? t("treeCode", { id: sim.harvestingTreeId }) : null;
+  const nextTreeCode = sim.nextTreeId != null ? t("treeCode", { id: sim.nextTreeId }) : null;
   const reveal = useReveal();
   const activity = usePagination(data?.recent_activity ?? []);
 
@@ -136,9 +145,9 @@ export default function DashboardPage() {
       setError(null);
       setLastRefresh(new Date());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load dashboard");
+      setError(e instanceof Error ? e.message : t("errLoad"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     refresh();
@@ -150,8 +159,8 @@ export default function DashboardPage() {
     return (
       <main className="page" ref={reveal}>
         <div className="errpanel">
-          <h1>System Dashboard</h1>
-          <p className="errmsg">Error: {error}</p>
+          <h1>{t("dashTitle")}</h1>
+          <p className="errmsg">{t("errPrefix", { msg: error })}</p>
         </div>
       </main>
     );
@@ -211,62 +220,69 @@ export default function DashboardPage() {
     <main className="page" ref={reveal}>
       <header className="page-head">
         <div>
-          <p className="kicker">Mission Control</p>
-          <h1 className="page-title font-display tracking-tightest">System Dashboard</h1>
+          <p className="kicker">{t("headerKicker")}</p>
+          <h1 className="page-title font-display tracking-tightest">{t("headerTitle")}</h1>
         </div>
         <div className="head-status">
           <span className="dot" style={{ background: "var(--color-ok)" }} />
           <span className="font-mono">
-            {lastRefresh ? `Live · ${lastRefresh.toLocaleTimeString("en-IN")}` : "Connecting…"}
+            {lastRefresh
+              ? t("liveNow", {
+                  time: format.dateTime(lastRefresh, {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  }),
+                })
+              : t("connecting")}
           </span>
           {error && <span className="head-err">· {error}</span>}
         </div>
       </header>
 
       {/* Hero banner — dedicated, clearly visible clip (not hidden behind cards) */}
-      <section className="page-hero" aria-label="Farm overview">
+      <section className="page-hero" aria-label={t("heroAria")}>
         <AmbientClip src="/clips/2.mp4" opacity={0.32} />
         <div className="page-hero-scrim" />
         <div className="page-hero-inner">
-          <p className="kicker">Live Operations</p>
+          <p className="kicker">{t("heroKicker")}</p>
           <h2 className="page-hero-title font-display tracking-tightest">
-            One calm view of the whole plantation
+            {t("heroTitle")}
           </h2>
           <p className="page-hero-sub">
-            Survey, digital twin, robot and harvest — unified into a single
-            situational-awareness surface.
+            {t("heroSub")}
           </p>
         </div>
       </section>
 
       {/* Overview */}
       <section className="block">
-        <h2 className="block-title">Overview</h2>
+        <h2 className="block-title">{t("overview")}</h2>
         <div className="tile-grid cols-6">
-          <StatTile label="Survey Missions" val={o.survey_missions} />
-          <StatTile label="Permanent Trees" val={o.permanent_trees} />
-          <StatTile label="Trees Inspected" val={o.trees_inspected} />
-          <StatTile label="Inventory Snapshots" val={o.inventory_snapshots} />
-          <StatTile label="Harvest Missions" val={o.harvest_missions} />
+          <StatTile label={t("tileSurveyMissions")} val={o.survey_missions} />
+          <StatTile label={t("tilePermanentTrees")} val={o.permanent_trees} />
+          <StatTile label={t("treesInspected")} val={o.trees_inspected} />
+          <StatTile label={t("inventorySnapshots")} val={o.inventory_snapshots} />
+          <StatTile label={t("harvestMissions")} val={o.harvest_missions} />
           <StatTile
-            label="Latest Run Score"
+            label={t("latestRunScore")}
             val={latestRun?.mission_score ?? "—"}
-            sub={latestRun ? `Run #${latestRun.id}` : "no runs yet"}
+            sub={latestRun ? t("runLabel", { id: latestRun.id }) : t("noRunsYet")}
           />
         </div>
       </section>
 
       {/* Farm Summary — compact striped rows (Overview above carries the tiles) */}
       <section className="block">
-        <h2 className="block-title">Farm Summary</h2>
+        <h2 className="block-title">{t("farmSummary")}</h2>
         <div className="panel" data-reveal>
           <div className="sum-grid">
-            <div className="sum-row"><span>Total Trees</span><b>{fs.total_trees}</b></div>
-            <div className="sum-row"><span>Total Coconuts</span><b>{fs.total_coconuts}</b></div>
-            <div className="sum-row"><span>Mature</span><b>{fs.mature}</b></div>
-            <div className="sum-row"><span>Potential</span><b>{fs.potential}</b></div>
-            <div className="sum-row"><span>Premature</span><b>{fs.premature}</b></div>
-            <div className="sum-row"><span>Harvested</span><b>{fs.harvested_count}</b></div>
+            <div className="sum-row"><span>{t("totalTrees")}</span><b>{fs.total_trees}</b></div>
+            <div className="sum-row"><span>{t("totalCoconuts")}</span><b>{fs.total_coconuts}</b></div>
+            <div className="sum-row"><span>{t("mature")}</span><b>{fs.mature}</b></div>
+            <div className="sum-row"><span>{t("potential")}</span><b>{fs.potential}</b></div>
+            <div className="sum-row"><span>{t("premature")}</span><b>{fs.premature}</b></div>
+            <div className="sum-row"><span>{t("harvested")}</span><b>{fs.harvested_count}</b></div>
           </div>
         </div>
       </section>
@@ -275,41 +291,41 @@ export default function DashboardPage() {
       <section className="block">
         <div className="panel-grid">
           <div className="panel" data-reveal>
-            <h3 className="panel-h">Survey</h3>
-            <Field name="Latest Survey" val={data.survey.latest_survey ? `#${data.survey.latest_survey.id} · ${data.survey.latest_survey.status}` : "—"} />
-            <Field name="Active Survey" val={data.survey.active_survey ? `#${data.survey.active_survey.id}` : "None"} />
-            <Field name="Last Scan" val={fmtIST(data.survey.last_scan_time)} />
+            <h3 className="panel-h">{t("panelSurvey")}</h3>
+            <Field name={t("fLatestSurvey")} val={data.survey.latest_survey ? `#${data.survey.latest_survey.id} · ${data.survey.latest_survey.status}` : "—"} />
+            <Field name={t("fActiveSurvey")} val={data.survey.active_survey ? `#${data.survey.active_survey.id}` : t("noneValue")} />
+            <Field name={t("fLastScan")} val={fmtIST(data.survey.last_scan_time)} />
           </div>
 
           <div className="panel" data-reveal>
-            <h3 className="panel-h">Harvest</h3>
-            <Field name="Current Mission" val={hm ? hm.mission_code ?? `#${hm.id}` : "—"} />
-            <Field name="Status" val={hm ? <Badge text={hm.status} /> : "—"} />
-            <Field name="Queue" val={robot ? `${robot.completed_count}/${robot.total_trees}` : "—"} />
-            <Field name="Trees Remaining" val={robot ? robot.remaining_count : "—"} />
-            <Field name="Expected Harvest" val={hm ? hm.total_expected_coconuts : "—"} />
+            <h3 className="panel-h">{t("panelHarvest")}</h3>
+            <Field name={t("fCurrentMission")} val={hm ? hm.mission_code ?? `#${hm.id}` : "—"} />
+            <Field name={t("fStatus")} val={hm ? <Badge text={hm.status} /> : "—"} />
+            <Field name={t("fQueue")} val={robot ? `${robot.completed_count}/${robot.total_trees}` : "—"} />
+            <Field name={t("fTreesRemaining")} val={robot ? robot.remaining_count : "—"} />
+            <Field name={t("expectedHarvest")} val={hm ? hm.total_expected_coconuts : "—"} />
           </div>
 
           <div className="panel" data-reveal>
-            <h3 className="panel-h">Latest Run</h3>
+            <h3 className="panel-h">{t("latestRun")}</h3>
             {latestRun ? (
               <>
                 <Field
-                  name="Run"
+                  name={t("fRun")}
                   val={
                     <Link href={`/robot/history/${latestRun.id}`} className="link">
                       #{latestRun.id}
                     </Link>
                   }
                 />
-                <Field name="Status" val={<Badge text={latestRun.status} />} />
-                <Field name="Score" val={latestRun.mission_score ?? "—"} />
-                <Field name="Harvested" val={`${latestRun.harvested_trees}/${latestRun.total_trees}`} />
-                <Field name="Battery Used" val={`${latestRun.battery_used_pct}%`} />
-                <Link href="/robot/history" className="link sm">View all runs →</Link>
+                <Field name={t("fStatus")} val={<Badge text={latestRun.status} />} />
+                <Field name={t("fScore")} val={latestRun.mission_score ?? "—"} />
+                <Field name={t("fHarvested")} val={`${latestRun.harvested_trees}/${latestRun.total_trees}`} />
+                <Field name={t("fBatteryUsed")} val={`${latestRun.battery_used_pct}%`} />
+                <Link href="/robot/history" className="link sm">{t("viewAllRuns")}</Link>
               </>
             ) : (
-              <Field name="Last run" val="None yet" />
+              <Field name={t("fLastRun")} val={t("noneYet")} />
             )}
           </div>
         </div>
@@ -317,33 +333,33 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <section className="block">
-        <h2 className="block-title">Analytics</h2>
+        <h2 className="block-title">{t("analyticsTitle")}</h2>
         <div className="panel-grid">
           <div className="panel" data-reveal>
-            <h3 className="panel-h">Ripeness Distribution</h3>
+            <h3 className="panel-h">{t("ripenessDistribution")}</h3>
             <MiniBar
               segments={[
-                { label: "Mature", count: rip.mature, color: "var(--color-leaf)" },
-                { label: "Potential", count: rip.potential, color: "var(--color-gold)" },
-                { label: "Premature", count: rip.premature, color: "var(--color-crit)" },
+                { label: tr("mature"), count: rip.mature, color: "var(--color-leaf)" },
+                { label: tr("potential"), count: rip.potential, color: "var(--color-gold)" },
+                { label: tr("premature"), count: rip.premature, color: "var(--color-crit)" },
               ]}
             />
           </div>
           <div className="panel" data-reveal>
-            <h3 className="panel-h">Inspection Coverage</h3>
+            <h3 className="panel-h">{t("coverageTitle")}</h3>
             <MiniBar
               segments={[
-                { label: "Inspected", count: cov.inspected, color: "var(--color-accent)" },
-                { label: "Remaining", count: Math.max(cov.total - cov.inspected, 0), color: "var(--color-line-strong)" },
+                { label: t("inspected"), count: cov.inspected, color: "var(--color-accent)" },
+                { label: t("remaining"), count: Math.max(cov.total - cov.inspected, 0), color: "var(--color-line-strong)" },
               ]}
             />
           </div>
           <div className="panel" data-reveal>
-            <h3 className="panel-h">Harvest Progress</h3>
+            <h3 className="panel-h">{t("harvestProgress")}</h3>
             <MiniBar
               segments={[
-                { label: "Completed", count: hp.completed, color: "var(--color-accent)" },
-                { label: "Remaining", count: Math.max(hp.total - hp.completed, 0), color: "var(--color-line-strong)" },
+                { label: t("completed"), count: hp.completed, color: "var(--color-accent)" },
+                { label: t("remaining"), count: Math.max(hp.total - hp.completed, 0), color: "var(--color-line-strong)" },
               ]}
             />
           </div>
@@ -373,10 +389,10 @@ export default function DashboardPage() {
 
       {/* Recent Activity */}
       <section className="block">
-        <h2 className="block-title">Recent Activity</h2>
+        <h2 className="block-title">{t("recentActivity")}</h2>
         <div className="panel" data-reveal>
           {data.recent_activity.length === 0 ? (
-            <p className="muted">No activity yet.</p>
+            <p className="muted">{t("noActivityYet")}</p>
           ) : (
             <>
               <ul className="feed">
