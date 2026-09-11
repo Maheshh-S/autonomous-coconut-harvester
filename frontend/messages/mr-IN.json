@@ -375,7 +375,7 @@
         "tlClockUnit": "घड्याळ = IST (Asia/Kolkata)",
         "istTitle": "भारतीय प्रमाणवेळ (एशिया/कोलकाता)",
         "logHintTitle": "प्रथम स्तंभ = भारतीय प्रमाण वेळ (एशिया/कोलकाता); t+Ns = अनुकरण सेकंद",
-        "logCount": "{count, plural, one {# entry} other {# entries}}",
+        "logCount": "{count, plural, one {# नोंद} other {# नोंदी}}",
         "logEmpty": "या धावण्यासाठी कोणतेही लॉग नोंदी नोंदवल्या गेल्या नाहीत."
     },
     "trees": {

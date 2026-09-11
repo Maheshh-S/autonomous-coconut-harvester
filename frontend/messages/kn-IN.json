@@ -375,7 +375,7 @@
         "tlClockUnit": "ಗಡಿಯಾರ = IST (ಏಷ್ಯಾ/ಕೋಲ್ಕತ್ತಾ)",
         "istTitle": "ಭಾರತೀಯ ಪ್ರಮಾಣಿತ ಸಮಯ (ಏಷ್ಯಾ/ಕೋಲ್ಕತ್ತಾ)",
         "logHintTitle": "ಮೊದಲ ಅಂಕಣ = ಭಾರತೀಯ ಪ್ರಮಾಣಿತ ಸಮಯ (ಏಷ್ಯಾ/ಕೋಲ್ಕತ್ತಾ); t+Ns = ಅನುಕೃತ ಸೆಕೆಂಡುಗಳು",
-        "logCount": "{count, plural, one {# entry} other {# entries}}",
+        "logCount": "{count, plural, one {# ನಮೂದು} other {# ನಮೂದುಗಳು}}",
         "logEmpty": "ಈ ಓಟಕ್ಕೆ ಯಾವುದೇ ಲಾಗ್ ನಮೂದುಗಳನ್ನು ದಾಖಲಿಸಲಾಗಿಲ್ಲ."
     },
     "trees": {

@@ -106,6 +106,19 @@
 
 *Add new decisions here as they are made; never delete existing entries.*
 
+- **Decision — Multilingual runtime: `next-intl` + cookie locale, no URL routing
+  (V5.0):** evaluated `next-intl` vs `react-i18next` (2026 consensus: `next-intl` is
+  purpose-built for the App Router — RSC support, ICU plurals with correct
+  Kannada/Tamil rules, type-safe keys; `react-i18next` is client-side heritage and
+  needs extra Server Component wiring). Locale travels in a cookie, so routes,
+  links, `data-testid`s, and user flows are untouched. Dictionaries are static
+  JSON (`frontend/messages/`, 529 keys × 7) produced offline by `sarvam-localize`
+  (`mayura:v1`) + human spot-check; the `SARVAM_API_KEY` lives only in gitignored
+  `.env` and is spent only at dev time — zero runtime translation cost. Guardrail
+  `npm run i18n:check` fails on key/placeholder drift. Rejected `react-i18next`
+  (heavier RSC integration for no gain here) and URL-prefix routing (would churn
+  every route/link/testid against the frozen contract).
+
 - **Decision — Timezone: backend stores naive UTC; frontend renders IST (`Asia/Kolkata`)**:
   Backend persists `datetime.utcnow()` naive timestamps (`models.py`) and serialises with
   `.isoformat()` (no `Z`/offset). The frontend owns presentation, so all wall-clock rendering

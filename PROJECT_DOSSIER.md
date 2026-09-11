@@ -766,6 +766,7 @@ RootLayout (layout.tsx)
 | `ToggleSwitch` | **Shared pill toggle** — extracted from the map control bar; shared with `/robot` (e.g. Follow Robot) |
 | `Pager` | Prev/Next + "Page X of Y" list pager (pairs with `usePagination`) |
 | `SkeletonRows` | Pulsing skeleton rows for loading states |
+| `LocaleSwitcher` | Native-select language picker (7 native names; rail-foot + mobile More sheet) |
 
 ### 10.7 Desktop vs Mobile Behaviour
 

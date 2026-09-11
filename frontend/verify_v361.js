@@ -126,7 +126,10 @@ async function getMissionId() {
       }))
 
   const p1 = await readFarm()
-  await page.waitForTimeout(6000)
+  // V5.0: 12s window (was 6s) — the sim advances roughly a farm-pixel per 6s
+  // at the run's opening pace, so 6s sat exactly on the 1px assertion line and
+  // flaked with backend timing. The 1px bar itself is unchanged.
+  await page.waitForTimeout(12000)
   const p2 = await readFarm()
   const moved = Math.abs(p1.x - p2.x) > 1 || Math.abs(p1.y - p2.y) > 1
 

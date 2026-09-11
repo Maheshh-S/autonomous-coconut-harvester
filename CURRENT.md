@@ -1,7 +1,7 @@
 # CURRENT.md
 
-- **Project Version:** 4.0.4 (Version 4 line; UI/UX quality track)
-- **Current Status:** Committed through V4.0.3 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System). **V4.0.4 is implemented and verified but not yet committed** — awaiting explicit approval. Do NOT commit until approved.
+- **Project Version:** 5.0 (Version 5 line; multilingual platform)
+- **Current Status:** Committed through V4.0.4 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass). **V5.0 is implemented and verified but not yet committed** — awaiting explicit approval. Do NOT commit until approved.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
     tree-matching into permanent `Tree` records, V1 `Task`/`Detection` model, V1 robot
@@ -19,8 +19,8 @@
     Telemetry & WebSocket (V3.5 / V3.5.1), Live Robot Visualization (V3.6 / V3.6.1),
     Mission History & Analytics (V3.7 / V3.7.1), Workflow Integration (V3.7.2),
     Speed & Battery Calibration (V3.7.3).
-  - **Current state:** all V1–V4.0.3 work is implemented, verified, and **committed**
-    (Playwright 0 console errors, `tsc --noEmit` / `next build` clean). Only **V4.0.4**
+  - **Current state:** all V1–V4.0.4 work is implemented, verified, and **committed**
+    (Playwright 0 console errors, `tsc --noEmit` / `next build` clean). Only **V5.0**
     (below) is implemented + verified but **not yet committed** — awaiting explicit
     approval. Do NOT commit until approved.
   - **Performance Hardening (backend read-path + indexes; behavior-preserving — awaiting
@@ -1936,7 +1936,55 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
       - **Verification (observed this session):** `tsc --noEmit` — 0 errors; `next build` —
         success (10 routes); `verify_console.js` **8/8, 0 console errors**; `verify_v26.js`
         **15/15**; `verify_v251.js` **11/11**; `verify_v361.js` **complete PASS, 0 console
-        errors**. **NOT committed — awaiting approval.**
+        errors**. **Committed as `961be7b`.**
+    - **Multilingual platform (V5.0, implemented + verified; NOT committed — awaiting
+      approval):** the full UI renders in 7 locales — English + Hindi, Tamil, Telugu,
+      Kannada, Malayalam, Marathi — with a farmer-facing language picker. **No backend /
+      API / route / `detection.ts` / `computeMosaicLayout` / `useRobotSimulation` contract /
+      user-flow changes.** Dynamic data (tree codes, counts, GPS, timestamps), backend
+      event titles/severities, and machine tokens stay invariant; all static chrome,
+      labels, pills, empty/loading/error states, and aria-labels translate.
+      - **Runtime (`next-intl` 4.14.3, cookie locale, no URL routing):** `i18n/locales.ts`
+        (7 codes double as message filenames + Sarvam targets), `i18n/request.ts`
+        (cookie → locale, English fallback — a missing file can never break render),
+        `NextIntlClientProvider` in the root layout with dynamic `<html lang>` and
+        `timeZone Asia/Kolkata`. Cookie read opts the layout into dynamic rendering
+        (accepted — every page is live Neon-polled data). `actions/locale.ts`
+        (`setUserLocale`: allowlist-validated, 1-year lax cookie, layout revalidate);
+        `LocaleSwitcher` native select in the rail-foot + mobile More sheet.
+        Chosen over `react-i18next` (client-side heritage, extra RSC wiring) — see DECISIONS.
+      - **Dictionaries (`frontend/messages/*.json`, 529 keys × 7):** authored `en-IN.json`
+        (~13 namespaces), batch-translated with `sarvam-localize` (`localize.json`,
+        `mayura:v1`) on two free-tier keys (~₹60 + top-up-free remainder; zero runtime
+        spend — static JSON ships with the app). Human spot-check repaired MT bloopers:
+        dropped `{pct}/{count}/{code}/{date}` variables, death-sentence robot (ml),
+        coconut-thief button (te), twin-child nav (ta), telephone survey (kn), harvest
+        festival (kn), race/music/song run/score words, website-WS (all 6), plus ~40
+        agri-term corrections. Guardrail: `npm run i18n:check`
+        (`scripts/check-i18n.mjs`) fails on key/placeholder drift.
+      - **Migration (paces 4–7):** survey (52 strings + 15 error toasts, ICU plurals),
+        dashboard + landing (hero/chapters/stats/manifesto/closer/footer, locale-aware
+        live clock via `useFormatter`, translated `Badge` with raw fallback), history +
+        run detail (tables, filters, tabs, score factors, timeline/log legends), trees +
+        twin + robot + all shared components (nav, `Pager`, drawer, uploader incl. alt
+        text, command bar + titles, status card incl. badge). Fixed two `t`/data-var
+        shadowing bugs (survey tree map, run-detail activity map). `verify_v361`
+        updated: badge regex case-insensitive (title-case English badge), 12s drive
+        window (sim opens at ~1px/6s — the 6s window flaked on backend timing).
+      - **Fonts (Pace 8):** five Noto Sans Indic families via `next/font` (Devanagari
+        shared by Hindi/Marathi), unicode-range subsetted, stacked in `--font-indic`
+        behind Geist — per-glyph fallback, Latin untouched. Verified loaded live.
+      - **Key safety:** `SARVAM_API_KEY` lives only in gitignored root `.env`, used only
+        by the dev-time CLI. No runtime API calls, no proxy endpoint, never shipped.
+      - **Verification (observed this session):** `tsc --noEmit` — 0 errors; `next build` —
+        success (10 routes); `verify_console.js` **8/8, 0 console errors**;
+        `verify_v26.js` **15/15**; `verify_v251.js` **11/11**; `verify_v361.js`
+        **complete PASS, 0 console errors** (after the window fix; pre-i18n tree fails
+        the same movement check — backend-timing, not a regression). Live locale
+        matrix: survey kn/hi, dashboard kn/ta, landing hi, history/run ml/hi
+        (timeline/log/tree-activity tabs), trees/robot/twin te/mr, drawer hi —
+        all fully translated with **zero `MISSING_MESSAGE` errors**. **NOT committed —
+        awaiting approval.**
     - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`

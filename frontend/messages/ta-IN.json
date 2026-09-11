@@ -553,7 +553,7 @@
         "rWs": "WS",
         "batteryPct": "மின்கலம் {pct}%",
         "wsOpen": "திறக்கப்பட்ட",
-        "wsConnecting": "இணைப்பு",
+        "wsConnecting": "இணைக்கிறது",
         "wsClosed": "மூடப்பட்ட"
     }
 }

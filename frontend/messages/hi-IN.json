@@ -375,7 +375,7 @@
         "tlClockUnit": "घड़ी = IST (एशिया/कोलकाता)",
         "istTitle": "भारतीय मानक समय (एशिया/कोलकाता)",
         "logHintTitle": "प्रथम स्तंभ = भारतीय मानक समय (एशिया/कोलकाता); t+Ns = अनुकरणीय सेकंड",
-        "logCount": "{count, plural, one {# entry} other {# entries}}",
+        "logCount": "{count, plural, one {# प्रविष्टि} other {# प्रविष्टियाँ}}",
         "logEmpty": "इस रन के लिए कोई लॉग प्रविष्टियाँ दर्ज नहीं की गई हैं।"
     },
     "trees": {
@@ -552,7 +552,7 @@
         "rSpeed": "गति कारक",
         "rWs": "WS",
         "batteryPct": "बैटरी {pct}%",
-        "wsOpen": "प्रकाशित",
+        "wsOpen": "खुला",
         "wsConnecting": "संपर्क करने वाला",
         "wsClosed": "अप्रदत्त"
     }

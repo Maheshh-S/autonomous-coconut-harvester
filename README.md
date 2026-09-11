@@ -193,6 +193,9 @@ frontend/
   lib/            api/detection.ts (single API client), mosaicLayout.ts,
                   useRobotSimulation.ts, usePagination.ts (list pagination),
                   formatTime.ts (IST / Asia–Kolkata time formatters)
+  i18n/           locales.ts (7 codes), request.ts (next-intl cookie config)
+  messages/       en-IN + hi/ta/te/kn/ml/mr JSON dictionaries (529 keys)
+  actions/        locale.ts (setUserLocale server action)
 models/           YOLOv8 weights (gitignored): tree_model/, coconut_model/
 ```
 
