@@ -42,7 +42,7 @@ export default function LocaleSwitcher({ variant }: { variant: "rail" | "sheet" 
       >
         {SUPPORTED_LOCALES.map((l) => (
           <option key={l.code} value={l.code}>
-            {l.native}
+            {l.native} ({l.short})
           </option>
         ))}
       </select>

@@ -16,16 +16,19 @@ export interface AppLocaleMeta {
   label: string;
   /** Native label (shown in the language picker). */
   native: string;
+  /** Short code shown beside the native name: English (EN). */
+  short: string;
 }
 
+// Picker order: EN, KN, HI, then the rest (user-specified front three).
 export const SUPPORTED_LOCALES: AppLocaleMeta[] = [
-  { code: "en-IN", label: "English", native: "English" },
-  { code: "hi-IN", label: "Hindi", native: "हिन्दी" },
-  { code: "ta-IN", label: "Tamil", native: "தமிழ்" },
-  { code: "te-IN", label: "Telugu", native: "తెలుగు" },
-  { code: "kn-IN", label: "Kannada", native: "ಕನ್ನಡ" },
-  { code: "ml-IN", label: "Malayalam", native: "മലയാളം" },
-  { code: "mr-IN", label: "Marathi", native: "मराठी" },
+  { code: "en-IN", label: "English", native: "English", short: "EN" },
+  { code: "kn-IN", label: "Kannada", native: "ಕನ್ನಡ", short: "KN" },
+  { code: "hi-IN", label: "Hindi", native: "हिन्दी", short: "HI" },
+  { code: "ta-IN", label: "Tamil", native: "தமிழ்", short: "TA" },
+  { code: "te-IN", label: "Telugu", native: "తెలుగు", short: "TE" },
+  { code: "ml-IN", label: "Malayalam", native: "മലയാളം", short: "ML" },
+  { code: "mr-IN", label: "Marathi", native: "मराठी", short: "MR" },
 ];
 
 export const SUPPORTED_LOCALE_CODES: string[] = SUPPORTED_LOCALES.map(
