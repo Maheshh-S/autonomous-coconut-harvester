@@ -168,7 +168,13 @@
         "analyticsTitle": "విశ్లేషణ",
         "minibarEmpty": "డేటా లేదు",
         "treeCode": "చెట్టు {id}",
-        "coverageTitle": "తనిఖీ కవరేజ్"
+        "coverageTitle": "తనిఖీ కవరేజ్",
+        "actSurvey": "సర్వే మిషన్ #{id} పూర్తయింది.",
+        "actInspCreated": "పరిశీలన {code} సృష్టించబడింది.",
+        "actInspDone": "పరిశీలన {code} పూర్తయింది.",
+        "actInvCreated": "జాబితా {code} సృష్టించబడింది ({count} కొబ్బరికాయలు).",
+        "actHarvestCreated": "హార్వెస్ట్ మిషన్ {code} సృష్టించబడింది.",
+        "actHarvestDone": "పంటకోత మిషన్ {code} పూర్తయింది."
     },
     "survey": {
         "stepMission": "ఒక లక్ష్యాన్ని ఎంచుకోండి లేదా సృష్టించండి",
@@ -376,7 +382,25 @@
         "istTitle": "భారత ప్రామాణిక సమయం (ఆసియా/కోల్కతా)",
         "logHintTitle": "మొదటి నిలువు వరుస = భారత ప్రామాణిక సమయం (ఆసియా/కోల్కతా); t+Ns = అనుకరణ సెకన్లు",
         "logCount": "{count, plural, one {# నమోదు} other {# నమోదులు}}",
-        "logEmpty": "ఈ పరుగు కోసం ఎటువంటి లాగిన్ నమోదులు నమోదు చేయబడలేదు."
+        "logEmpty": "ఈ పరుగు కోసం ఎటువంటి లాగిన్ నమోదులు నమోదు చేయబడలేదు.",
+        "evMissionStartedT": "ప్రారంభం",
+        "evMissionStartedD": "రోబోట్ డాక్ నుండి బయలుదేరి మార్గాన్ని అమలు చేయడం ప్రారంభించింది.",
+        "evTreeReachedT": "చేరుకున్న చెట్టు",
+        "evTreeReachedD": "చెట్టు #{id} వద్దకు చేరుకున్నాను.",
+        "evHarvestStartedT": "ఆరోహణ ప్రారంభమైంది",
+        "evHarvestStartedD": "కోత కోసం వృక్ష శోధన + స్కానింగ్ చెట్టు #{id}.",
+        "evHarvestDoneT": "పంట కోత పూర్తయింది",
+        "evHarvestDoneD": "వృక్షము #{id} కు కోత పూర్తయింది.",
+        "evBatteryT": "తక్కువ బ్యాటరీ",
+        "evBatteryD": "బ్యాటరీ తక్కువ స్థాయికి చేరుకుంటుంది- డాక్‌కు మళ్లించబడుతుంది.",
+        "evReturnedT": "డాక్‌కు తిరిగి రావడం",
+        "evReturnedD": "రోబోట్ హోమ్ డాక్‌కు తిరిగి వచ్చింది.",
+        "evMissionDoneT": "పని పూర్తయింది",
+        "evMissionDoneD": "అన్ని చేరుకోగల చెట్లను కోసేశారు; పని పూర్తయింది.",
+        "evChargingT": "ఛార్జింగ్",
+        "evChargingD": "బ్యాటరీని {pct}% వరకు రీఛార్జ్ చేశారు.",
+        "evTravelledT": "ప్రయాణించిన",
+        "evTravelledD": "{dist} m ప్రయాణించి చెట్టు #{id} కి వెళ్ళాను."
     },
     "trees": {
         "searchPlaceholder": "వృక్షం # ద్వారా లేదా GPS ద్వారా శోధన.",

@@ -168,7 +168,13 @@
         "analyticsTitle": "विश्लेषणात्मक",
         "minibarEmpty": "कोई डेटा नहीं",
         "treeCode": "पेड़ {id}",
-        "coverageTitle": "निरीक्षण व्याप्ति"
+        "coverageTitle": "निरीक्षण व्याप्ति",
+        "actSurvey": "सर्वेक्षण मिशन #{id} पूरा हुआ।",
+        "actInspCreated": "निरीक्षण {code} निर्मित हुआ।",
+        "actInspDone": "निरीक्षण {code} पूरा हो गया।",
+        "actInvCreated": "इन्वेंटरी {code} बनाया गया ({count} नारियल)।",
+        "actHarvestCreated": "फसल मिशन {code} निर्मित हुआ।",
+        "actHarvestDone": "फसल मिशन {code} पूरा हो गया।"
     },
     "survey": {
         "stepMission": "एक मिशन चुनें या बनाएँ।",
@@ -376,7 +382,25 @@
         "istTitle": "भारतीय मानक समय (एशिया/कोलकाता)",
         "logHintTitle": "प्रथम स्तंभ = भारतीय मानक समय (एशिया/कोलकाता); t+Ns = अनुकरणीय सेकंड",
         "logCount": "{count, plural, one {# प्रविष्टि} other {# प्रविष्टियाँ}}",
-        "logEmpty": "इस रन के लिए कोई लॉग प्रविष्टियाँ दर्ज नहीं की गई हैं।"
+        "logEmpty": "इस रन के लिए कोई लॉग प्रविष्टियाँ दर्ज नहीं की गई हैं।",
+        "evMissionStartedT": "आरंभ",
+        "evMissionStartedD": "रोबोट डॉक से निकल गया और मार्ग का पालन करने लगा।",
+        "evTreeReachedT": "पहुँच वृक्ष",
+        "evTreeReachedD": "वृक्ष #{id} पर पहुँचे।",
+        "evHarvestStartedT": "चढ़ाई शुरू हुई",
+        "evHarvestStartedD": "कटाई के लिए चढ़ाई + स्कैनिंग ट्री #{id}।",
+        "evHarvestDoneT": "फसल कटाई पूरी",
+        "evHarvestDoneD": "वृक्ष #{id} की कटाई पूरी हो गई है।",
+        "evBatteryT": "बैटरी कम",
+        "evBatteryD": "बैटरी कम सीमा तक पहुँच गई - डॉक की ओर मुड़ गई।",
+        "evReturnedT": "डॉक पर लौटना",
+        "evReturnedD": "रोबोट घर के गोदी में वापस आ गया।",
+        "evMissionDoneT": "मिशन पूरा हुआ",
+        "evMissionDoneD": "सभी पहुँच योग्य पेड़ों की कटाई कर ली गई है; मिशन पूरा हो गया है।",
+        "evChargingT": "चार्ज",
+        "evChargingD": "बैटरी {pct}% तक रिचार्ज हो गई है।",
+        "evTravelledT": "यात्रा की",
+        "evTravelledD": "{dist} m तक वृक्ष #{id} तक यात्रा की।"
     },
     "trees": {
         "searchPlaceholder": "वृक्ष # या जीपीएस से खोज करें...",

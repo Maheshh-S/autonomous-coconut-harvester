@@ -1985,6 +1985,31 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         (timeline/log/tree-activity tabs), trees/robot/twin te/mr, drawer hi —
         all fully translated with **zero `MISSING_MESSAGE` errors**. **NOT committed —
         awaiting approval.**
+    - **V5.1 user-reported fixes (implemented + verified; NOT committed — awaiting
+      approval):** four gaps caught in manual testing, fixed pace-by-pace.
+      - **Language picker (Pace 1):** options now read `English (EN)`, `ಕನ್ನಡ (KN)`,
+        `हिन्दी (HI)` … — short codes added to `i18n/locales.ts` metadata, order
+        EN, KN, HI, TA, TE, ML, MR.
+      - **Timeline vocabulary + sim-time floats (Pace 2):** run-detail timeline titles
+        and descriptions now translate via a 9-`icon` map (`runDetail.ev*`, 18 keys)
+        with dynamic bits from structured fields only (`tree_id`, `distance_m`, and
+        a new additive backend `battery_pct` on recharge entries —
+        `mission_history.py`, English payload text untouched). All sim-time/float
+        displays collapse to 2dp Western digits (`t+1.20s`) via new
+        `fmtSimTime`/`fmtSimNum` (`lib/formatTime.ts`): timeline + robot-log chips
+        (fixes the log column congestion), tree-activity times, run-summary
+        avg/idle/distance/speed metrics. Backend keeps full precision.
+      - **Dashboard activity feed (Pace 3):** feed labels now translate via a 6-`type`
+        map (`dashboard.act*`) from additive backend `params` (`{id/code/count}` —
+        `dashboard_api.py`, English `label` untouched; unknown types fall back to
+        the raw label). Spot-check caught 12 dropped-`{code}` MT defects across
+        hi/ta/te/kn/ml/mr, all repaired (the `i18n:check` guardrail now covers them).
+      - **Verification (observed):** `tsc` clean; `next build` clean; backend
+        `py_compile` clean; params confirmed live on both endpoints; kn timeline
+        (`t+1.20s` + translated rows), kn log width, hi feed (`INV-0019` + count),
+        selector order — all observed; `verify_console` 8/8, `v26` 15/15, `v251`
+        11/11, `v361` PASS, all 0 console errors; `i18n:check` passed (553 keys).
+        Dictionaries now **553 keys × 7**. **NOT committed — awaiting approval.**
     - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`

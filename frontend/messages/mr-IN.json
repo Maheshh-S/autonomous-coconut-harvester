@@ -168,7 +168,13 @@
         "analyticsTitle": "विश्लेषणात्मक",
         "minibarEmpty": "डेटा नाही",
         "treeCode": "झाड {id}",
-        "coverageTitle": "तपासणी व्याप्ती"
+        "coverageTitle": "तपासणी व्याप्ती",
+        "actSurvey": "सर्वेक्षण मोहिम #{id} पूर्ण झाली आहे.",
+        "actInspCreated": "तपासणी {code} तयार केली.",
+        "actInspDone": "तपासणी {code} पूर्ण झाली.",
+        "actInvCreated": "साठा {code} समाविष्ट झाला ({count} नारळ).",
+        "actHarvestCreated": "Harvest Mission {code} तयार केले आहे.",
+        "actHarvestDone": "कापणी मिशन {code} पूर्ण झाले."
     },
     "survey": {
         "stepMission": "एक मिशन निवडा किंवा तयार करा",
@@ -376,7 +382,25 @@
         "istTitle": "भारतीय प्रमाणवेळ (एशिया/कोलकाता)",
         "logHintTitle": "प्रथम स्तंभ = भारतीय प्रमाण वेळ (एशिया/कोलकाता); t+Ns = अनुकरण सेकंद",
         "logCount": "{count, plural, one {# नोंद} other {# नोंदी}}",
-        "logEmpty": "या धावण्यासाठी कोणतेही लॉग नोंदी नोंदवल्या गेल्या नाहीत."
+        "logEmpty": "या धावण्यासाठी कोणतेही लॉग नोंदी नोंदवल्या गेल्या नाहीत.",
+        "evMissionStartedT": "आरंभ",
+        "evMissionStartedD": "रोबोट डॉक सोडून मार्गक्रमण करू लागला.",
+        "evTreeReachedT": "पोहोचलेला वृक्ष",
+        "evTreeReachedD": "झाडावर #{id} क्रमांकावर पोहोचले.",
+        "evHarvestStartedT": "आरोहण सुरू झाले",
+        "evHarvestStartedD": "कापणीसाठी झाडाची झाडे झाडत #{id} झाडांची झाडे झाडत.",
+        "evHarvestDoneT": "कापणी पूर्ण झाली",
+        "evHarvestDoneD": "झाडाची #{id} ची कापणी पूर्ण झाली आहे.",
+        "evBatteryT": "बॅटरी कमी",
+        "evBatteryD": "बॅटरी कमी पातळीपर्यंत पोहोचली - डॉककडे वळली.",
+        "evReturnedT": "डॉकवर परतणे",
+        "evReturnedD": "यंत्रमानव गृह डॉकवर परतला.",
+        "evMissionDoneT": "कार्य पूर्ण झाले.",
+        "evMissionDoneD": "सर्व पोहोचण्यायोग्य झाडे कापी गेली; मिशन पूर्ण झाले.",
+        "evChargingT": "चार्जिंग",
+        "evChargingD": "बॅटरी {pct}% पर्यंत रिचार्ज झाली आहे.",
+        "evTravelledT": "प्रवास केलेला",
+        "evTravelledD": "{dist} m प्रवास करून झाडावर #{id} पोहोचले."
     },
     "trees": {
         "searchPlaceholder": "वृक्ष # किंवा जीपीएस द्वारे शोधा...",

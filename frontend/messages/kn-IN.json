@@ -168,7 +168,13 @@
         "analyticsTitle": "ವಿಶ್ಲೇಷಣೆ",
         "minibarEmpty": "ದತ್ತಾಂಶವಿಲ್ಲ",
         "treeCode": "ಮರ {id}",
-        "coverageTitle": "ತಪಾಸಣಾ ವ್ಯಾಪ್ತಿ"
+        "coverageTitle": "ತಪಾಸಣಾ ವ್ಯಾಪ್ತಿ",
+        "actSurvey": "ಸಮೀಕ್ಷಾ ಅಭಿಯಾನ #{id} ಪೂರ್ಣಗೊಂಡಿದೆ.",
+        "actInspCreated": "ಪರಿಶೀಲನೆ {code} ರಚಿಸಲಾಗಿದೆ.",
+        "actInspDone": "ತಪಾಸಣೆ {code} ಪೂರ್ಣಗೊಂಡಿತು.",
+        "actInvCreated": "ದಾಸ್ತಾನು {code} ಸೃಷ್ಟಿಯಾಗಿದೆ ({count} ತೆಂಗಿನಕಾಯಿ).",
+        "actHarvestCreated": "ಹಾರ್ವೆಸ್ಟ್ ಮಿಷನ್ {code} ರಚಿಸಲಾಗಿದೆ",
+        "actHarvestDone": "ಕೊಯ್ಲು ಅಭಿಯಾನ {code} ಪೂರ್ಣಗೊಂಡಿದೆ."
     },
     "survey": {
         "stepMission": "ಮಿಷನ್ ಆಯ್ಕೆ ಮಾಡಿ ಅಥವಾ ರಚಿಸಿ",
@@ -376,7 +382,25 @@
         "istTitle": "ಭಾರತೀಯ ಪ್ರಮಾಣಿತ ಸಮಯ (ಏಷ್ಯಾ/ಕೋಲ್ಕತ್ತಾ)",
         "logHintTitle": "ಮೊದಲ ಅಂಕಣ = ಭಾರತೀಯ ಪ್ರಮಾಣಿತ ಸಮಯ (ಏಷ್ಯಾ/ಕೋಲ್ಕತ್ತಾ); t+Ns = ಅನುಕೃತ ಸೆಕೆಂಡುಗಳು",
         "logCount": "{count, plural, one {# ನಮೂದು} other {# ನಮೂದುಗಳು}}",
-        "logEmpty": "ಈ ಓಟಕ್ಕೆ ಯಾವುದೇ ಲಾಗ್ ನಮೂದುಗಳನ್ನು ದಾಖಲಿಸಲಾಗಿಲ್ಲ."
+        "logEmpty": "ಈ ಓಟಕ್ಕೆ ಯಾವುದೇ ಲಾಗ್ ನಮೂದುಗಳನ್ನು ದಾಖಲಿಸಲಾಗಿಲ್ಲ.",
+        "evMissionStartedT": "ಆರಂಭಿಸಿದ್ದು",
+        "evMissionStartedD": "ರೋಬೋಟ್ ಹಡಗುಕಟ್ಟೆಯಿಂದ ಹೊರಟು ಮಾರ್ಗವನ್ನು ಕಾರ್ಯಗತಗೊಳಿಸಲು ಪ್ರಾರಂಭಿಸಿತು.",
+        "evTreeReachedT": "ಆರೋಹಿ",
+        "evTreeReachedD": "#{id}ನೇ ಮರದ ಬಳಿ ತಲುಪಿದೆ.",
+        "evHarvestStartedT": "ಆರೋಹಣ ಆರಂಭವಾಯಿತು",
+        "evHarvestStartedD": "ಕೊಯ್ಲುಗಾಗಿ ಆರೋಹಣ + ಸ್ಕ್ಯಾನಿಂಗ್ ಟ್ರೀ #{id}.",
+        "evHarvestDoneT": "ಕೊಯ್ಲು ಪೂರ್ಣಗೊಂಡಿದೆ",
+        "evHarvestDoneD": "ಮರ #{id} ಗೆ ಕೊಯ್ಲು ಮುಗಿದಿದೆ.",
+        "evBatteryT": "ಬ್ಯಾಟರಿ ಕಡಿಮೆ",
+        "evBatteryD": "ಬ್ಯಾಟರಿ ಕಡಿಮೆ ಮಿತಿಯನ್ನು ತಲುಪಿತು-ಬಂದರಿಗೆ ತಿರುಗುತ್ತದೆ.",
+        "evReturnedT": "ಹಡಗಿಗೆ ಹಿಂದಿರುಗುವುದು",
+        "evReturnedD": "ರೋಬೋಟ್ ಮನೆಗೆ ಮರಳಿತು.",
+        "evMissionDoneT": "ಕಾರ್ಯ ಪೂರ್ಣಗೊಂಡಿತು.",
+        "evMissionDoneD": "ಎಲ್ಲಾ ತಲುಪಬಹುದಾದ ಮರಗಳನ್ನು ಕೊಯ್ಲು ಮಾಡಲಾಗಿದೆ; ಕಾರ್ಯಾಚರಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ.",
+        "evChargingT": "ಚಾರ್ಜ್",
+        "evChargingD": "ಬ್ಯಾಟರಿಯನ್ನು {pct}% ಮರುಪೂರಣ ಮಾಡಲಾಗಿದೆ.",
+        "evTravelledT": "ಪ್ರಯಾಣ ಮಾಡಿದ",
+        "evTravelledD": "{dist} m ಪ್ರಯಾಣಿಸಿ ಮರ #{id} ಗೆ."
     },
     "trees": {
         "searchPlaceholder": "ಮರ # ಅಥವಾ ಜಿಪಿಎಸ್‌ ಮೂಲಕ ಹುಡುಕಿ...",
