@@ -31,7 +31,7 @@ import {
 } from "@/lib/api/detection"
 import Pager from "@/components/Pager"
 import { usePagination } from "@/lib/usePagination"
-import { fmtIST, fmtISTTimeOnly } from "@/lib/formatTime"
+import { fmtIST, fmtISTTimeOnly, fmtSimTime, fmtSimNum } from "@/lib/formatTime"
 
 const statusColor: Record<RunStatus, string> = {
   COMPLETED: "#4fe39a",
@@ -228,26 +228,26 @@ export default function RunDetailPage({
             <Metric label={t("mHarvested")} value={`${run.harvested_trees}/${run.total_trees}`} />
             <Metric label={t("mSkipped")} value={run.skipped_trees} />
             <Metric label={t("mDuration")} value={fmtDuration(run.duration_s)} />
-            <Metric label={t("mDistance")} value={`${run.distance_travelled} m`} />
+            <Metric label={t("mDistance")} value={`${fmtSimNum(run.distance_travelled)} m`} />
             <Metric label={t("mBattery")} value={`${run.battery_used_pct}%`} />
             <Metric label={t("mRecharges")} value={run.recharge_count} />
             <Metric
               label={t("mAvgHarvest")}
-              value={run.avg_harvest_time_s != null ? `${run.avg_harvest_time_s}s` : "—"}
+              value={run.avg_harvest_time_s != null ? `${fmtSimNum(run.avg_harvest_time_s)}s` : "—"}
             />
             <Metric
               label={t("mFastSlow")}
               value={
                 run.fastest_harvest_s != null && run.slowest_harvest_s != null
-                  ? `${run.fastest_harvest_s}s / ${run.slowest_harvest_s}s`
+                  ? `${fmtSimNum(run.fastest_harvest_s)}s / ${fmtSimNum(run.slowest_harvest_s)}s`
                   : "—"
               }
             />
             <Metric
               label={t("mAvgSpeed")}
-              value={run.avg_speed != null ? `${run.avg_speed}` : "—"}
+              value={run.avg_speed != null ? fmtSimNum(run.avg_speed) : "—"}
             />
-            <Metric label={t("mIdle")} value={`${run.idle_time_s}s`} />
+            <Metric label={t("mIdle")} value={`${fmtSimNum(run.idle_time_s)}s`} />
             <Metric
               label={t("mEfficiency")}
               value={run.efficiency != null ? run.efficiency.toFixed(2) : "—"}
@@ -327,8 +327,8 @@ export default function RunDetailPage({
                         {row.harvest_result}
                       </span>
                     </Td2>
-                    <Td2>{row.visit_time != null ? `${row.visit_time}s` : "—"}</Td2>
-                    <Td2>{row.harvest_duration_s != null ? `${row.harvest_duration_s}s` : "—"}</Td2>
+                    <Td2>{row.visit_time != null ? `${fmtSimNum(row.visit_time)}s` : "—"}</Td2>
+                    <Td2>{row.harvest_duration_s != null ? `${fmtSimNum(row.harvest_duration_s)}s` : "—"}</Td2>
                     <Td2>{row.battery_at_visit != null ? `${row.battery_at_visit.toFixed(1)}%` : "—"}</Td2>
                     <Td2>{row.inventory_collected ?? "—"}</Td2>
                   </tr>
@@ -479,6 +479,44 @@ function ScoreBlock({ run }: { run: RobotRun }) {
 // prefers-reduced-motion (handled in the scoped block below).
 function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
   const t = useTranslations("runDetail")
+
+  // V5.1: backend timeline vocabulary → translated title/description, keyed by
+  // the stable `icon` (a closed 9-value vocabulary). Dynamic bits come from
+  // structured fields (tree_id, distance_m, battery_pct) — never parsed out
+  // of English text. Unknown icons fall back to the raw English strings so a
+  // new backend event type can never crash the timeline.
+  function eventText(e: TimelineEntry): { title: string; desc: string } {
+    const id = e.tree_id ?? "—"
+    switch (e.icon) {
+      case "play":
+        return { title: t("evMissionStartedT"), desc: t("evMissionStartedD") }
+      case "tree":
+        return { title: t("evTreeReachedT"), desc: t("evTreeReachedD", { id }) }
+      case "climb":
+        return { title: t("evHarvestStartedT"), desc: t("evHarvestStartedD", { id }) }
+      case "check":
+        return { title: t("evHarvestDoneT"), desc: t("evHarvestDoneD", { id }) }
+      case "battery":
+        return { title: t("evBatteryT"), desc: t("evBatteryD") }
+      case "home":
+        return { title: t("evReturnedT"), desc: t("evReturnedD") }
+      case "flag":
+        return { title: t("evMissionDoneT"), desc: t("evMissionDoneD") }
+      case "bolt":
+        return {
+          title: t("evChargingT"),
+          desc: t("evChargingD", { pct: e.battery_pct ?? "—" }),
+        }
+      case "route":
+        return {
+          title: t("evTravelledT"),
+          desc: t("evTravelledD", { dist: fmtSimNum(e.distance_m), id }),
+        }
+      default:
+        return { title: e.title, desc: e.description }
+    }
+  }
+
   if (timeline.length === 0) {
     return (
       <div
@@ -508,6 +546,7 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
         {timeline.map((e, i) => {
           const kind = TIMELINE_KIND[e.icon] ?? TIMELINE_FALLBACK
           const Glyph = kind.glyph
+          const text = eventText(e)
           return (
             <li
               key={`${e.key}__${i}`}
@@ -519,23 +558,23 @@ function Timeline({ timeline }: { timeline: TimelineEntry[] }) {
               </div>
               <div className="tl-body">
                 <div className="tl-head">
-                  <span className="tl-title">{e.title}</span>
-                  {e.tree_id != null && e.title !== "Travelled" ? (
+                  <span className="tl-title">{text.title}</span>
+                  {e.tree_id != null && e.icon !== "route" ? (
                     <Link href={`/trees/${e.tree_id}`} className="tl-tree">
                       #{e.tree_id}
                     </Link>
                   ) : null}
                   {e.distance_m != null ? (
-                    <span className="tl-chip">{e.distance_m} m</span>
+                    <span className="tl-chip">{fmtSimNum(e.distance_m)} m</span>
                   ) : null}
-                  <span className="tl-clock">t+{e.sim_time}s</span>
+                  <span className="tl-clock">{fmtSimTime(e.sim_time)}</span>
                   {e.timestamp ? (
                     <span className="tl-clock tl-clock-ist" title={t("istTitle")}>
                       {fmtISTTimeOnly(e.timestamp)}
                     </span>
                   ) : null}
                 </div>
-                <div className="tl-desc">{e.description}</div>
+                <div className="tl-desc">{text.desc}</div>
               </div>
             </li>
           )
@@ -741,7 +780,7 @@ function RobotLog({ log }: { log: RobotLogEntry[] }) {
                 <span className="rl-clock" title={t("istTitle")}>
                   {e.timestamp ? fmtISTTimeOnly(e.timestamp) : "—"}
                 </span>
-                <span className="rl-sim">t+{e.sim_time}</span>
+                <span className="rl-sim">{fmtSimTime(e.sim_time)}</span>
                 <span className="rl-sev">{e.severity}</span>
                 <span className="rl-event">{e.event_type}</span>
                 {detail.length > 0 ? (

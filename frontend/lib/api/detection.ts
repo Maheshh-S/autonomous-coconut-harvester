@@ -581,6 +581,8 @@ export interface ActivityEvent {
   label: string
   ts: string | null
   ref: string
+  /** V5.1 additive backend params (structured template values). */
+  params?: { id?: number; code?: string; count?: number } | null
 }
 
 export interface DashboardOverview {
@@ -936,6 +938,8 @@ export interface TimelineEntry {
   description: string
   tree_id?: number
   distance_m?: number
+  /** V5.0 additive backend field (recharge entries): structured battery %. */
+  battery_pct?: number | null
 }
 
 export interface TreeActivity {

@@ -392,6 +392,10 @@ def build_timeline(db: Session, robot_id: int, mission_id: Optional[int]) -> Lis
                 "sim_time": t.sim_time,
                 "timestamp": t.recorded_at.isoformat() if t.recorded_at else None,
                 "description": f"Battery recharged to {round(t.battery_pct, 1)}%.",
+                # V5.0 (additive, optional): structured pct so translated
+                # frontends need never parse the English description text.
+                # English title/description are unchanged.
+                "battery_pct": round(t.battery_pct, 1),
             })
         prev = t.battery_pct
 
