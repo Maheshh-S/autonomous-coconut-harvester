@@ -246,6 +246,9 @@ def _dashboard_overview(db):
                 "label": f"Survey Mission #{m.id} completed",
                 "ts": _iso(m.completed_at),
                 "ref": str(m.id),
+                # V5.1 (additive, optional): structured params so translated
+                # frontends render from data, never by parsing English text.
+                "params": {"id": m.id},
             }
         )
 
@@ -261,6 +264,8 @@ def _dashboard_overview(db):
                 "label": f"Inspection {insp.inspection_code or insp.id} created",
                 "ts": _iso(insp.created_at),
                 "ref": insp.inspection_code or str(insp.id),
+                # V5.1 (additive, optional).
+                "params": {"code": insp.inspection_code or str(insp.id)},
             }
         )
         if (
@@ -275,6 +280,8 @@ def _dashboard_overview(db):
                     ),
                     "ts": _iso(insp.completed_at),
                     "ref": insp.inspection_code or str(insp.id),
+                    # V5.1 (additive, optional).
+                    "params": {"code": insp.inspection_code or str(insp.id)},
                 }
             )
 
@@ -293,6 +300,11 @@ def _dashboard_overview(db):
                 ),
                 "ts": _iso(snap.created_at),
                 "ref": snap.snapshot_code or str(snap.id),
+                # V5.1 (additive, optional): the count exists nowhere else.
+                "params": {
+                    "code": snap.snapshot_code or str(snap.id),
+                    "count": snap.total_coconuts,
+                },
             }
         )
 
@@ -308,6 +320,8 @@ def _dashboard_overview(db):
                 "label": f"Harvest Mission {hm.mission_code or hm.id} created",
                 "ts": _iso(hm.created_at),
                 "ref": hm.mission_code or str(hm.id),
+                # V5.1 (additive, optional).
+                "params": {"code": hm.mission_code or str(hm.id)},
             }
         )
         if (
@@ -322,6 +336,8 @@ def _dashboard_overview(db):
                     ),
                     "ts": _iso(hm.completed_at),
                     "ref": hm.mission_code or str(hm.id),
+                    # V5.1 (additive, optional).
+                    "params": {"code": hm.mission_code or str(hm.id)},
                 }
             )
 

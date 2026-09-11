@@ -122,6 +122,31 @@ export default function DashboardPage() {
   const reveal = useReveal();
   const activity = usePagination(data?.recent_activity ?? []);
 
+  // V5.1: backend activity vocabulary → translated label, keyed by the stable
+  // `type` (a closed 6-value vocabulary). Dynamic bits come from the additive
+  // `params` (id/code/count) — never parsed out of English text. Unknown types
+  // fall back to the raw English label so a new backend event can never crash
+  // the feed.
+  function activityText(e: ActivityEvent): string {
+    const p = e.params ?? {};
+    switch (e.type) {
+      case "SURVEY_COMPLETED":
+        return t("actSurvey", { id: p.id ?? e.ref })
+      case "INSPECTION_CREATED":
+        return t("actInspCreated", { code: p.code ?? e.ref })
+      case "INSPECTION_COMPLETED":
+        return t("actInspDone", { code: p.code ?? e.ref })
+      case "INVENTORY_CREATED":
+        return t("actInvCreated", { code: p.code ?? e.ref, count: p.count ?? "—" })
+      case "HARVEST_MISSION_CREATED":
+        return t("actHarvestCreated", { code: p.code ?? e.ref })
+      case "HARVEST_MISSION_COMPLETED":
+        return t("actHarvestDone", { code: p.code ?? e.ref })
+      default:
+        return e.label
+    }
+  }
+
   const refresh = useCallback(async () => {
     try {
       const overview = await getDashboardOverview();
@@ -400,7 +425,7 @@ export default function DashboardPage() {
                   <li key={`${e.type}-${e.ref}-${i}`} className="feed-item">
                     <span className="dot" style={{ background: ACTIVITY_COLORS[e.type] ?? "#9ca3af" }} />
                     <div className="feed-body">
-                      <div className="feed-label">{e.label}</div>
+                      <div className="feed-label">{activityText(e)}</div>
                       <div className="feed-ts font-mono">{fmtIST(e.ts)}</div>
                     </div>
                   </li>
