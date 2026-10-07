@@ -1,0 +1,36 @@
+# Backend image: FastAPI + YOLOv8 (torch CPU). Weights (~12.5 MB total) ride
+# in-image because they are gitignored and cannot come from the clone.
+FROM python:3.14-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app/backend
+
+# System libs for opencv/torch CPU.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 libgomp1 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
+# Own fast layer: fresh pip resolves SQLAlchemy 2.x, whose default Postgres
+# dialect is psycopg3 (psycopg2-binary alone → ModuleNotFoundError: psycopg).
+# Local venvs predate this default, so requirements.txt is intentionally
+# untouched — this stays a Docker-only install until local is re-baselined.
+RUN pip install "psycopg[binary]"
+
+COPY backend/ /app/backend/
+COPY models/tree_model/tree_detector.pt /app/models/tree_model/tree_detector.pt
+COPY models/coconut_model/coconut_detector.pt /app/models/coconut_model/coconut_detector.pt
+# Bake the demo set into a read-only layer (survives sleep; uploads/ does not).
+COPY demo_images/farm_view_demo-images/ /app/demo_seed/
+
+# Upload roots are created by main.py at boot; the volume keeps them across restarts.
+VOLUME ["/app/uploads"]
+
+EXPOSE 8000
+
+# Render injects $PORT; default 8000 locally.
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

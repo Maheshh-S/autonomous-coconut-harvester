@@ -1,0 +1,16 @@
+# Render Blueprint (split-deploy plan Phase 3). Secrets are set in the
+# Render dashboard (sync: false prompts on creation) — never in this file.
+services:
+  - type: web
+    name: veraxis-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.backend
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PORT
+        value: 8000

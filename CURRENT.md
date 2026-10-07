@@ -23,6 +23,18 @@
     (Playwright 0 console errors, `tsc --noEmit` / `next build` clean — V5.0 as `34c38aa`
     plus i18n migration commits `8afa117..cd3fa57`; V5.1 as `654d610..1c77165`). Do NOT
     commit new work until approved.
+  - **Deployment — split (Vercel + Render + Neon), in progress:** design spec
+    `docs/superpowers/specs/2026-10-07-split-deploy-design.md` + plan
+    `docs/superpowers/plans/2026-10-07-split-deploy.md` (both committed).
+    `GET /health` (DB ping + model flags) and `POST /admin/seed-demo`
+    (bakes `demo_images/farm_view_demo-images/` into the image, rebuilds the
+    demo mission via the standard pipeline) verified live against localhost
+    (mission 9: 8 tiles COMPLETED, 243 detections, trees deduped). Backend
+    image `veraxis-backend:local` builds (10.4 GB — CUDA torch tax) and serves
+    `/health` green from Docker vs Neon; `compose.yml` smoke passed. Request
+    logging (one line/req) verified in-container. Localhost behavior unchanged
+    (graded demo stays local). Remaining: Render service + Vercel project
+    (owner dashboard steps), CI first green run, resume-brief flip.
   - **Performance Hardening (backend read-path + indexes; behavior-preserving — awaiting
     commit approval):** an end-to-end audit of the Neon-serverless-bound read paths (dashboard,
     survey → Digital Twin, harvest status/items, Mission History timeline/tree-activity/

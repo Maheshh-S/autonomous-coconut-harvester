@@ -1,0 +1,19 @@
+# Keep the backend image lean: code + weights + demo seed only.
+venv/
+__pycache__/
+*.py[cod]
+.git/
+uploads/
+runs/
+models/tree_model/train/
+models/tree_model/valid/
+models/tree_model/test/
+models/coconut_model/train/
+models/coconut_model/valid/
+models/coconut_model/test/
+frontend/node_modules/
+frontend/.next/
+.playwright-mcp/
+.serena/
+*.DS_Store
+.env

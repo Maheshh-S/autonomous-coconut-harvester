@@ -1,5 +1,7 @@
 import os
 import sys
+import logging
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -35,6 +37,8 @@ from api.robot_navigation import router as robot_navigation_router
 from api.robot_simulation import router as robot_simulation_router
 from api.robot_telemetry import router as robot_telemetry_router
 from api.robot_history import router as robot_history_router
+from api.health_api import router as health_router
+from api.seed_api import router as seed_router
 from simulation.scheduler import scheduler
 from telemetry.event_bus import event_bus
 from telemetry.websocket_gateway import build_websocket_gateway
@@ -78,6 +82,29 @@ app.add_middleware(
 )
 
 
+# Deployment support: one log line per request (method/path/status/ms) so
+# hosts without SSH (Render logs tab, `docker logs`) stay debuggable.
+_request_logger = logging.getLogger("veraxis.requests")
+_request_logger.setLevel(logging.INFO)
+if not _request_logger.handlers:
+    _request_logger.addHandler(logging.StreamHandler())
+
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    ms = (time.perf_counter() - start) * 1000
+    _request_logger.info(
+        "%s %s -> %s %.1fms",
+        request.method,
+        request.url.path,
+        response.status_code,
+        ms,
+    )
+    return response
+
+
 app.include_router(detection_router)
 app.include_router(robot_router)
 app.include_router(tree_router)
@@ -92,6 +119,8 @@ app.include_router(robot_navigation_router)
 app.include_router(robot_simulation_router)
 app.include_router(robot_telemetry_router)
 app.include_router(robot_history_router)
+app.include_router(health_router)
+app.include_router(seed_router)
 
 
 # Version 3.5 — Robot Telemetry WebSocket. Live streaming of simulation state;
