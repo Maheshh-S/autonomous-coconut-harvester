@@ -1,7 +1,7 @@
 # CURRENT.md
 
-- **Project Version:** 5.0 (Version 5 line; multilingual platform)
-- **Current Status:** Committed through V4.0.4 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass). **V5.0 is implemented and verified but not yet committed** — awaiting explicit approval. Do NOT commit until approved.
+- **Project Version:** 5.1 (Version 5 line; multilingual platform, committed)
+- **Current Status:** Committed through V5.1 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass → Multilingual Platform V5.0 → V5.1 fixes). **V5.x is implemented, verified, and committed** (HEAD `1c77165`). The blanket do-NOT-commit guard below applied to V5 while it awaited approval; it now applies to *future* work only — do NOT commit new work until approved.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
     tree-matching into permanent `Tree` records, V1 `Task`/`Detection` model, V1 robot
@@ -19,10 +19,10 @@
     Telemetry & WebSocket (V3.5 / V3.5.1), Live Robot Visualization (V3.6 / V3.6.1),
     Mission History & Analytics (V3.7 / V3.7.1), Workflow Integration (V3.7.2),
     Speed & Battery Calibration (V3.7.3).
-  - **Current state:** all V1–V4.0.4 work is implemented, verified, and **committed**
-    (Playwright 0 console errors, `tsc --noEmit` / `next build` clean). Only **V5.0**
-    (below) is implemented + verified but **not yet committed** — awaiting explicit
-    approval. Do NOT commit until approved.
+  - **Current state:** all V1–V5.1 work is implemented, verified, and **committed**
+    (Playwright 0 console errors, `tsc --noEmit` / `next build` clean — V5.0 as `34c38aa`
+    plus i18n migration commits `8afa117..cd3fa57`; V5.1 as `654d610..1c77165`). Do NOT
+    commit new work until approved.
   - **Performance Hardening (backend read-path + indexes; behavior-preserving — awaiting
     commit approval):** an end-to-end audit of the Neon-serverless-bound read paths (dashboard,
     survey → Digital Twin, harvest status/items, Mission History timeline/tree-activity/
@@ -1901,8 +1901,7 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         `verify_console.js` — **8 pages, 0 failures, 0 console errors**. Hero screenshots:
         `frontend/shots/audit/after-hero-*.png`, `after-landing-hero-rest.png`. **Committed as
         `4cc9c11`.**
-    - **Registry + discovery pass (V4.0.4, implemented + verified; NOT committed — awaiting
-      approval):** presentation-only follow-through on the remaining audit-noted UX gaps.
+    - **Registry + discovery pass (V4.0.4, implemented + verified; committed):** presentation-only follow-through on the remaining audit-noted UX gaps.
       **No backend / API / route / `detection.ts` / `computeMosaicLayout` / `useRobotSimulation`
       contract / `data-testid` / user-flow changes.** e2e text contracts preserved
       (`Detect Coconuts`, `Coconuts detected:`, `webkitdirectory` folder input,
@@ -1937,8 +1936,8 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         success (10 routes); `verify_console.js` **8/8, 0 console errors**; `verify_v26.js`
         **15/15**; `verify_v251.js` **11/11**; `verify_v361.js` **complete PASS, 0 console
         errors**. **Committed as `961be7b`.**
-    - **Multilingual platform (V5.0, implemented + verified; NOT committed — awaiting
-      approval):** the full UI renders in 7 locales — English + Hindi, Tamil, Telugu,
+    - **Multilingual platform (V5.0, implemented + verified; committed as `34c38aa` plus
+      i18n migration `8afa117..cd3fa57`):** the full UI renders in 7 locales — English + Hindi, Tamil, Telugu,
       Kannada, Malayalam, Marathi — with a farmer-facing language picker. **No backend /
       API / route / `detection.ts` / `computeMosaicLayout` / `useRobotSimulation` contract /
       user-flow changes.** Dynamic data (tree codes, counts, GPS, timestamps), backend
@@ -1983,10 +1982,9 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         the same movement check — backend-timing, not a regression). Live locale
         matrix: survey kn/hi, dashboard kn/ta, landing hi, history/run ml/hi
         (timeline/log/tree-activity tabs), trees/robot/twin te/mr, drawer hi —
-        all fully translated with **zero `MISSING_MESSAGE` errors**. **NOT committed —
-        awaiting approval.**
-    - **V5.1 user-reported fixes (implemented + verified; NOT committed — awaiting
-      approval):** four gaps caught in manual testing, fixed pace-by-pace.
+        all fully translated with **zero `MISSING_MESSAGE` errors**. **Committed
+        (`654d610..1c77165`).**
+    - **V5.1 user-reported fixes (implemented + verified; committed as `1c77165`):** four gaps caught in manual testing, fixed pace-by-pace.
       - **Language picker (Pace 1):** options now read `English (EN)`, `ಕನ್ನಡ (KN)`,
         `हिन्दी (HI)` … — short codes added to `i18n/locales.ts` metadata, order
         EN, KN, HI, TA, TE, ML, MR.
@@ -2009,7 +2007,7 @@ harvest_type` helper), `backend/api/survey_api.py` (`get_permanent_trees`
         (`t+1.20s` + translated rows), kn log width, hi feed (`INV-0019` + count),
         selector order — all observed; `verify_console` 8/8, `v26` 15/15, `v251`
         11/11, `v361` PASS, all 0 console errors; `i18n:check` passed (553 keys).
-        Dictionaries now **553 keys × 7**. **NOT committed — awaiting approval.**
+        Dictionaries now **553 keys × 7**. **Committed (`654d610..1c77165`).**
     - **Optional future work (not scheduled):**
     - A read-only "Locate on twin" pan-to-tree action in the Tree Details drawer
       (still no mutation); eventually supersede the sparse legacy `/trees/[treeId]`

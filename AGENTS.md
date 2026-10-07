@@ -54,7 +54,7 @@ Do not skip steps. If a listed doc does not yet exist, note it and proceed.
   - `frontend/i18n/` — `locales.ts` (7 locale codes, cookie name, fallback), `request.ts` (`next-intl` request config, cookie → locale, English fallback). `frontend/messages/*.json` — 7 dictionaries (553 keys); guardrail `npm run i18n:check`. `frontend/actions/locale.ts` — `setUserLocale` server action. `frontend/components/LocaleSwitcher.tsx` — language picker (rail-foot + mobile More sheet).
 - `models/` — YOLOv8 weights (`tree_model/`, `coconut_model/`), gitignored.
 
-Folders that no longer exist (e.g. the legacy V1 `MapView`/`MapWrapper`/`leafletFix` components, the `mapping/`, `perception/`, and `simulation/robot_simulator.py` V1 scripts) have been removed or superseded — do not reference them. Navigation is rendered via the `AppShell` component (desktop rail + mobile bottom nav + More sheet); imported in `frontend/app/layout.tsx`.
+Legacy V1 scripts (`mapping/`, `perception/`, root `simulation/robot_simulator.py`) and the V1 `MapView`/`MapWrapper`/`leafletFix` components are superseded but retained for reference — nothing outside `backend/` imports them, so do not reference them in new work. Navigation is rendered via the `AppShell` component (desktop rail + mobile bottom nav + More sheet); imported in `frontend/app/layout.tsx`.
 
 ## 4. Engineering Workflow
 
@@ -153,7 +153,7 @@ When a task is design/frontend/UX-related, load the relevant skill(s) **before**
 - **Minor versions** refine architecture, UX, performance, or stability within the frozen design.
 - **Hardening releases** focus only on quality: critical review, correctness/performance fixes, dead-code/legacy cleanup, documentation sync, and regression. **No new features** belong in a hardening milestone.
 
-Version 2 is **FROZEN** at `v2.0` (architecture locked); it is fully implemented and verified. Version 3 is implemented through **V3.8.7** (Survey → Digital Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign), all verified but **not yet committed**. Commit only after explicit approval.
+Version 2 is **FROZEN** at `v2.0` (architecture locked); it is fully implemented and verified. Version 3 is implemented through **V3.8.7** (Survey → Digital Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign) and committed, as are V4.0.x and V5.x (HEAD `1c77165`). Commit new work only after explicit approval.
 
 ## 10. Golden Rules
 
