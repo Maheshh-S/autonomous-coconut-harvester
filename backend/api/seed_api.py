@@ -27,6 +27,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from fastapi import APIRouter, HTTPException
+from sqlalchemy import func
 
 from database.db import SessionLocal
 from database.models import SurveyImage, SurveyMission
@@ -81,32 +82,60 @@ def _seed_dir() -> Path:
 
 
 @router.post("/admin/seed-demo")
-def seed_demo():
+def seed_demo(resume: int = 0):
     seed_dir = _seed_dir()
     files = sorted(seed_dir.glob("farm_view_*.png"))
     if not files:
         raise HTTPException(status_code=404, detail="Demo image set is empty")
 
-    created = create_survey_mission(
-        SurveyMissionCreate(
-            source_folder="demo-seed",
-            # Same default farm origin the survey page uses
-            # (FARM_DEFAULT_LAT/LON) — the projector needs real floats.
-            base_gps_lat=12.1947222,
-            base_gps_lon=76.6100556,
-        )
-    )
-    mission_id = created["id"]
-
     db = SessionLocal()
     try:
+        if resume:
+            # Continue a proxy-cut seed: reuse the PROCESSING mission and skip
+            # originals already copied. Per-image commits below make every
+            # call's progress durable even if this request is cut too.
+            mission = (
+                db.query(SurveyMission).filter(SurveyMission.id == resume).first()
+            )
+            if mission is None or mission.status != "PROCESSING":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Mission {resume} is not resumable (need PROCESSING)",
+                )
+            mission_id = mission.id
+            have = {
+                row[0]
+                for row in db.query(SurveyImage.original_filename)
+                .filter(SurveyImage.mission_id == mission_id)
+                .all()
+            }
+            files = [f for f in files if f.name not in have]
+        else:
+            created = create_survey_mission(
+                SurveyMissionCreate(
+                    source_folder="demo-seed",
+                    # Same default farm origin the survey page uses
+                    # (FARM_DEFAULT_LAT/LON) — the projector needs real floats.
+                    base_gps_lat=12.1947222,
+                    base_gps_lon=76.6100556,
+                )
+            )
+            mission_id = created["id"]
+
         mission = db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
         if mission is None:
             raise HTTPException(status_code=500, detail="Seed mission vanished")
         mission_dir = SURVEY_UPLOAD_ROOT / str(mission_id)
         mission_dir.mkdir(parents=True, exist_ok=True)
 
-        for order, src in enumerate(files, start=1):
+        order_base = (
+            db.query(func.max(SurveyImage.upload_order))
+            .filter(SurveyImage.mission_id == mission_id)
+            .scalar()
+            or 0
+        )
+        saved = 0
+        for order, src in enumerate(files, start=order_base + 1):
             contents, content_type = _downscaled_png(src.read_bytes())
             stored_name = f"{uuid.uuid4().hex}.png"
             (mission_dir / stored_name).write_bytes(contents)
@@ -115,12 +144,13 @@ def seed_demo():
                     mission_id=mission_id,
                     filename=stored_name,
                     original_filename=src.name,
-                    content_type="image/png",
+                    content_type=content_type,
                     file_size=len(contents),
                     upload_order=order,
                 )
             )
-        db.commit()
+            db.commit()  # durable per image: a cut request loses nothing saved
+            saved += 1
     finally:
         db.close()
 
@@ -131,6 +161,6 @@ def seed_demo():
     return {
         "mission_id": mission_id,
         "status": "PROCESSING",
-        "seed_images": len(files),
+        "seed_images": saved,
         "next": f"POST /mission/{mission_id}/reprocess?generate=true&limit=1",
     }
