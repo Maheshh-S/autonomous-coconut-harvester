@@ -32,9 +32,18 @@
     (mission 9: 8 tiles COMPLETED, 243 detections, trees deduped). Backend
     image `veraxis-backend:local` builds (10.4 GB — CUDA torch tax) and serves
     `/health` green from Docker vs Neon; `compose.yml` smoke passed. Request
-    logging (one line/req) verified in-container. Localhost behavior unchanged
+    logging (one line/req) verified in-container.     Localhost behavior unchanged
     (graded demo stays local). Remaining: Render service + Vercel project
     (owner dashboard steps), CI first green run, resume-brief flip.
+  - **Deployment LIVE (2026-10-08):** backend
+    `https://autonomous-coconut-harvester.onrender.com` (Virginia, Docker,
+    `/health` green, CORS allows the Vercel origin) + frontend
+    `https://autonomous-coconut-harvester.vercel.app` (Root `frontend/`).
+    Live demo mission 18: 8/8 tiles serve PNG 200, 242 detections, 56 trees.
+    Browser sweep (6 pages): only `/clips/*.mp4` 404s (videos gitignored by
+    design, Option A) — zero JS/API errors. Free-tier notes: 512 MB cannot
+    run YOLO (seed uses precomputed detections); sleeps/redeploys wipe
+    `uploads/` → reseed ritual (`POST /admin/seed-demo`, ~15 s). CI green.
   - **Performance Hardening (backend read-path + indexes; behavior-preserving — awaiting
     commit approval):** an end-to-end audit of the Neon-serverless-bound read paths (dashboard,
     survey → Digital Twin, harvest status/items, Mission History timeline/tree-activity/
