@@ -22,8 +22,18 @@ RUN pip install -r /app/requirements.txt
 RUN pip install "psycopg[binary]"
 
 COPY backend/ /app/backend/
-COPY models/tree_model/tree_detector.pt /app/models/tree_model/tree_detector.pt
-COPY models/coconut_model/coconut_detector.pt /app/models/coconut_model/coconut_detector.pt
+# Weights are gitignored, so a clean clone (Render, CI) never carries them:
+# download from Hugging Face (public, ungated) unless the build context
+# already has them (local builds stay fast + offline-capable).
+ARG TREE_URL=https://huggingface.co/insenix/tree_detector/resolve/main/tree_detector.pt
+ARG COCONUT_URL=https://huggingface.co/insenix/coconut_detector/resolve/main/coconut_detector.pt
+RUN mkdir -p /app/models/tree_model /app/models/coconut_model \
+    && (test -f models/tree_model/tree_detector.pt \
+        && cp models/tree_model/tree_detector.pt /app/models/tree_model/tree_detector.pt \
+        || curl -fSL "$TREE_URL" -o /app/models/tree_model/tree_detector.pt) \
+    && (test -f models/coconut_model/coconut_detector.pt \
+        && cp models/coconut_model/coconut_detector.pt /app/models/coconut_model/coconut_detector.pt \
+        || curl -fSL "$COCONUT_URL" -o /app/models/coconut_model/coconut_detector.pt)
 # Bake the demo set into a read-only layer (survives sleep; uploads/ does not).
 COPY demo_images/farm_view_demo-images/ /app/demo_seed/
 
