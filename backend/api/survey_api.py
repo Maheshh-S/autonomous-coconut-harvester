@@ -890,6 +890,46 @@ def process_pending_tiles_for_mission(db, mission_id: int) -> int:
 # by this feature (that is Feature 4); these endpoints only read and report.
 
 
+@router.post("/mission/{mission_id}/reprocess")
+def reprocess_mission_tiles(mission_id: int):
+    """Recover + finish tile processing for a mission (deployment support).
+
+    A tile stuck in PROCESSING (worker died: OOM, proxy timeout, restart)
+    blocks the mission forever because the pipeline only picks up PENDING
+    tiles. This resets every non-COMPLETED tile to PENDING and re-runs the
+    standard process + match flow, which is idempotent (detections rewritten
+    per tile, trees deduped by GPS). COMPLETED tiles are never touched.
+    """
+    db = SessionLocal()
+    try:
+        mission = (
+            db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
+        )
+        if mission is None:
+            raise HTTPException(status_code=404, detail="Survey mission not found")
+
+        reset = (
+            db.query(SurveyTile)
+            .filter(SurveyTile.mission_id == mission_id)
+            .filter(SurveyTile.status != SurveyTileStatus.COMPLETED.value)
+            .update(
+                {SurveyTile.status: SurveyTileStatus.PENDING.value},
+                synchronize_session=False,
+            )
+        )
+        db.commit()
+
+        detections = process_pending_tiles_for_mission(db, mission_id)
+        match_trees_for_mission(db, mission_id)
+        return {
+            "mission_id": mission_id,
+            "reset_tiles": reset,
+            "detections": detections,
+        }
+    finally:
+        db.close()
+
+
 @router.get("/mission/{mission_id}/tiles")
 def list_survey_tiles(mission_id: int):
     db = SessionLocal()
