@@ -21,6 +21,8 @@ duplicates the tree registry. Not for production use — demo convenience only.
 import uuid
 from pathlib import Path
 
+import cv2
+import numpy as np
 from fastapi import APIRouter, HTTPException
 
 from database.db import SessionLocal
@@ -40,6 +42,30 @@ SEED_CANDIDATES = (
     Path("/app/demo_seed"),
     REPO_ROOT / "demo_images" / "farm_view_demo-images",
 )
+
+
+# Free-tier survival: full-size demo PNGs (~10 MB each) OOM the 512 MB
+# instance during YOLO decode. Downscale to this longest side before saving —
+# still plenty for the twin + detection, fraction of the RAM/time.
+SEED_MAX_SIDE_PX = 1280
+
+
+def _downscaled_png(contents: bytes) -> tuple[bytes, str]:
+    npimg = np.frombuffer(contents, np.uint8)
+    frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+    if frame is None:
+        return contents, "image/png"
+    h, w = frame.shape[:2]
+    longest = max(h, w)
+    if longest > SEED_MAX_SIDE_PX:
+        scale = SEED_MAX_SIDE_PX / longest
+        frame = cv2.resize(
+            frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA
+        )
+    ok, buf = cv2.imencode(".png", frame)
+    if not ok:
+        return contents, "image/png"
+    return bytes(buf), "image/png"
 
 
 def _seed_dir() -> Path:
@@ -80,7 +106,7 @@ def seed_demo():
         mission_dir.mkdir(parents=True, exist_ok=True)
 
         for order, src in enumerate(files, start=1):
-            contents = src.read_bytes()
+            contents, content_type = _downscaled_png(src.read_bytes())
             stored_name = f"{uuid.uuid4().hex}.png"
             (mission_dir / stored_name).write_bytes(contents)
             db.add(
