@@ -117,8 +117,15 @@ playwright/.cache/
 uploads/
 
 # -----------------------------
+# Personal files (resume notes, not project source — never commit)
+# -----------------------------
+PROJECT_RESUME_BRIEF.md
+DEPLOY_RUNBOOK.md
+
+# -----------------------------
 # Local Agent / Tool Config (personal setup, not project source)
 # -----------------------------
+.serena/
 .claude/
 .codebase-memory/
 .playwright-mcp/
