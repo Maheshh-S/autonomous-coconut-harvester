@@ -13,14 +13,14 @@ Source candidates, first hit wins:
    writable ``uploads/`` layer does not).
 2. ``<repo>/demo_images/farm_view_demo-images/`` — local-dev fallback.
 
-The mission is left PROCESSING with images saved (downscaled to 1280px for
-small instances). Finish it with the standard path:
-``POST /mission/{id}/reprocess?generate=true&limit=1`` per tile (grind),
-then ``POST /mission/complete`` — completion only flips ACTIVE when no
-PENDING work remains inline. Permanent trees dedupe by GPS, so re-seeding
-never duplicates the registry. Demo convenience only.
+The mission completes in-request when the pre-computed JSON is present
+(all-SQL flow, safe everywhere); otherwise it stays PROCESSING for the
+grind path (reprocess?limit=1 per tile, then /mission/complete).
+Permanent trees dedupe by GPS, so re-seeding never duplicates the
+registry. Demo convenience only.
 """
 
+import json
 import uuid
 from pathlib import Path
 
@@ -33,8 +33,12 @@ from database.db import SessionLocal
 from database.models import SurveyImage, SurveyMission
 from api.survey_api import (
     SURVEY_UPLOAD_ROOT,
+    SurveyMissionComplete,
     SurveyMissionCreate,
+    complete_survey_mission,
     create_survey_mission,
+    generate_tiles_for_mission,
+    match_trees_for_mission,
 )
 
 router = APIRouter()
@@ -68,6 +72,59 @@ def _downscaled_png(contents: bytes) -> tuple[bytes, str]:
     if not ok:
         return contents, "image/png"
     return bytes(buf), "image/png"
+
+
+# Pre-computed YOLO boxes for the demo set (generated locally with the same
+# model + conf + downscale path; 26 KB, committed). Small hosts cannot run
+# inference (512 MB OOM), so seeding inserts these rows instead of detecting.
+# Same boxes localhost YOLO produces — literally produced by it.
+PRECOMPUTED_PATH = Path(__file__).resolve().parent / "demo_seed_detections.json"
+
+
+def _apply_precomputed(db, mission_id: int) -> int:
+    """Generate tiles + insert pre-computed detections (no YOLO)."""
+    from database.models import SurveyTile, SurveyTileStatus, TileDetection
+
+    spec = json.loads(PRECOMPUTED_PATH.read_text())
+    generate_tiles_for_mission(db, mission_id, process=False)
+
+    tiles = (
+        db.query(SurveyTile).filter(SurveyTile.mission_id == mission_id).all()
+    )
+    images = {
+        img.id: img
+        for img in db.query(SurveyImage)
+        .filter(SurveyImage.mission_id == mission_id)
+        .all()
+    }
+    total = 0
+    for tile in tiles:
+        img = images.get(tile.image_id)
+        entry = spec.get(img.original_filename) if img else None
+        if entry is None:
+            continue
+        tile.image_width = entry["width"]
+        tile.image_height = entry["height"]
+        db.query(TileDetection).filter(
+            TileDetection.survey_tile_id == tile.id
+        ).delete()
+        for b in entry["boxes"]:
+            db.add(
+                TileDetection(
+                    survey_tile_id=tile.id,
+                    detection_index=b["i"],
+                    x1=b["x1"],
+                    y1=b["y1"],
+                    x2=b["x2"],
+                    y2=b["y2"],
+                    confidence=b["conf"],
+                )
+            )
+            total += 1
+        tile.status = SurveyTileStatus.COMPLETED.value
+    db.commit()
+    match_trees_for_mission(db, mission_id)
+    return total
 
 
 def _seed_dir() -> Path:
@@ -154,13 +211,27 @@ def seed_demo(resume: int = 0):
     finally:
         db.close()
 
-    # Leave the mission PROCESSING: the caller finishes via
-    # POST /mission/{id}/reprocess?generate=true&limit=1 (per tile) and then
-    # POST /mission/complete. Inline completion would run all YOLO inference
-    # inside one request — fatal on small hosts (OOM/proxy timeout).
+    # Fast path: pre-computed detections make this a cheap all-SQL flow
+    # (tile rows → detection rows → match → ACTIVE) with zero inference —
+    # safe on 512 MB hosts. Without the JSON, the mission stays PROCESSING
+    # for the grind path (reprocess?limit=1 per tile, then /mission/complete).
+    if PRECOMPUTED_PATH.exists():
+        db = SessionLocal()
+        try:
+            detections = _apply_precomputed(db, mission_id)
+        finally:
+            db.close()
+        completed = complete_survey_mission(
+            SurveyMissionComplete(mission_id=mission_id)
+        )
+        completed["seed_images"] = saved
+        completed["seed_detections"] = detections
+        completed["seed_mode"] = "precomputed"
+        return completed
     return {
         "mission_id": mission_id,
         "status": "PROCESSING",
         "seed_images": saved,
+        "seed_mode": "grind",
         "next": f"POST /mission/{mission_id}/reprocess?generate=true&limit=1",
     }
