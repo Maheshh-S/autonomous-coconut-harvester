@@ -331,7 +331,9 @@ def list_survey_images(mission_id: int):
 # processing in a later feature (§7.9, §8.5).
 
 
-def generate_tiles_for_mission(db, mission_id: int) -> int:
+def generate_tiles_for_mission(
+    db, mission_id: int, process: bool = True
+) -> int:
     images = (
         db.query(SurveyImage)
         .filter(SurveyImage.mission_id == mission_id)
@@ -407,16 +409,19 @@ def generate_tiles_for_mission(db, mission_id: int) -> int:
         )
         db.commit()
 
-    # Feature 5: tiles are processed as soon as they are generated. The pipeline
-    # is idempotent — only PENDING tiles are picked up, and process_tile rewrites
+    # Feature 5: tiles are processed as soon as they are generated — unless
+    # the caller passes process=False (memory-tight hosts grind via
+    # POST /mission/{id}/reprocess?limit=1 instead). The pipeline is
+    # idempotent — only PENDING tiles are picked up, and process_tile rewrites
     # a tile's detections on retry, so re-running never duplicates detections.
-    process_pending_tiles_for_mission(db, mission_id)
+    if process:
+        process_pending_tiles_for_mission(db, mission_id)
 
-    # Feature 6: convert the freshly generated detections into permanent Trees.
-    # Idempotent — reprojecting the same detections finds the existing Trees
-    # (within the 4 m GPS radius) and reuses them, so re-running never creates
-    # duplicate permanent trees.
-    match_trees_for_mission(db, mission_id)
+        # Feature 6: convert the freshly generated detections into permanent Trees.
+        # Idempotent — reprojecting the same detections finds the existing Trees
+        # (within the 4 m GPS radius) and reuses them, so re-running never creates
+        # duplicate permanent trees.
+        match_trees_for_mission(db, mission_id)
     return created
 
 
@@ -891,7 +896,7 @@ def process_pending_tiles_for_mission(db, mission_id: int) -> int:
 
 
 @router.post("/mission/{mission_id}/reprocess")
-def reprocess_mission_tiles(mission_id: int):
+def reprocess_mission_tiles(mission_id: int, limit: int = 0, generate: bool = False):
     """Recover + finish tile processing for a mission (deployment support).
 
     A tile stuck in PROCESSING (worker died: OOM, proxy timeout, restart)
@@ -899,6 +904,11 @@ def reprocess_mission_tiles(mission_id: int):
     tiles. This resets every non-COMPLETED tile to PENDING and re-runs the
     standard process + match flow, which is idempotent (detections rewritten
     per tile, trees deduped by GPS). COMPLETED tiles are never touched.
+
+    ``limit`` caps how many tiles one call processes (0 = all). On
+    memory-tight hosts, grind with ``limit=1`` per call: each request stays
+    short, completed tiles persist across calls, and a crash loses at most
+    the in-flight tile (recovered by the next call).
     """
     db = SessionLocal()
     try:
@@ -919,7 +929,33 @@ def reprocess_mission_tiles(mission_id: int):
         )
         db.commit()
 
-        detections = process_pending_tiles_for_mission(db, mission_id)
+        # On a fresh mission no tile rows exist yet — generate the rows only
+        # (no inline YOLO); the grind below processes them in small batches.
+        if generate:
+            have_tiles = (
+                db.query(func.count(SurveyTile.id))
+                .filter(SurveyTile.mission_id == mission_id)
+                .scalar()
+                or 0
+            )
+            if have_tiles == 0:
+                generate_tiles_for_mission(db, mission_id, process=False)
+                db.expire_all()
+
+        if limit and limit > 0:
+            pending = (
+                db.query(SurveyTile)
+                .filter(SurveyTile.mission_id == mission_id)
+                .filter(SurveyTile.status == SurveyTileStatus.PENDING.value)
+                .order_by(SurveyTile.id)
+                .limit(limit)
+                .all()
+            )
+            detections = 0
+            for tile in pending:
+                detections += process_tile(db, tile)
+        else:
+            detections = process_pending_tiles_for_mission(db, mission_id)
         match_trees_for_mission(db, mission_id)
         return {
             "mission_id": mission_id,

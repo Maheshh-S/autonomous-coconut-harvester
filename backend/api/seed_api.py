@@ -13,9 +13,12 @@ Source candidates, first hit wins:
    writable ``uploads/`` layer does not).
 2. ``<repo>/demo_images/farm_view_demo-images/`` — local-dev fallback.
 
-The new mission becomes ACTIVE via the normal completion path (previous ACTIVE
-→ SUPERSEDED, §7.13); permanent trees dedupe by GPS, so re-seeding never
-duplicates the tree registry. Not for production use — demo convenience only.
+The mission is left PROCESSING with images saved (downscaled to 1280px for
+small instances). Finish it with the standard path:
+``POST /mission/{id}/reprocess?generate=true&limit=1`` per tile (grind),
+then ``POST /mission/complete`` — completion only flips ACTIVE when no
+PENDING work remains inline. Permanent trees dedupe by GPS, so re-seeding
+never duplicates the registry. Demo convenience only.
 """
 
 import uuid
@@ -123,8 +126,13 @@ def seed_demo():
     finally:
         db.close()
 
-    # Standard completion path: ACTIVE flip + tile generation + detection +
-    # tree matching (Feature 4/5/6, idempotent). This is the slow step (YOLO).
-    completed = complete_survey_mission(SurveyMissionComplete(mission_id=mission_id))
-    completed["seed_images"] = len(files)
-    return completed
+    # Leave the mission PROCESSING: the caller finishes via
+    # POST /mission/{id}/reprocess?generate=true&limit=1 (per tile) and then
+    # POST /mission/complete. Inline completion would run all YOLO inference
+    # inside one request — fatal on small hosts (OOM/proxy timeout).
+    return {
+        "mission_id": mission_id,
+        "status": "PROCESSING",
+        "seed_images": len(files),
+        "next": f"POST /mission/{mission_id}/reprocess?generate=true&limit=1",
+    }
