@@ -32,9 +32,7 @@ from database.db import SessionLocal
 from database.models import SurveyImage, SurveyMission
 from api.survey_api import (
     SURVEY_UPLOAD_ROOT,
-    SurveyMissionComplete,
     SurveyMissionCreate,
-    complete_survey_mission,
     create_survey_mission,
 )
 
