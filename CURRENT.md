@@ -44,6 +44,32 @@
     design, Option A) — zero JS/API errors. Free-tier notes: 512 MB cannot
     run YOLO (seed uses precomputed detections); sleeps/redeploys wipe
     `uploads/` → reseed ritual (`POST /admin/seed-demo`, ~15 s). CI green.
+  - **Deploy hardening (2026-10-19) — CPU torch + self-healing live site:**
+    - **CPU-only torch (`272e01b`):** `Dockerfile.backend` installs
+      `torch`/`torchvision` from PyTorch's CPU wheel index in its own layer
+      before `requirements.txt`, so the multi-GB CUDA package never resolves.
+      Image 10.4 GB → 2.7 GB; cold build ~30 min → single-digit minutes.
+      Verified in-container (`torch 2.14.1+cpu`) and live (`/health` green,
+      models loaded); local `requirements.txt` byte-identical.
+    - **Boot heal (`36ecde4`):** every container boot now runs
+      `heal_demo_uploads()` (deployment-support home: `api/seed_api.py`) after
+      `init_db()`: it reads the active COMPLETED mission from the DB (rows
+      always survive) and copies the missing image bytes from the baked
+      image layer (`/app/demo_seed` — part of the image, untouched by wipes)
+      to the exact DB-expected paths. No DB writes, no new mission, never
+      raises (failed heal = silent no-op, boot can't break). Gated by
+      `ENV AUTO_HEAL_UPLOADS=1` — set **only** in the Docker image, so a
+      local `uvicorn` boot is a guaranteed no-op (localhost judge demo
+      untouched). Heal scope is only the baked `farm_view_*.png` original
+      filenames — non-demo (real) uploads cannot be invented.
+    - **Verified live (observed, Render free tier):** redeploys heal
+      automatically with zero manual commands; **17-min sleep → wake 62 s →
+      `8/8` tile PNGs `200` with no manual intervention — the exact scenario
+      that previously required a manual reseed.** Manual reseed remains only
+      for first-boot/scratch scenarios (see the deployment runbook Rituals).
+      Local negative test: no `AUTO_HEAL_UPLOADS` → no heal lines, no files;
+      container positive test: empty-wiped volume → `{healed: 8}` → PNGs
+      serve `200 image/png` through the normal mount.
   - **Performance Hardening (backend read-path + indexes; behavior-preserving — awaiting
     commit approval):** an end-to-end audit of the Neon-serverless-bound read paths (dashboard,
     survey → Digital Twin, harvest status/items, Mission History timeline/tree-activity/
