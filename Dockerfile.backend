@@ -14,6 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
+# CPU-only torch wheels first, own cacheable layer: when ultralytics resolves
+# afterwards, torch is already satisfied and the multi-GB CUDA package never
+# enters the image (backend runs CPU-only everywhere — GPU inference is a
+# non-goal here).
+RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install -r /app/requirements.txt
 # Own fast layer: fresh pip resolves SQLAlchemy 2.x, whose default Postgres
 # dialect is psycopg3 (psycopg2-binary alone → ModuleNotFoundError: psycopg).
