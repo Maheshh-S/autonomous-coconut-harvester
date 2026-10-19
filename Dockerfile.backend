@@ -4,7 +4,10 @@ FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    # Boot-time upload heal: only the container sets this, so local uvicorn
+    # boots never trigger the auto-restore path.
+    AUTO_HEAL_UPLOADS=1
 
 WORKDIR /app/backend
 

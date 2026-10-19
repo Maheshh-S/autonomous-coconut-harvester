@@ -148,6 +148,19 @@ from database.init_db import init_db
 
 init_db()
 
+# Deployment support (ephemeral hosts): restore the active mission's upload
+# bytes from the baked image layer when the writable volume was wiped by
+# sleep/redeploy. Gated on AUTO_HEAL_UPLOADS, which only the Docker image
+# sets — a local uvicorn boot is always a no-op (localhost keeps control).
+if os.getenv("AUTO_HEAL_UPLOADS") == "1":
+    from api.seed_api import heal_demo_uploads
+
+    _boot_logger = logging.getLogger("veraxis.boot")
+    _boot_logger.setLevel(logging.INFO)
+    if not _boot_logger.handlers:
+        _boot_logger.addHandler(logging.StreamHandler())
+    _boot_logger.info("boot heal: %s", heal_demo_uploads())
+
 
 @app.get("/")
 def root():

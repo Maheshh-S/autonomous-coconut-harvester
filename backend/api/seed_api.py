@@ -30,7 +30,11 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import func
 
 from database.db import SessionLocal
-from database.models import SurveyImage, SurveyMission
+from database.models import (
+    SurveyImage,
+    SurveyMission,
+    SurveyMissionStatus,
+)
 from api.survey_api import (
     SURVEY_UPLOAD_ROOT,
     SurveyMissionComplete,
@@ -136,6 +140,91 @@ def _seed_dir() -> Path:
         status_code=404,
         detail="No baked demo images found (looked in /app/demo_seed and demo_images/)",
     )
+
+
+def heal_demo_uploads() -> dict:
+    """Boot-time repair for the active mission's upload bytes.
+
+    On ephemeral hosts the writable ``uploads/`` volume is wiped by sleep,
+    crash, or redeploy while the DB rows (images, tiles, detections, matched
+    trees) all survive. The baked image set is part of the Docker image layer
+    and also survives — so re-copying the bytes to the exact DB-expected paths
+    restores the mission in place: no inference, no new mission, no DB writes.
+
+    Only ``original_filename``s present in the baked demo set are restored;
+    real uploads cannot be invented. Callers gate this behind the
+    ``AUTO_HEAL_UPLOADS`` environment variable (set in the Docker image), so
+    a local ``uvicorn`` boot is a guaranteed no-op. Never raises. Returns a
+    small report dict for the boot log.
+    """
+    report: dict = {"healed": 0, "missing": 0, "mission": None}
+    db = SessionLocal()
+    try:
+        baked_dir = next(
+            (
+                p
+                for p in SEED_CANDIDATES
+                if p.is_dir() and sorted(p.glob("farm_view_*.png"))
+            ),
+            None,
+        )
+        if baked_dir is None:
+            report["skipped"] = "no-baked-set"
+            return report
+
+        mission = (
+            db.query(SurveyMission)
+            .filter(
+                SurveyMission.status == SurveyMissionStatus.COMPLETED.value,
+                SurveyMission.is_active.is_(True),
+            )
+            .first()
+        )
+        if mission is None:
+            report["skipped"] = "no-active-mission"
+            return report
+        report["mission"] = mission.id
+
+        mission_dir = SURVEY_UPLOAD_ROOT / str(mission.id)
+        images = (
+            db.query(SurveyImage)
+            .filter(SurveyImage.mission_id == mission.id)
+            .all()
+        )
+        if not images:
+            report["skipped"] = "no-image-rows"
+            return report
+
+        missing = [
+            img
+            for img in images
+            if not (mission_dir / img.filename).is_file()
+            or (mission_dir / img.filename).stat().st_size == 0
+        ]
+        report["missing"] = len(missing)
+        if not missing:
+            report["skipped"] = "files-present"
+            return report
+
+        baked = {
+            p.name: p for p in sorted(baked_dir.glob("farm_view_*.png"))
+        }
+        mission_dir.mkdir(parents=True, exist_ok=True)
+        for img in missing:
+            src = baked.get(img.original_filename)
+            if src is None:
+                continue  # real-upload bytes cannot be restored from bakery
+            # Reproduce the exact seed-time bytes (same downscale) so
+            # rows' file_size metadata stays truthful.
+            contents, _ = _downscaled_png(src.read_bytes())
+            (mission_dir / img.filename).write_bytes(contents)
+            report["healed"] += 1
+        return report
+    except Exception as exc:  # a failed heal must never break boot
+        report["skipped"] = f"error: {exc}"
+        return report
+    finally:
+        db.close()
 
 
 @router.post("/admin/seed-demo")
