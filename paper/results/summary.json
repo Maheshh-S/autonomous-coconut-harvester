@@ -1,0 +1,74 @@
+{
+  "device": "mps",
+  "models": {
+    "coconut": {
+      "weights": "models/coconut_model/coconut_detector.pt",
+      "data": "models/coconut_model/data.yaml",
+      "classes": [
+        "Mature",
+        "Potential",
+        "Premature"
+      ],
+      "all": {
+        "precision": 0.7595,
+        "recall": 0.7466,
+        "mAP50": 0.7831,
+        "mAP": 0.5871
+      },
+      "per_class": {
+        "Mature": {
+          "precision": 0.6369,
+          "recall": 0.6069,
+          "mAP50": 0.6312,
+          "mAP": 0.4296
+        },
+        "Potential": {
+          "precision": 0.7942,
+          "recall": 0.7911,
+          "mAP50": 0.8595,
+          "mAP": 0.7149
+        },
+        "Premature": {
+          "precision": 0.8475,
+          "recall": 0.8416,
+          "mAP50": 0.8585,
+          "mAP": 0.6169
+        }
+      },
+      "speed": {
+        "preprocess": 0.64,
+        "inference": 6.24,
+        "loss": 0.0,
+        "postprocess": 13.11
+      },
+      "python": "3.14.7"
+    },
+    "tree": {
+      "weights": "models/tree_model/tree_detector.pt",
+      "data": "models/tree_model/data.yaml",
+      "classes": [
+        "coconut_tree"
+      ],
+      "all": {
+        "precision": 0.841,
+        "recall": 0.843,
+        "mAP50": 0.877,
+        "mAP": 0.539
+      },
+      "per_class": {
+        "coconut_tree": {
+          "precision": 0.841,
+          "recall": 0.843,
+          "mAP50": 0.877,
+          "mAP": 0.539
+        }
+      },
+      "val_images": 865,
+      "val_instances": 2389,
+      "speed": {
+        "preprocess_ms": 0.7,
+        "inference_ms": 8.0
+      }
+    }
+  }
+}

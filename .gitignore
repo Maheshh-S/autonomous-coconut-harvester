@@ -139,3 +139,8 @@ skills-lock.json
 # -----------------------------
 frontend/audit_shots.js
 frontend/shots/
+
+# -----------------------------
+# Reference papers (copyrighted third-party PDFs — local only, never commit)
+# -----------------------------
+Ref-Papers/

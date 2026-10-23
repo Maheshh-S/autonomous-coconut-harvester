@@ -1,0 +1,457 @@
+            ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial Information Sciences, Volume X-2/W2-2025
+                   UAV-g 2025 Uncrewed Aerial Vehicles in Geomatics, 10–12 September 2025, Espoo, Finland
+
+
+
+
+  Comparative Analysis of YOLOv8 and YOLOv11 on Tree Detection Using UAV RGB and
+                                Laser Scanning Data
+
+                                   Esra Sengun 1, Samet Aksoy 2, Elif Sertel 2, Johan E. S. Fransson 1
+1 Linnaeus University, Department of Forestry and Wood Technology, Växjö, Sweden – esra.sengun@lnu.se, johan.fransson@lnu.se
+   2 Istanbul Technical University, Department of Geomatics Engineering, 34469 Maslak Istanbul, Turkey – aksoysa@itu.edu.tr,
+
+                                                           sertele@itu.edu.tr
+
+
+
+Keywords: Deep Learning (DL), Tree Detection, LiDAR, Artificial Intelligence (AI), Precision Forestry, YOLO.
+
+
+Abstract
+
+To promote sustainable forest management planning including biodiversity monitoring and to enable accurate estimates of stem
+volume, above-ground biomass, and carbon stocks, tree identification is essential to contemporary forest inventory. Deep learning
+models are now crucial tools for automating tree recognition over large, forested regions due to the growing availability of high-
+resolution LiDAR data. In order to identify individual trees using LiDAR-derived RGB raster imagery, this work compares two cutting-
+edge object identification architectures: YOLOv8 and YOLOv11. A total of 82 annotated images were utilized, rasterized at a resolution
+of 5 cm, and processed using two input resolutions (640×640 pixel and 960×960 pixel), several model configurations (s, m, l, x), and
+augmentation settings (rotation and horizontal flip). To provide fair comparison, every model was trained and evaluated using the same
+methodology. Precision, recall, mAP50, and mAP50-95, standard detection metrics, were used to evaluate performance. The results
+show that YOLOv8 consistently beat YOLOv11 on all metrics, especially in its large and extra-large forms at high resolution.
+YOLOv8x with 960 pixel resolution and augmentation was the best-performing setup, with 0.974 precision, 0.837 recall, 0.934 mAP50,
+and 0.821 mAP50-95. The results demonstrate notable improvements in detection accuracy when compared to previous methods that
+used YOLOv4 or domain-specific structures like YOLOTree. With the use of rasterized UAV laser scanning data, our results highlight
+the potential of the YOLO architecture as a robust and scalable tool for automated, high-precision forest inventory.
+
+
+                                                                       By making it possible to collect detailed structural and spectral
+                        1. Introduction                                data across large forested landscapes, recent developments in
+                                                                       remote sensing technologies, such as satellite imagery, airborne
+Forests are among the most important ecosystems on Earth,              laser scanning (ALS), and high-resolution unmanned aerial
+offering vital functions such as climate regulation, carbon            vehicle (UAV) imagery, have significantly increased the
+sequestration, soil preservation, water purification, and              effectiveness and scope of forest inventories (Luo et al., 2024;
+biodiversity conservation (Luo et al., 2024; Satama-Bermeo et          Satama-Bermeo et al., 2025; Sun et al., 2022). Numerous
+al., 2025; Straker et al., 2023; Sun et al., 2022; Topgül et al.,      techniques, such as marker-controlled algorithms, point cloud
+2025). As global environmental challenges such as climate              clustering, and watershed segmentation, may be used to extract
+change, deforestation, and biodiversity loss worsen, the               information from these remote sensing datasets (Sun et al., 2022).
+significance of sustainable forest management and accurate
+forest inventories grows (Satama-Bermeo et al., 2025; Sun et al.,      Convolutional neural networks (CNNs), a type of deep learning
+2022). Forest inventories are the systematic collection of detailed    (DL) approach, have lately been quite effective at automating
+data on forest features such as species composition, tree size,        tasks involving the recognition of individual trees. When
+health condition, and spatial distribution (Luo et al., 2024;          compared to conventional techniques, these models greatly
+Straker et al., 2023). Such thorough inventories are essential for     improve the scalability, accuracy, and efficiency of tree
+making informed decisions about resource allocation,                   identification procedures (Luo et al., 2024; Straker et al., 2023;
+conservation strategies, pest control, selective logging, and          Topgül et al., 2025). Notably, even in complex environments
+climate change mitigation (Luo et al., 2024; Topgül et al., 2025).     with overlapping canopies and diverse growth patterns, object
+                                                                       detection models such as You Only Look Once (YOLO)
+Individual tree identification is a critical component of modern       architectures (YOLOv5, YOLOv7, YOLOv8, and YOLOv9)
+forest inventories, allowing for precise estimates of stem volume,     have demonstrated remarkable potential in accurately identifying
+above-ground biomass, and carbon stocks, as well as targeted           individual tree crowns (Luo et al., 2024; Satama-Bermeo et al.,
+interventions for biodiversity conservation, forest health             2025; Sertel and Topgul, 2025; Topgül et al., 2025).
+monitoring, and sustainable management practices (Satama-
+Bermeo et al., 2025; Straker et al., 2023; Sun et al., 2022).          In this paper, deep learning methods for individual tree detection
+Traditional techniques of tree identification, such as human field     are investigated and evaluated for coniferous forest in northern
+surveys and aerial imaging interpretation, while accurate, are         Sweden, focusing on the importance of advancements towards
+labor-intensive, time-consuming, and costly, especially when           precision forestry, forest inventory, and sustainable management
+scaled across large or inaccessible forest regions (Luo et al.,        of global forest resources (Satama-Bermeo et al., 2025; Straker
+2024; Satama-Bermeo et al., 2025; Topgül et al., 2025).                et al., 2023; Sun et al., 2022).
+
+
+
+
+         This contribution has been peer-reviewed. The double-blind peer-review was conducted on the basis of the full paper.
+                 https://doi.org/10.5194/isprs-annals-X-2-W2-2025-173-2025 | © Author(s) 2025. CC BY 4.0 License.                    173
+            ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial Information Sciences, Volume X-2/W2-2025
+                   UAV-g 2025 Uncrewed Aerial Vehicles in Geomatics, 10–12 September 2025, Espoo, Finland
+
+
+
+                   2. Materials and Methods                             s-small, m-middle, l-large, and x-extra-large. These variants
+                                                                        differ in terms of depth and width so the effect of the complexity
+2.1 Study Area                                                          of each model could be assessed in terms of detection
+                                                                        performance (Terven et al., 2023). All models are pretrained with
+The study was carried out at the Svartberget Experimental Forest,       Common Objects in Context dataset before any further training.
+located northwest of Vindeln in northern Sweden (64.24°N,
+19.77°E). The forest is owned by the forest company Sveaskog            The model was trained using the input resolutions of 640×640
+and is a part of Vindeln Experimental Forests run by the Swedish        pixel and 960×960 pixel to assess how spatial detail may
+University of Agricultural Sciences. In the boreal zone,                influence model accuracy. In order to further improve
+Svartberget is a long-term study site with an emphasis on               generalization and to provide robustness against overfitting, data
+sustainable forest management, catchment-scale hydrology, and           augmentation was employed. This involved augmenting each
+mire ecology. The area is characterized by elevations ranging           input sample three times, with horizontal flipping and random
+from 160 m to 320 m above sea level and consists predominantly          rotation in the range of -15° to +15°. These augmentation is
+of mixed coniferous forest with Norway spruce (Picea abies (L.)         selected for comparability of previous research by Topgül et al.
+H. Karst.) and Scots pine (Pinus sylvestris L.). The underlying         (2025).
+bedrock is composed almost entirely of gneiss, while the soils are
+primarily formed from moraines of varying thickness.                    It was deemed essential to apply all models by supervised
+                                                                        learning, with the same optimization setting in terms of learning
+2.2 Dataset                                                             rate scheduling, batch size, and loss functions. This allows to
+                                                                        factor out other variables affecting architecture and input
+In this study, the dataset consists of 82 raster images created from    resolution.
+LiDAR point clouds captured via UAV laser scanning on DJI
+Matrice 350 RTK drone equipped with DJI Zenmuse L1 (i.e., a             2.3.2 Performance Evaluation Metrics: The model has been
+Livox LiDAR module and a 20 MP RGB camera). Firstly, raw                evaluated using precision, recall, and mean Average Precision
+data are processed through DJI Terra software and then the raw          (mAP), all of which are widely regarded as standard metrics for
+point clouds were processed in Cloud-Compare software,                  evaluating object detection performance. Together with other
+rendering RGB raster images at a 5 cm spatial resolution. This          complements, those metrics can be used to judge detection
+rasterizing method preserves the structural and spatial attributes      accuracy, robustness, and the ability of a given model to both
+of individual tree crowns while transforming the 3D point cloud         localize and classify individual trees.
+into a 2D form that can be input into CNNs for object detection.
+                                                                        The metrics are defined as:
+Due to the variability in forest conditions in terms of tree density,
+crown overlap, and canopy structure, it was essential to ensure
+                                                                            • Precision evaluates the ratio of correctly predicted
+                                                                                 trees among all predicted bounding boxes:
+the robustness of the model. Annotated bounding boxes were
+placed around every individual tree in each image for ground-
+truthing in supervised learning. The dataset was split into training
+(70%), validation (20%), and testing (10%) subsets, with a
+representative distribution of forest complexity maintained
+across all splits. In total, 4600 trees were annotated. Even though
+raster image count is limited, many trees were populated in these            •    Recall quantifies the proportion of true trees that were
+images. Therefore, there are a total of 3103 trees in the training                successfully detected:
+dataset, 974 trees in the validation dataset, and 523 trees in the
+test dataset.
+
+Data augmentation was applied to the training set as a means of
+model generalization. Each annotated image was augmented
+three times with horizontal flipping and random rotations, -15° to           •    Average Precision (AP) is computed as the area under
++15° on either side. The augmented variability further aided the                  the precision–recall curve for a given IoU threshold:
+models in detecting trees under varying orientations and spatial
+arrangements.                                                                •    Mean Average Precision (mAP) is the average of AP
+                                                                                  values over different Intersection over Union (IoU)
+2.3 Methodology                                                                   thresholds. In this study, two versions were used:
+                                                                                       o mAP50, calculated at a fixed IoU threshold
+This study compares the two object-detection architectures,                                 of 0.5.
+YOLOv8 and YOLOv11, introduced by Jocher et al. (2023) for                             o mAP50–95, averaged over multiple IoU
+detecting individual trees using the raster images derived via                              thresholds ranging from 0.50 to 0.95 in 0.05
+UAV RGB and LiDAR data. The same training and evaluation                                    increments:
+framework was implemented for both models to ensure a
+consistent basis for comparison. The reason for selecting real-
+time object-detection models is their scalability of this study.
+Since forests covers large areas, the inference time of these
+models can add up significantly over time (Sertel and Topgul,
+2025; Terven et al., 2023).
+                                                                        All metrics were computed using the test set. This evaluation
+2.3.1 Model Architecture and Training Configuration:                    framework enables a comprehensive comparison of the YOLOv8
+The model families used in this study, YOLOv8 and YOLOv11               and YOLOv11 architectures in the context of tree detection from
+(Jocher et al., 2023), were evaluated under four configurations,        rasterized UAV LiDAR imagery.
+
+
+
+
+         This contribution has been peer-reviewed. The double-blind peer-review was conducted on the basis of the full paper.
+                 https://doi.org/10.5194/isprs-annals-X-2-W2-2025-173-2025 | © Author(s) 2025. CC BY 4.0 License.                     174
+             ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial Information Sciences, Volume X-2/W2-2025
+                    UAV-g 2025 Uncrewed Aerial Vehicles in Geomatics, 10–12 September 2025, Espoo, Finland
+
+
+
+                           3. Results                                  3.2 YOLOv11 Performance
+
+The performance results of the YOLOv8 models for individual            In YOLOv11 models, it was observed that increasing model size
+tree detection are presented in Table 1. The table reports results     and resolution does not always result in gains in detection
+for four commonly used object detection performance metrics:           metrics. For example, while moving from small to medium at
+precision, recall, mAP50, and mAP50-95 evaluated across a              640×640 pixel, large and extra-large performed nearly
+range of model sizes (s, m, l, x), input resolutions (640×640 pixel    identically.
+and 960×960 pixel), and augmentation settings (with and without
+augmentation).                                                         Both YOLOv11s and YOLOv11m gave competitive numbers at
+                                                                       both resolutions, but the additional gain was very clear when
+3.1 YOLOv8 Performance                                                 going from 640×640 pixel to 960×960 pixel. For recall and
+                                                                       mAP50-95, improved performance is very evident at high spatial
+YOLOv8 models showed a significant increase in recall and              detail, suggesting a benefit from a higher resolution for moderate
+mAP50-95 values as the model size and resolution increase.             capacity models. Generally, augmentation contributed to higher
+Among YOLOv8 models, the best mAP50-95 value (0.821) was               mAP scores; however, as observed with YOLOv8, it occasionally
+achieved at 960 pixel resolution without increasing the crown          incurs a penalty in precision (Table 1).
+localization generalization ability, which was demonstrated by
+YOLOv8x. Similar excellent performances were achieved for              3.3 Comparative Insights
+YOLOv8l and YOLOv8x at 960 pixel resolution with
+augmentation, yielding mAP50-95 values of 0.819 and 0.814,             The comparative evaluation of YOLOv8 and YOLOv11 across
+respectively (Table 1).                                                four experimental conditions, 640×640 pixel without
+                                                                       augmentation (Figure 1), 640×640 pixel with augmentation
+In most cases, only slight increases in mAP50-95 values were           (Figure 2), 960×960 pixel without augmentation (Figure 3), and
+observed with data augmentation; the largest increase occurred         960×960 pixel with augmentation (Figure 4), reveals several
+for YOLOv8m (640 pixel), with the value rising from 0.753 to           consistent patterns. At the baseline resolution of 640×640 pixel,
+0.780. On the other hand, for YOLOv8x (960 pixel), the accuracy        YOLOv8 uniformly outperforms YOLOv11 for every model
+decreased from 0.974 to 0.959 when augmentation was applied.           scale. Specifically, mAP50-95 scores for the small, medium,
+The benefits of augmentation include improved detection across         large, and extra‐large YOLOv8 variants register at 0.678, 0.753,
+all robustness levels, but there is also a possibility of geometric    0.765, and 0.788, respectively, compared to YOLOv11’s 0.659,
+distortion, which may cause a slight loss in prediction reliability.   0.724, 0.715, and 0.717 (Figure 1). This advantage—ranging
+                                                                       from +0.02 for the smallest model to +0.07 for the extra‐large
+        Table 1. Metric results of YOLOv8 experiments.                 model—demonstrates the superior capability of YOLOv8’s
+                                                                       architecture to resolve individual tree crowns even under lower‐
+   Dataset    Model           Preci-    Re-       mAP      mAP         resolution constraints.
+                              sion      call      50       50-95
+   640        YOLOv8s         0.949     0.813     0.906    0.678
+   640        YOLOv11s        0.926     0.841     0.919    0.659                     640×640 pixel Network size
+   640aug     YOLOv8s         0.973     0.816     0.909    0.703
+   640aug     YOLOv11s        0.936     0.828     0.916    0.702        0.9
+   640        YOLOv8m         0.966     0.845     0.930    0.753
+   640        YOLOv11m        0.957     0.846     0.925    0.724        0.8
+   640aug     YOLOv8m         0.947     0.861     0.935    0.780
+   640aug     YOLOv11m        0.939     0.843     0.922    0.728        0.7
+   640        YOLOv8l         0.953     0.824     0.919    0.765
+   640        YOLOv11l        0.958     0.816     0.915    0.715        0.6
+   640aug     YOLOv8l         0.954     0.838     0.926    0.723                    s             m             l             x
+   640aug     YOLOv11l        0.930     0.844     0.923    0.744
+   640        YOLOv8x         0.965     0.835     0.923    0.788                              YOLOv8      YOLOv11
+   640        YOLOv11x        0.942     0.813     0.902    0.717
+   640aug     YOLOv8x         0.952     0.827     0.914    0.798         Figure 1. Baseline mAP50-95 comparison YOLOv8 versus
+   640aug     YOLOv11x        0.958     0.826     0.921    0.744        YOLOv11 across small (s), medium (m), large (l), and extra‐
+   960        YOLOv8s         0.959     0.851     0.927    0.743        large (x) model variants at 640×640 pixel resolution without
+   960        YOLOv11s        0.946     0.870     0.925    0.741                             data augmentation.
+   960aug     YOLOv8s         0.961     0.849     0.919    0.726
+   960aug     YOLOv11s        0.952     0.857     0.918    0.729       When standard data‐augmentation techniques are applied at
+   960        YOLOv8m         0.979     0.870     0.925    0.790       640×640 pixel, both architectures experience performance shifts
+   960        YOLOv11m        0.962     0.862     0.929    0.781       (Figure 2). YOLOv8s and YOLOv8m benefit most (+0.02–0.03
+   960aug     YOLOv8m         0.951     0.853     0.912    0.786       mAP), while YOLOv8l exhibit slight declines (–0.02). In
+   960aug     YOLOv11m        0.952     0.865     0.927    0.789       contrast, YOLOv11 displays more uniform gains of up to +0.03
+   960        YOLOv8l         0.963     0.860     0.919    0.800       across its model sizes. Despite these divergent responses to
+   960        YOLOv11l        0.954     0.842     0.921    0.763       augmentation, YOLOv8 retains its lead across all scales.
+   960aug     YOLOv8l         0.957     0.849     0.928    0.819
+   960aug     YOLOv11l        0.959     0.851     0.936    0.796
+   960        YOLOv8x         0.974     0.837     0.934    0.821
+   960        YOLOv11x        0.967     0.839     0.927    0.775
+   960aug     YOLOv8x         0.959     0.852     0.922    0.814
+   960aug     YOLOv11x        0.930     0.836     0.909    0.742
+
+
+
+
+         This contribution has been peer-reviewed. The double-blind peer-review was conducted on the basis of the full paper.
+                 https://doi.org/10.5194/isprs-annals-X-2-W2-2025-173-2025 | © Author(s) 2025. CC BY 4.0 License.                    175
+           ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial Information Sciences, Volume X-2/W2-2025
+                  UAV-g 2025 Uncrewed Aerial Vehicles in Geomatics, 10–12 September 2025, Espoo, Finland
+
+
+
+                                                                     achieve approximately +0.02 mAP improvements, while
+       640×640 pixel Network Size with Aug                           YOLOv11m and YOLOv11l record up to +0.03. Nevertheless,
+                                                                     YOLOv8 continues to secure the highest absolute mAP50-95
+ 0.9                                                                 values. Collectively, these findings confirm that YOLOv8 not
+                                                                     only consistently surpasses YOLOv11 across diverse
+ 0.8                                                                 configurations, but also exhibits greater robustness to input
+                                                                     resolution and augmentation strategies in complex forest‐scene
+ 0.7
+                                                                     crown detection.
+ 0.6
+             s            m              l            x                      960×960 pixel Network Size with Aug
+                       YOLOv8      YOLOv11                             0.9
+ Figure 2. Impact of standard data‐augmentation on mAP50-95            0.8
+   for YOLOv8 and YOLOv11 at 640×640 pixel resolution.
+                                                                       0.7
+Escalating the input resolution to 960×960 pixel significantly
+elevates detection accuracy for both networks (Figure 3).              0.6
+YOLOv8’s scores rise to 0.743, 0.790, 0.800, and 0.821, whereas                    s            m             l             x
+YOLOv11 attains 0.741, 0.781, 0.763, and 0.775 for the
+corresponding scales. The extra‐large YOLOv8 model, thus,                                   YOLOv8       YOLOv11
+enjoys a +0.04 mAP margin over YOLOv11x, underscoring its
+enhanced capacity to exploit finer spatial detail.                   Figure 4. Combined effect of 960×960 pixel resolution and data
+                                                                     augmentation on mAP50-95 for YOLOv8 and YOLOv11 across
+                                                                                             model sizes.
+             960×960 pixel Network Size
+                                                                                              4. Discussion
+ 0.9
+                                                                     The study reveals encouraging results with mAP50 scores up to
+ 0.8                                                                 0.936 and precision levels above 0.95 in the best configurations,
+                                                                     evaluating YOLOv8 and YOLOv11 models on UAV RGB and
+ 0.7
+                                                                     LiDAR-derived raster images for individual tree detection.
+                                                                     Compared to Sun et al. (2022), who used an improved YOLOv4
+ 0.6
+                                                                     model on tree height maps derived directly from airborne laser
+             s            m              l            x              scanning data and reported an overall accuracy of 81.4% with
+                                                                     scores of recall and precision at 83.6%, our models exhibited
+                       YOLOv8      YOLOv11
+                                                                     superior precision and mAP performance, especially at high
+                                                                     resolution (960×960 pixel). Whereas Sun et al. (2022) have
+  Figure 3. Baseline mAP50-95 comparison of YOLOv8 and               introduced advanced augmentation using generative adversarial
+ YOLOv11 across all scales at 960×960 pixel input resolution         networks (GANs) and fitted overlapping tree segmentation more
+                    without augmentation.                            precisely by paraboloid fitting, our pipeline was simplistic with
+                                                                     augmentation like flipping and rotation, but nevertheless
+Finally, when high resolution is combined with augmentation          produced competitive or even better detection accuracy. This
+(Figure 4), further gains are observed: YOLOv8l and YOLOv8x          indicates considerable improvements in detection quality
+
+
+
+
+                                 Figure 5. Best results for the YOLOv8 and the YOLOv11 models.
+
+
+
+
+         This contribution has been peer-reviewed. The double-blind peer-review was conducted on the basis of the full paper.
+                 https://doi.org/10.5194/isprs-annals-X-2-W2-2025-173-2025 | © Author(s) 2025. CC BY 4.0 License.                 176
+           ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial Information Sciences, Volume X-2/W2-2025
+                  UAV-g 2025 Uncrewed Aerial Vehicles in Geomatics, 10–12 September 2025, Espoo, Finland
+
+
+
+
+                            b) 640 YOLOv11m
+
+
+
+
+                                   Figure 6. Effects of resolution on tree detection performance.
+
+
+
+
+                                 Figure 7. Effects of augmentation on tree detection performance.
+
+
+when transitioning from YOLOv4 to newer versions such as            Furthermore, our models' accuracy regularly approached about
+YOLOv8, although trained on RGB rasterized LiDAR data               0.95, exceeding YOLOTree's 90.5% under comparable
+instead of tree height maps, primarily focusing on optimized        lightweight restrictions.
+model size and resolution.
+                                                                    While Satama-Bermeo et al. (2025) employed UAVs and AI,
+Unlike the YOLOTree model proposed by Luo et al. (2024),            specifically YOLOv4 and Faster R-CNN, to automate road
+which combines UAV RGB imagery and LiDAR point clouds for           signage inventory, our work investigates the recognition of
+individual tree detection and crown volume modeling, our study      individual trees from UAV RGB and LiDAR-derived raster
+focuses solely on individual tree detection performance of          images using more contemporary models, YOLOv8 and
+YOLOv8 and YOLOv11 architectures applied to rasterized RGB          YOLOv11. Both investigations use aerial images to detect
+images derived from LiDAR data. While Luo et al. (2024)             objects; however, the target domains, road signs and natural
+obtained a mAP50-95 of 52.8% on the TreeLD dataset with their       forest elements, present distinct problems in terms of item scale,
+lightweight YOLOTree model, our investigations revealed that        occlusion, and unpredictability. Unlike signage, which has
+YOLOv11l (960×960 pixel with augmentation) reached up to            uniform forms and characteristics, trees have natural
+0.936 mAP50 and 0.796 mAP50-95, indicating a significant            inconsistencies, making detection more difficult.
+increase in accuracy.
+
+
+
+
+        This contribution has been peer-reviewed. The double-blind peer-review was conducted on the basis of the full paper.
+                https://doi.org/10.5194/isprs-annals-X-2-W2-2025-173-2025 | © Author(s) 2025. CC BY 4.0 License.                  177
+            ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial Information Sciences, Volume X-2/W2-2025
+                   UAV-g 2025 Uncrewed Aerial Vehicles in Geomatics, 10–12 September 2025, Espoo, Finland
+
+
+
+Satama-Bermeo et al. (2025) found mAP scores ranging from              usefulness of the models in ecological monitoring and
+74% to 95% in an urban context using YOLOv4-based models,              operational forestry. This paper offers a quick, precise, and
+which were frequently used in RGB or multisensory                      scalable method for detecting individual trees using data from
+configurations. Our top-performing setup, when applying                UAV RGB and laser scanning data, laying a solid basis for the
+YOLOv8x with 960×960 pixel resolution and augmentation, had            deployment of sophisticated YOLO designs in forest
+a mAP50 of 0.934 and a mAP50-95 of 0.821, showing equivalent           applications.
+or even greater performance in the setting of vegetation structure,
+where trees frequently overlap and vary in size and density.           This study represents one of our initial implementations, and due
+                                                                       to time and venue constraints, extensive comparative
+Furthermore, although the studied signage research focuses on          experiments are beyond the current scope. We plan to conduct
+real-time performance and model deployment issues in                   these comparisons in future studies by testing our methods on
+complicated urban scenarios, our findings indicate that high           benchmark datasets or reimplementing prior methods on our data
+detection accuracy can be achieved in forested environments            for fair evaluation.
+using rasterized 2D RGB from LiDAR point cloud data. These
+findings indicate that updated YOLO designs provide                                          Acknowledgements
+generalizable performance and can serve as strong backbones for
+environmental inventory tasks like tree recognition.                   This work was part of the ForestMap project which is supported
+                                                                       under the umbrella of ERA-NET Cofund ForestValue by the
+Figures 5-7 support the quantitative findings. Figure 5 shows the      Swedish Governmental Agency for Innovation Systems, the
+best results for YOLO8 and YOLO11 models. Figure 6 shows               Swedish Energy Agency, the Swedish Research Council for
+the effect of resolution on tree detection performance. In Figure      Environment, Agricultural Sciences and Spatial Planning,
+7, models trained with flip and rotation show improved crown           Academy of Finland, and the Scientific and Technological
+identification under varying orientations and overlapping              Research Council of Turkey. ForestValue has received funding
+canopies, especially for smaller YOLO variants. However, slight        from the European Union's Horizon 2020 research and
+overdetection in some cases suggests that geometric                    innovation programme under grant agreement No. 773324 and
+transformations can introduce small localization noise, which is       from TUBITAK Project No. 221N393.
+consistent with the observed decreases in precision. On the other
+                                                                                                  References
+hand, Figure 6 clearly shows the benefit of using higher
+resolution inputs (960×960 pixel), where finer crown details and       Fransson, J.E.S., Sertel, E., Ünsalan, C., Salo, J., Holmström, A.,
+tree boundaries are more accurately detected, especially in dense      Wallerman, J., Nilsson, M., 2023. ForestMap: Mapping Forest
+forest patches. Increased spatial accuracy at 960×960 pixel            Attributes Across the Globe - First Case Study. 2023 IEEE Int.
+resolution improves the model's ability to discriminate closely        Geoscience & Remote Sensing Symp., 3395–3397.
+located crowns, which is reflected in higher recall and mAP50-         doi.org/10.1109/IGARSS52108.2023.10283354
+95 scores. These qualitative observations confirm that both
+magnification and resolution play complementary roles in               Jocher, G., Qiu, J., Chaurasia, A., 2023. Ultralytics YOLO,
+improving model robustness and detection accuracy in complex           Version 8.0.0. ultralytics.com (20 July 2025).
+forest scenes.
+                                                                       Luo, T., Rao, S., Ma, W., Song, Q., Cao, Z., Zhang, H., Xie, J.,
+                         5. Conclusions                                Wen, X., Gao, W., Chen, Q., Yun, J., Wu, D., 2024. YOLOTree-
+                                                                       Individual Tree Spatial Positioning and Crown Volume
+This study shows how well the YOLOv8 and YOLOv11 object
+                                                                       Calculation Using UAV-RGB Imagery and LiDAR Data. Forests
+identification architectures can distinguish individual trees from
+                                                                       15, 1375. doi.org/10.3390/f15081375
+RGB raster images taken from UAV LiDAR point cloud data in
+order to improve forest management (Fransson et al., 2023). We
+                                                                       Satama-Bermeo, G., Lopez-Guede, J.M., Rahebi, J., Teso-Fz-
+found that YOLOv8 consistently outperforms YOLOv11 in
+                                                                       Betoño, D., Boyano, A., Akizu-Gardoki, O., 2025. PRISMA
+terms of accuracy, recall, and both mAP50 and mAP50-95 scores
+                                                                       Review: Drones and AI in Inventory Creation of Signage. Drones
+after conducting a comprehensive examination of model sizes (s,
+                                                                       9, 221. doi.org/10.3390/drones9030221
+m, l, x), input resolutions (640×640 pixel and 960×960 pixel),
+and data augmentation procedures. With an accuracy of 0.959,
+                                                                       Sertel, E., Topgul, S.N., 2025. Comparative Analysis of Deep
+recall of 0.851, mAP50 of 0.936, and mAP50-95 of 0.796, the
+                                                                       Learning Approaches for Forest Stand Type Classification:
+greatest detection performance was specifically attained by the
+                                                                       Insights from the New VHRTreeSpecies Benchmark Dataset.
+YOLOv8x model, which was trained at 960×960 pixel resolution
+                                                                       International Journal of Digital Earth 18, 2522394.
+without augmentation. These findings demonstrate the model’s
+                                                                       doi.org/10.1080/17538947.2025.2522394
+strong generalization capabilities in complex forest environment,
+characterized by overlapping crowns and diverse canopy
+                                                                       Straker, A., Puliti, S., Breidenbach, J., Kleinn, C., Pearse, G.,
+structures.
+                                                                       Astrup, R., Magdon, P., 2023. Instance Segmentation of
+                                                                       Individual Tree Crowns with YOLOv5: A Comparison of
+However, there are limitations. Although using rasterized RGB
+                                                                       Approaches Using the ForInstance Benchmark LiDAR Dataset.
+images from the LiDAR point cloud data makes CNN input
+                                                                       ISPRS Open Journal of Photogrammetry and Remote Sensing 9,
+simpler, it does not take into account the point clouds' full 3D
+                                                                       100045. doi.org/10.1016/j.ophoto.2023.100045
+spatial richness. Furthermore, the findings applicability to other
+forest types or biomes is restricted by the very limited sample size
+                                                                       Sun, C., Huang, C., Zhang, H., Chen, B., An, F., Wang, L., Yun,
+(82 images). By combining spectral and structural inputs,
+                                                                       T., 2022. Individual Tree Crown Segmentation and Crown Width
+merging multi-temporal data, or broadening the dataset over
+                                                                       Extraction from a Heightmap Derived from Aerial Laser
+many ecological zones, future research might overcome these
+                                                                       Scanning Data Using a Deep Learning Framework. Front. Plant
+constraints. Moreover, adding species categorization, tree health
+                                                                       Sci. 13, 914974. doi.org/10.3389/fpls.2022.914974
+evaluation, and 3D crown reconstruction might improve the
+
+
+
+         This contribution has been peer-reviewed. The double-blind peer-review was conducted on the basis of the full paper.
+                 https://doi.org/10.5194/isprs-annals-X-2-W2-2025-173-2025 | © Author(s) 2025. CC BY 4.0 License.                     178
+            ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial Information Sciences, Volume X-2/W2-2025
+                   UAV-g 2025 Uncrewed Aerial Vehicles in Geomatics, 10–12 September 2025, Espoo, Finland
+
+
+
+Terven, J., Córdova-Esparza, D.-M., Romero-González, J.-A.,
+2023. A Comprehensive Review of YOLO Architectures in
+Computer Vision: From YOLOv1 to YOLOv8 and YOLO-NAS.
+Machine Learning & Knowledge Extraction 5, 1680–1716.
+doi.org/10.3390/make5040083
+
+Topgül, Ş.N., Sertel, E., Aksoy, S., Unsalan, C., Fransson, J.E.S.,
+2025. VHRTrees: A New Benchmark Dataset for Tree Detection
+in Satellite Imagery and Performance Evaluation with YOLO-
+Based Models. Front. For. Glob. Change, 7:1495544.
+doi.org/10.3389/ffgc.2024.1495544
+
+
+
+
+         This contribution has been peer-reviewed. The double-blind peer-review was conducted on the basis of the full paper.
+                 https://doi.org/10.5194/isprs-annals-X-2-W2-2025-173-2025 | © Author(s) 2025. CC BY 4.0 License.               179
+

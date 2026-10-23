@@ -1,0 +1,1503 @@
+Article
+
+Benchmarking YOLO and Transformer-Based Detectors for Olive
+Tree Crown Identification in UAV Imagery
+Muhammed Enes Atik *                     and Mehmet Arkali
+
+
+                                          Department of Geomatics Engineering, Faculty of Civil Engineering, Istanbul Technical University, Istanbul 34469,
+                                          Türkiye; markali@itu.edu.tr
+                                          * Correspondence: atikm@itu.edu.tr
+
+
+                                          Abstract
+                                          Olive groves are an important agricultural component in the Mediterranean region that
+                                          offers various ecological benefits. The olive tree has tremendous cultural and economic
+                                          value and is cultivated over a wide geographical range. It is essential to actively imple-
+                                          ment innovative agricultural practices to achieve efficient, sustainable olive cultivation.
+                                          Automatic tree identification in olive groves is an essential tool for applications such as
+                                          tree health monitoring and yield estimation. Deep learning-based approaches, which have
+                                          recently gained prominence, hold significant potential for this purpose. However, the
+                                          large amount of training data required by deep learning methods increases their time and
+                                          effort costs. Data augmentation methods have been developed to solve this problem. In
+                                          this study, olive tree detection and segmentation from unmanned aerial vehicle (UAV)
+                                          images were performed using current You Only Look Once (YOLO) architectures (YOLOv8,
+                                          YOLOv10, YOLOv11, YOLOv12) and transformer-based object detection algorithms (Real-
+                                          Time DEtection TRansformer (RT-DETR) and Roboflow-DEtection Transformer (RF-DETR)).
+                                          Two different datasets, one of which was a new dataset generated within the scope of this
+                                          study, were used in this study. To investigate the effect of data augmentation on algorithm
+                                          performance, both the original datasets and the augmented datasets were used. As a result
+                                          of the study, 0.987 mAP was obtained with YOLOv11n, YOLOv11s, and YOLOv12s on the
+                                          Olive Tree Detection (OTD) dataset, while 0.884 mAP was obtained with YOLOv8l and
+                                          YOLOV8x on the Yalova dataset.
+
+                                          Keywords: photogrammetry; deep learning; olive tree; YOLO; transformer; object detection;
+                                          UAV; segmentation
+
+
+
+
+                                          1. Introduction
+Academic Editors: Enrico Corrado
+Borgogno Mondino and                            The olive tree is one of the oldest species in the Mediterranean region [1]. This tree
+Caterina Balletti                         species has spread throughout the region throughout history, shaping the Mediterranean
+Received: 23 December 2025                landscape [2]. Its resistance to extreme climatic conditions and its ability to adapt to poor
+Revised: 16 February 2026                 soils make the olive tree stand out for its social, ecological, and economic benefits. The
+Accepted: 24 February 2026                sustainability and conservation of olive trees are important across various areas, including
+Published: 27 February 2026               industry, forest fire prevention, and tourism. Olives are of high agricultural importance as
+Copyright: © 2026 by the authors.         a significant part of the economy in countries such as Türkiye, Spain, Italy, and Greece [3].
+Licensee MDPI, Basel, Switzerland.
+                                                Food production has become strategically important due to global warming, rapid
+This article is an open access article
+distributed under the terms and
+                                          population growth, and the depletion of natural resources. This has created an urgent need
+conditions of the Creative Commons        to ensure food security and develop efficient, sustainable practices [4]. The sector plays a
+Attribution (CC BY) license.              vital role not only in food production but also in driving economic development, protecting
+
+
+Geomatics 2026, 6, 22                                                                                         https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                              2 of 31
+
+
+
+                        ecosystems, and fostering social stability. Therefore, increasing productivity, optimizing
+                        resource use, and addressing the challenges of climate change require integrating innovative
+                        technologies and forward-thinking strategies. Many countries are adopting smart farming
+                        and precision agriculture approaches to increase productivity, reduce costs, and achieve the
+                        United Nations’ Sustainable Development Goals set for 2030 [5]. Beyond their contribution
+                        to productivity, trees play a vital role in maintaining ecological balance, supporting the
+                        water cycle, improving air quality, and enhancing biodiversity.
+                              In orchard management, determining the status of trees, tracking them, and estimating
+                        their density requires constant monitoring. Proper monitoring of trees and the timely
+                        acquisition of structural information about them are crucial for the scientific management
+                        and conservation of resources. The accurate identification and segmentation of trees using
+                        appropriate spatial data and analyses directly affect the reliability of measurements of
+                        tree structural parameters, such as crown area calculation [6]. Recent advancements in
+                        image processing and the increasing availability of very-high-resolution (VHR) imagery
+                        have enabled the development of automated detection and counting systems to fulfill the
+                        objectives outlined previously [7]. The high spatial resolution of unmanned aerial vehicle
+                        (UAV) imagery, combined with sophisticated computer vision algorithms, has enabled
+                        significant advancements across fields such as forestry, agriculture, geology, surveillance,
+                        traffic monitoring, and cultural heritage documentation [8–11]. Applications of UAV-based
+                        photogrammetry offer higher resolution, appropriate payload, and greater flexibility in
+                        selecting suitable spatial and temporal resolutions compared to satellite-based remote
+                        sensing methods [12]. The use of UAV-based orthomosaics and high-resolution digital
+                        elevation models provides accurate mapping of geomorphological features [13]. Despite
+                        these advantages, detecting and segmenting olive trees from UAV imagery remains techni-
+                        cally challenging due to overlapping tree crowns, scale differences, and visual ambiguities
+                        caused by shadows.
+                              Manually counting and identifying trees in large forested or agricultural areas is
+                        time-consuming. With recent advances in image processing, it is possible to automate this
+                        time-consuming process and identify trees much more quickly. The automatic detection of
+                        trees from high-resolution RGB images presents substantial economic, ecological, and social
+                        benefits. However, identifying and evaluating olive trees remains a complex challenge
+                        for researchers. Basic image preprocessing techniques, such as image segmentation [14]
+                        and template matching [15], have been developed to improve the accuracy of remote
+                        sensing. Furthermore, advanced artificial intelligence (AI)-supported methods [14] and
+                        classification-based systems [16] are recommended for achieving reliable detection out-
+                        comes. Considering recent advances in object detection methods, single-stage methods, in
+                        particular, stand out in terms of both detection success and utility in real-time applications.
+                        You Only Look Once (YOLO) is a popular and constantly updated single-stage object detec-
+                        tion algorithm. It is also widely used in tree detection studies. The YOLO framework has
+                        demonstrated an outstanding performance in crown detection [17] and segmentation [18].
+                        YOLO architectures were chosen due to their single-stage design, multi-scale feature repre-
+                        sentation, and real-time inference capability for detecting trees in dense orchards. YOLO
+                        models may struggle to handle these challenges, potentially reducing success rates in tree
+                        crown detection and segmentation tasks. On the other hand, an important development in
+                        recent times is the transformer revolution. Transformer-based object detection algorithms
+                        significantly outperform traditional convolutional neural networks (CNNs), especially for
+                        detecting objects that are structurally irregular, have unclear boundaries, and exhibit high
+                        natural variation, such as trees. Transformer-based object detection approaches, thanks to
+                        their global attention mechanisms that encompass the entire scene, can model long-range
+                        spatial relationships and provide stronger contextual representations in complex scenes
+
+
+
+                                                                                 https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                             3 of 31
+
+
+
+                        with dense object clusters [19]. This feature provides a significant advantage, especially in
+                        distinguishing closely located olive trees. Modern transformer-based models, such as Real-
+                        Time Detection Transformer (RT-DETR), can successfully separate overlapping or poorly
+                        contoured tree crown regions using object queries and multi-scale attention mechanisms.
+                             This study investigates current deep learning methods for solving challenging tasks
+                        such as detecting and segmenting olive trees from UAV-based RGB imagery. This study
+                        includes an empirical analysis of the dataset-dependent behavior of CNNs and transformer-
+                        based detectors in UAV orchard imagery. Also, the study findings extend existing knowl-
+                        edge on deep learning-based object detection in agricultural remote sensing and provide
+                        theoretical and practical guidance for future system design. The olive tree detection perfor-
+                        mance of both current YOLO methods and the transformer-based algorithms RT-DETR and
+                        RF-DETR was investigated using UAV images. Additionally, as an original contribution of
+                        the study, a new dataset of UAV images was created to address the limited olive tree dataset
+                        problem in the literature. For the analyses, in addition to the Yalova dataset produced for
+                        this study, the existing open-source Olive Tree Detection (OTD) dataset in the literature
+                        was also used. Deep learning methods require large training datasets to produce successful
+                        results. However, labeling is often a time-consuming task because it is mostly manual. Data
+                        augmentation approaches have been developed to overcome this problem. In this study,
+                        we investigate the impact of data augmentation on the performance of object detection
+                        algorithms using both the original and data-augmented versions of the dataset.
+
+                        2. Related Works
+                             Various methodologies for detecting trees are documented in the literature. Traditional
+                        methods tend to be labor-intensive, time-consuming, and costly, often leading to potential
+                        errors. Recent advancements in remote sensing platforms, including satellites, aircraft, and
+                        UAVs, have provided innovative alternatives to traditional methodologies [20,21]. Recently,
+                        detection techniques leveraging deep learning methodologies have gained significant
+                        attention and prominence. This research aims to develop an olive tree inventory using
+                        machine learning and computer vision to automatically detect trees in UAV imagery.
+                             Over the years, traditional methods have been thoroughly examined to effectively
+                        address the issue of tree detection. Initially, satellite imagery served as the primary medium
+                        for conducting analyses. In 1990, Karantzalos and Argialas introduced a method based
+                        on blob detection to accurately identify olive trees in satellite images from QuickBird and
+                        IKONOS [22]. Subsequently, Gonzales et al. [15] developed a probabilistic model to count
+                        olive trees in images from the QuickBird satellite. This approach not only considered
+                        geometric features such as tree size, shape, and the angles between trees but also evaluated
+                        the likelihood of a tree being part of a grid. Moreno-Garcia et al. [23] utilized K-means
+                        clustering to segment and identify olive trees. Additionally, fuzzy logic approaches were
+                        employed using a k-nearest neighbor scheme. Peters et al. [16] introduced an object-
+                        based classification method for detecting olive trees in the French region. Khan et al. [24]
+                        introduced a computationally efficient method for detecting olive trees in Spanish soil.
+                        They employed fundamental image processing techniques, including non-sharp masking
+                        and threshold-based segmentation, to identify and quantify olive trees.
+                             Recent years have seen notable progress in the exploration of machine learning and
+                        deep learning techniques for tree detection. Li et al. [25] employed a sliding window
+                        technique to detect palm trees, integrating it with a pre-trained AlexNet classifier to scan
+                        the input image for regions containing trees. Similarly, Jintasuttisak et al. [26] used deep
+                        learning-based object detection algorithms, such as YOLO, to identify date palm trees.
+                        Waleed et al. [3] introduced an automated method based on multi-step classification to
+                        detect and count olive trees. Their model takes an RGB image sourced from SIGPAC Viewer
+
+
+
+                                                                                https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                               4 of 31
+
+
+
+                        as input and performs segmentation using an enhanced K-means clustering algorithm.
+                        In Putra et al.’s research [27], methods for the automatic detection and counting of palm
+                        trees are investigated using a deep learning framework that utilizes very-high-resolution
+                        images obtained from satellites and UAVs, and the performance of the deep learning
+                        model across these data sources is evaluated. Chen et al. [28] aim to develop a lightweight
+                        YOLO-v4-based model for the automatic detection and counting of bayberry trees in
+                        large, mountainous orchard areas using UAV imagery. The aim of the Li et al. study [29]
+                        is to develop an optimized, lightweight YOLOv7-based model to improve the speed,
+                        accuracy, and counting capacity of bayberry detection for practical use. Additionally,
+                        Abozeid et al. [30] developed a deep learning approach to detect and count olive trees
+                        in VHR satellite images. Their proposed deep learning architecture resembles a U-Net,
+                        incorporating an encoder, decoder, and skip connections. Ye et al. [31] introduced a
+                        method for extracting olive tree crown (OTC) information using UAV RGB images and
+                        the U2 -Net deep learning model, which outperformed HRNet, U-Net, and DeepLabv3+
+                        in segmentation, achieving a root mean square error (RMSE) of 4.78. This approach
+                        demonstrates a high accuracy for monitoring and managing orchard trees. Ksibi et al. [32]
+                        present MobiRes-Net, a novel hybrid deep learning model that combines ResNet50 and
+                        MobileNet via deep feature concatenation for the early detection of three types of olive leaf
+                        diseases using UAV-captured imagery. Their contributions include creating a dedicated
+                        olive leaf dataset, integrating drone-based image acquisition with deep learning for efficient
+                        disease diagnosis, and a comparative evaluation showing that MobiResNet outperforms
+                        ResNet50 and MobileNet individually, achieving a classification accuracy of 97.08%. In
+                        the study by Şandric et al. [33], UAVs and deep learning techniques were employed to
+                        assess and evaluate the health of fruit trees. The Mask R-CNN model was used to measure
+                        tree height and crown width, while health assessments were based on indices derived
+                        from UAV camera footage. The results, tested across five tree species, indicated a strong
+                        performance for four species, with satisfactory results for olive trees. Mamalis et al. [34]
+                        employed the YOLOv5 model to detect Verticillium fungus in olive trees using aerial RGB
+                        images from UAVs. The study compared various architectures and found that YOLOv5
+                        effectively detects olive trees and assesses their condition. Hnida et al. [35] propose a deep
+                        learning-based approach for detecting olive tree crowns in UAV imagery, utilizing a novel
+                        architecture that integrates the Cross Stage Partial Network (CSPNet), Feature Pyramid
+                        Network (FPN), Path Aggregation Network (PAN), and DropBlock regularization. The
+                        model effectively addresses challenges such as small object size, complex backgrounds,
+                        object rotation, and scale variation, achieving a high detection performance with a precision
+                        of 92.47%, recall of 91.40%, F1-score of 91.93%, mAP50-95 of 94.00%, and mAP50-95
+                        of 87.00%.
+                               After a thorough examination of relevant studies, it is clear that the two-stage detector
+                        approach has been used across a range of object detection applications. Zhao et al. [36]
+                        investigated the application of deep learning-based image segmentation to high-resolution
+                        UAV imagery for categorizing pomegranate tree canopies throughout the growing season.
+                        They trained and evaluated both U-Net and Mask R-CNN models, comparing their seg-
+                        mentation performance for potential use in precision agriculture applications. Safonova
+                        et al. [37] explored the use of deep convolutional neural networks to estimate the biovolume
+                        of olive trees from ultra-high-resolution UAV imagery by segmenting tree crowns and
+                        shadows, approximating crown areas, and inferring tree heights from shadow lengths.
+                        Abdallah et al. [38] proposed a method to segment high-resolution images of olive orchards
+                        to identify olive trees, their shadows, and the soil background using the Detectron2 frame-
+                        work, trained on a synthetic database generated by DART that includes variations in tree
+                        size, shape, and soil brightness. Alshammari and Shahin [39] aimed to demonstrate how
+
+
+
+                                                                                  https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                             5 of 31
+
+
+
+                        deep CNNs can be used to assess the biovolume of olive trees from ultra-high-resolution
+                        images by identifying tree crowns and shadows, and then estimating crown area and tree
+                        height from shadow length. However, research on two-stage methods, such as Fast R-CNN
+                        for tree detection, is quite limited. Many studies in this area have focused on fine-tuning
+                        state-of-the-art object detectors for tree detection by adapting pre-trained models from
+                        established datasets to this task. Approaches that use deep learning for automatic tree
+                        detection are a relatively new and emerging field of research. Additionally, investigations
+                        have been conducted to assess the geometric properties of olive trees using low-cost sen-
+                        sors and aerial platforms. The findings were validated against ground measurements,
+                        demonstrating reliable results comparable to those achieved through more expensive and
+                        labor-intensive methods. Light Detection and Ranging (LiDAR) technology has also been
+                        employed to map olive trees and extract canopy characteristics [40]. Overall, a review of the
+                        literature reveals that the use of YOLO and transformer models for olive tree identification
+                        is limited.
+
+                        3. Materials and Methods
+                        3.1. Datasets
+                        3.1.1. Olive Tree Detection (OTD) Dataset
+                             The Olive Tree Detection (OTD) dataset consists of publicly available aerial images
+                        of olive trees [41]. Aerial images captured by a DJI Mavic 3M drone (DJI Technology
+                        Co., Ltd., Shenzhen, China) were obtained in olive groves in Italy. Data augmentation
+                        was applied to the dataset using various geometric transformations. Both augmented
+                        and original datasets were used in the study. The original dataset includes 1338 training,
+                        385 validation, and 202 test images. Operations such as rotation at various angles, center-
+                        cropping, and resizing were applied to create the augmented version of the dataset. These
+                        operations include horizontal and vertical flipping, which help the model learn invariance
+                        to mirrored object appearances, as well as affine rotations at fixed angles (±90◦ and 180◦ )
+                        to account for variations in image orientation. Moderate random rotations within the
+                        ranges of 15–20◦ and −20–−15◦ are implemented. The augmented dataset consists of
+                        9513 training, 385 validation, and 202 test images. To use this dataset, created for object
+                        detection, in segmentation, the Segment Anything Model (SAM) was applied, and the
+                        boundaries of the trees within the building boxes were defined. Tree boundaries were
+                        checked via Roboflow platform, and irregularities were manually corrected. Deficiencies or
+                        distortions, particularly those appearing at the crown boundaries, have been edited out.
+                        The sample aerial images from the OTD dataset are presented in Figure 1.
+
+
+
+
+                        Figure 1. Sample images from the OTD dataset.
+
+                        3.1.2. Yalova Dataset
+                            As part of this study, the dataset was obtained from a flight over a nine-acre olive
+                        grove located in the village of Akköy, Termal District of Yalova Province, in the Marmara
+
+
+
+
+                                                                                https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                 6 of 31
+
+
+
+                        Region of Türkiye (Figure 2). The aerial images were captured via a DJI Mavic 3M UAV.
+                        These aerial images were then photogrammetrically evaluated to produce an orthophoto.
+
+
+
+
+                        Figure 2. Data collection areas (Yalova, Türkiye). Olive groves are marked with red rectangles.
+
+                             The resulting high-spatial-resolution orthophoto was divided into 640 × 640 pixel images
+                        and labeled. The amount of data was also increased by applying data augmentation meth-
+                        ods such as flipping, shearing, saturation, and Gaussian noise. The applied augmentation
+                        techniques are horizontal/vertical flips, ±10◦ horizontal and ±10◦ vertical shears, satu-
+                        ration between −30% and +30%, and noise up to 0.7% of the pixels. The amount of data
+                        was increased by applying data augmentation methods, such as rotation, Gaussian noise,
+                        and reflection, to the dataset. The original dataset contains 250 training, 36 validation, and
+                        69 test images. The augmented dataset has 750 training, 36 validation, and 69 test images.
+                        The sample labeled aerial images of the Yalova dataset are shown in Figure 3.
+
+
+
+
+                        Figure 3. Sample images from the Yalova dataset.
+
+                             The DJI Mavic 3M’s lens features a FOV of 84◦ , an equivalent focal length of 24 mm,
+                        an aperture range of f/2.8 to f/11, and a focus range of 1 m to ∞. The UAV collected images
+                        at an altitude of 50 m above the take-off point. Flight parameters were determined to be
+                        80% overlap and 70% sidelap. The ground sampling distance (GSD) was approximately
+
+
+
+                                                                                    https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                            7 of 31
+
+
+
+                                2 cm/pixel. The images were acquired from nadir angles. The dataset statistics are presented
+                                in Table 1.
+
+                                Table 1. Explanations and statistics for the datasets used in this study.
+
+             Parameters                          OTD Dataset                                       Yalova Dataset
+         Data source                            Public dataset                              Generated for this study
+        UAV platform                            DJI Mavic 3M                                     DJI Mavic 3M
+         Image type                          Aerial RGB images                                  Orthophoto tiles
+      Spatial resolution                         ~2 cm/pixel                                      ~3 cm/pixel
+         Image size                            960 × 640 pixels                                 640 × 640 pixels
+   Annotation type (original)             Bounding box + segment                                     Segment
+                                        Flip, ±90◦ and 180◦ rotation,             Flip, ±10◦ shear, saturation (−30% to +30%),
+   Augmentation techniques
+                                        ±15–20◦ rotation, crop, resize            Gaussian noise (≤0.7%), rotation, reflection
+   Training images (original)                        1338                                              250
+        Training images
+                                                      9513                                                  750
+          (augmented)
+       Validation images                               385                                                  36
+           Test images                                 202                                                  69
+
+
+                                3.2. You Only Look Once (YOLO)
+                                     YOLO is an open-source object detection algorithm that uses convolutional neural
+                                networks [42]. Known for its speed, it operates with a single-stage detection architecture
+                                and was introduced by Redmon et al. [43]. The YOLO framework treats object detection as
+                                a regression task, estimating the probability of objects within designated regions, known
+                                as bounding boxes. By eliminating the necessity for a secondary classification stage, it
+                                achieves a high level of accuracy more efficiently. YOLO evaluates the model on the image
+                                at various positions and sizes. Areas of the image with high scores are identified as objects.
+                                YOLO exhibits several parallels with R-CNN. Each grid cell identifies potential bounding
+                                boxes and assesses these boxes by leveraging convolutional features.
+                                     Early YOLO algorithms had a low accuracy and poor precision for small objects.
+                                However, later versions of YOLO achieved a higher accuracy in detecting small and
+                                complex objects [44]. Continuous improvements have enhanced both detection accuracy
+                                and speed, making the YOLO series effective for real-time applications with high precision,
+                                especially for small targets [45]. The YOLO series of algorithms is recognized for its strong
+                                performance and is widely adopted across various applications.
+                                     YOLO models utilize non-maximum suppression (NMS) during the post-processing
+                                phase, which contributes to the delay in inference [46]. In this study, the current YOLO
+                                versions, YOLOv8, YOLOv10, YOLOv11, and YOLOv12 variants, were used.
+                                     YOLOv8, developed by Ultralytics and launched on 10 January 2023, provides ef-
+                                fective object detection and image classification [47]. Ultralytics has advanced YOLOv8,
+                                improving its capabilities and user experience over YOLOv5. Key features include a modi-
+                                fied backbone network, an anchor-free detection head, and a new loss function, along with
+                                built-in support for image classification tasks. The YOLOv10 algorithm enhances model
+                                architecture and performance with dual assignments for NMS-free training, improving
+                                results and reducing inference latency. YOLOv11 improves YOLOv8 by introducing new
+                                architectural features and optimizing parameters for improved detection performance. It
+                                keeps the Spatial Pyramid Pooling—Fast (SPPF) block and adds a new Cross Stage Partial
+                                with Spatial Attention (C2PSA) block right after it. The YOLOv12 framework is an innova-
+                                tive attention-centric model that achieves processing speeds comparable to those of earlier
+                                CNN-based systems while effectively leveraging the benefits of attention mechanisms [48].
+                                YOLOv8 features five versions, YOLOv8n (nano), YOLOv8s (small), YOLOv8m (medium),
+
+
+
+                                                                                               https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                             8 of 31
+
+
+
+                        YOLOv8l (large), and YOLOv8x (extra-large), and supports tasks like object detection,
+                        segmentation, and classification [49]. YOLOv10 has six variants, n, s, m, b (balanced), l,
+                        and x, while YOLOv11 and YOLOv12 each have five variants: n, s, m, l, and x [50].
+
+                        3.3. Real-Time DEtection TRansformer (RT-DETR)
+                              RT-DETR represents the initial real-time, end-to-end object detection model based on
+                        transformers [51]. It is a comprehensive model designed for target detection. To address the
+                        real-time challenges of the DETR model, the RT-DETR variant has been introduced, demon-
+                        strating enhanced detection accuracy and speed compared to the latest YOLO models [52].
+                        RT-DETR consists of a lightweight CNN backbone, an efficient hybrid encoder for feature
+                        fusion, and a transformer decoder with supplementary prediction heads, while employing
+                        an uncertainty-minimal query selection strategy to prioritize reliable object queries [53].
+                        These queries are refined through successive decoder layers, with final predictions gener-
+                        ated by MLP heads. Training optimization is guided by Hungarian matching to enforce
+                        one-to-one assignment. The goal is to bypass the non-maximum suppression (NMS) step in
+                        the traditional target detection workflow. The model’s mechanism is refined by RT-DETR,
+                        which improves both detection speed and efficiency [54].
+                              RT-DETR surpasses the YOLO model in detection accuracy and reduces computational
+                        complexity. Its strong performance on benchmark datasets has sparked interest in real-
+                        world applications [55]. However, it struggles to detect small objects, handle occlusions,
+                        and deal with motion blur. Improvements to multi-level feature fusion and processing are
+                        needed to achieve better performances in complex scenarios.
+
+                        3.4. Roboflow-DEtection Transformer (RF-DETR)
+                             RF-DETR is an advanced method based on neural architecture search (NAS) that
+                        focuses on fine-tuning specialized end-to-end object detectors for specific datasets and
+                        hardware configurations [56]. RF-DETR offers a substantial enhancement over previous
+                        leading real-time techniques on the COCO and Roboflow100-VL datasets.
+                             RF-DETR employs a pre-trained Vision Transformer (ViT) backbone to derive mul-
+                        tiscale features from the input image. Windowed and non-windowed attention blocks
+                        are interleaved to balance accuracy and latency. Both the deformable cross-attention layer
+                        and the segmentation head bilinearly interpolate the projector’s output to maintain con-
+                        sistent feature organization. It works in real-time applications such as surveillance and
+                        autonomous driving. RF-DETR uses deformable attention and a DINOv2 backbone to
+                        achieve efficient spatial focus and visual understanding [57]. It offers faster convergence
+                        and higher accuracy than DETR, Faster R-CNN, and YOLO, while removing the need
+                        for non-maximum suppression (NMS). The architecture is designed for high-speed edge
+                        deployment and adaptability across domains and is available in two configurations: RF-
+                        DETR-Base (29 million parameters) and RF-DETR-Large (128 million parameters) [58].
+                        However, it faces challenges with its large size, small object detection, and domain-specific
+                        fine-tuning in low-data scenarios.
+
+                        3.5. Experimental Details
+                             This study comparatively analyzed current versions of YOLO and two transformer-
+                        based object detection algorithms for the automatic detection and segmentation of olive
+                        trees from UAV imagery. A new Yalova dataset of UAV imagery is also presented. The
+                        selected YOLO versions are YOLOv8 (with five variants), YOLOv10 (with six variants),
+                        YOLOv11 (with five variants), and YOLOv12 (with five variants). The transformer-based
+                        object detection algorithms are Real-Time Detection Transformer (RT-DETR) and Roboflow-
+                        DEtection Transformer (RF-DETR). Deep learning algorithms have high data collection and
+                        labeling costs. Accurate detection requires a large amount of training data. To overcome this
+
+
+                                                                                https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                             9 of 31
+
+
+
+                        problem, data augmentation methods such as rotation, scaling, brightness variation, and
+                        noise addition generate different variations in the training data. In this study, the Yalova
+                        dataset, which includes UAV imagery, was created along with the open-source Olive Tree
+                        Detection (OTD) dataset. Data-augmented and no-augmented versions of both datasets
+                        were used. This enabled us to investigate the impact of data augmentation on various
+                        detection algorithms in olive tree detection. For training parameters, the epoch number
+                        was selected as 100, and the learning rate was 0.001 for all algorithms. The Adam optimizer
+                        was chosen to adjust training parameters. It usually reaches optimum levels quickly, which
+                        is why it is preferred for problems such as object detection. Batch sizes were differentiated
+                        based on hardware specifications. For this, 16 batch sizes were chosen for nano, small, and
+                        medium models, while 8 batch sizes were preferred for large and xlarge models. For the
+                        transformer models, the batch size was set at 4. When testing was applied, the batch size
+                        was set to 4 for all models. For the experiments, an i9-13900K, 3.20 GHz processor (Intel,
+                        Santa Clara, CA, USA), GTX 4080 graphics card (Palit Microsystems Ltd, Taipei, Taiwan),
+                        and 64 GB RAM (Kingston Technology Corporation, Fountain Valley, CA, USA) hardware
+                        were used. All experiments were done using Jupyter Notebook (version 7.2.2) using the
+                        Python (version 3.9) programming language. The Ultralytics library was used for YOLO
+                        and transformer-based detection models. Figure 4 provides an overview of the workflow
+                        followed throughout the study.
+
+
+
+
+                        Figure 4. The workflow of the study.
+
+
+
+
+                                                                                https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                10 of 31
+
+
+
+                             Precision, recall, mean average precision (mAP), and mAP50-95 metrics were used to
+                        evaluate the study results. Precision indicates how many of the model’s positive predictions
+                        are actually correct. Recall indicates how many of the actual labels are predicted by the
+                        model. mAP is the average of the AP values calculated for all classes. mAP50 is the mAP
+                        value calculated when the IoU threshold is 0.50. mAP50-95 is known as the COCO criterion.
+                        AP is calculated for every 0.05 increment between the IoU thresholds.
+
+                                                                           TP
+                                                          Precision =                                                    (1)
+                                                                         TP + FP
+
+                                                                         TP
+                                                            Recall =                                                     (2)
+                                                                       TP + FN
+                                                                       Precision × Recall
+                                                    F1 − score = 2 ×                                                     (3)
+                                                                       Precision + Recall
+                                                            1 N
+                                                                               Z 1
+
+                                                            N i∑
+                                                   mAP =          APi ; AP =         P( R)dR                             (4)
+                                                               =1               0
+
+                                                                     1 9
+                                                                    10 t∑
+                                                    mAP50 − 95 =           AP(0.50+0.05t)                                (5)
+                                                                        =0
+
+                             A true positive (TP) refers to the quantity of instances that share identical labels in
+                        both the predicted results and the ground truth. A false positive (FP) denotes the quantity
+                        of instances projected as positive when their true category is negative. A false negative
+                        (FN) denotes the quantity of instances predicted as negative when their true category
+                        is positive [59].
+
+                        4. Results
+                        4.1. Olive Tree Detection in OTD Dataset
+                              This study compared the performance of 23 state-of-the-art object detectors, including
+                        YOLOv8, YOLOv10, YOLOv11, YOLOv12, and Detection Transformer models. It is essen-
+                        tial to analyze the speed and efficiency of the latest iterations of constantly evolving YOLO
+                        models for tree identification. Table 2 shows the performance of 21 pre-trained YOLO
+                        models and two DETR models across different metrics for olive trees on the OTD dataset.
+                        YOLOv12x produced a precision of 0.967, RT-DETR had a recall of 0.915 and mAP of 0.976,
+                        and YOLOv12l achieved a mAP50-95 of 0.836. Although YOLOv10n is a nano model,
+                        it stands out with its high accuracy. In RT-DETR, although mAP is high, the mAP50-95
+                        value drops to 0.771 (Figure 5). This model roughly captures the object, but cannot draw
+                        the boundaries that well. While RF-DETR similarly has a value of 0.963 mAP, it shows a
+                        dramatic decrease in mAP50-95. Additionally, RT-DETR and RF-DETR detected olive trees
+                        with visible parts at the image edges more successfully than YOLO. YOLOv12x reduces
+                        false positives the most. YOLOv12 models are generally more balanced in terms of both
+                        accuracy and precision. The model predictions are presented in Figure 6.
+                              Model inference performance and dimensions were evaluated using frames per sec-
+                        ond (FPS), floating-point operations (FLOPs), and the number of learnable parameters.
+                        YOLOv10n demonstrated by far the highest operating speed, reaching 769.23 FPS with
+                        6.5 GFLOPs and only 2.27 million parameters. Similarly, YOLOv11n and YOLOv12n
+                        stand out as strong candidates for real-time applications, providing high accuracy
+                        at low computational cost with speeds of 588.23 FPS and 307.37 FPS, respectively.
+                        YOLOv8x (71.7 M parameters, 327.9 GFLOPs) only produces 60.98 FPS, while YOLOv12x
+                        (59.0 M parameters, 198.5 GFLOPs) has 97.09 FPS. When transformer-based models were
+                        examined, RT-DETR (103.4 GFLOPs, 32.0 M parameters) produced 106.39 FPS, which is in
+
+
+
+                                                                                    https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                         11 of 31
+
+
+
+                                 the YOLOv8l–m range. RF-DETR, despite having a similar number of parameters (31.9 M),
+                                 had a lower computational cost (76.3 GFLOPs) and was more limited in terms of speed,
+                                 with 66.21 FPS.
+
+                                 Table 2. Object detection metrics for the OTD dataset with data augmentation. The highest values are
+                                 marked in bold.
+
+     Model               FPS        GFLOPs         Parameters        Precision         Recall            mAP          mAP50-95
+  YOLOv8n               120.48        11.3           3,258,259         0.946            0.870            0.939           0.870
+  YOLOv8s               135.13        39.9          11,779,987         0.939            0.879            0.941           0.873
+  YOLOv8m               120.48        104.3         27,222,963         0.947            0.859            0.934           0.877
+  YOLOv8l                90.91        210.1         45,912,659         0.957            0.862            0.940           0.880
+  YOLOv8x                60.98        327.9         71,721,619         0.935            0.860            0.939           0.879
+ YOLOv10n               769.23          6.5          2,265,363         0.958            0.888            0.963           0.819
+ YOLOv10s               500.00         21.4          7,218,387         0.956            0.889            0.956           0.828
+ YOLOv10m               277.78         58.9         15,313,747         0.964            0.876            0.949            0.83
+ YOLOv10b               243.90         91.6         19,004,883         0.954            0.880            0.946           0.825
+ YOLOv10l               204.08        120.0         24,310,099         0.953            0.886            0.949           0.829
+ YOLOv10x               147.06        160.0         29,397,491         0.959            0.882            0.948           0.827
+ YOLOv11n               588.23          6.3          2,582,347         0.943            0.900            0.964           0.812
+ YOLOv11s               370.37         21.3          9,413,187         0.948            0.895            0.954           0.828
+ YOLOv11m               243.90         67.6         20,030,803         0.957            0.883            0.944           0.822
+ YOLOv11l               222.22         86.6         25,280,083         0.961             0.89            0.947            0.83
+ YOLOv11x               217.39        194.4         56,828,179         0.958            0.884            0.945           0.825
+ YOLOv12n               307.37          6.3          2,556,923         0.952            0.896            0.966            0.82
+ YOLOv12s               294.12         21.2          9,231,267         0.963            0.892            0.958           0.834
+ YOLOv12m               204.08         67.1         20,105,683         0.959            0.896            0.954           0.835
+ YOLOv12l               163.93         88.5         26,339,843          0.95            0.899            0.957           0.836
+ YOLOv12x                97.09        198.5         59,044,499         0.967            0.886            0.953           0.834
+   RT-DETR              106.39        103.4         31,985,795         0.943            0.915            0.976           0.771
+   RF-DETR               66.21        76.3          31,854,308         0.945            0.739            0.963           0.788
+
+
+                                      All models generally achieved a very high accuracy (precision > 0.93) and recall
+                                 (recall > 0.93 except RF-DETR) values (Figure 7). Overall, all models have achieved a very
+                                 high accuracy, with mAP values concentrated in the 0.968–0.987 range. The YOLOv11
+                                 variants achieved the best results, yielding high-accuracy detections even without data
+                                 augmentation on the OTD dataset (Table 3). In the YOLOv10 models, especially YOLOv10m,
+                                 the best-balanced results were achieved with 0.984 mAP and 0.845 mAP50-95. The highest
+                                 performance was observed in the YOLOv11 series; while the YOLOv11n model stood out
+                                 with 0.960 precision and 0.987 mAP, the YOLOv11s model achieved the highest values
+                                 with 0.965 recall and 0.847 mAP50-95. In the YOLOv12 series, although recall values are
+                                 quite high, a slight decrease in mAP50-95 is observed, indicating that the model is strong at
+                                 detecting objects but slightly weaker at boundary detection. Although transformer-based
+                                 RT-DETR and RF-DETR models achieved competitive results with mAP = 0.977, their
+                                 mAP50-95 values of 0.811 and 0.806, respectively, indicate that they may be limited in
+                                 scenarios requiring high-precision positioning (Figure 8).
+
+
+
+
+                                                                                             https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                               12 of 31
+
+
+
+
+                        Figure 5. Benchmark charts of mAP and mAP50-95 for OTD with data augmentation.
+
+
+
+
+                        Figure 6. Illustration of model predictions for the OTD dataset with data augmentation.
+
+
+
+
+                                                                                   https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                         13 of 31
+
+
+
+
+                                 Figure 7. Benchmark charts of mAP and mAP50-95 for OTD without data augmentation.
+
+                                 Table 3. Object detection metrics for the OTD dataset without data augmentation. The highest values
+                                 are marked in bold.
+
+     Model               FPS        GFLOPs         Parameters       Precision          Recall           mAP           mAP50-95
+  YOLOv8n               666.66        12.0           3,258,269         0.949           0.920            0.968            0.898
+  YOLOv8s               286.71        42.4          11,779,987         0.951           0.919            0.968            0.899
+  YOLOv8m               163.93        110.0         27,222,963         0.951           0.929            0.968            0.896
+  YOLOv8l               111.11        220.1         45,912,659         0.954           0.923            0.969            0.902
+  YOLOv8x                62.5         343.7         71,721,619         0.944           0.921            0.968            0.906
+ YOLOv10n               769.23          6.5          2,265,363         0.959           0.936            0.983            0.841
+ YOLOv10s               500.00         21.4          7,218,387         0.952           0.940            0.981            0.842
+ YOLOv10m               277.78         58.9         15,313,747         0.944           0.953            0.984            0.845
+ YOLOv10b               243.90         91.6         19,004,883         0.955           0.937            0.983            0.842
+ YOLOv10l               204.08        120.0         24,310,099         0.951           0.940            0.983            0.840
+ YOLOv10x               147.06        160.0         29,397,491         0.951           0.940            0.983            0.840
+ YOLOv11n               588.23         6.3           2,582,347         0.960           0.953            0.987            0.841
+ YOLOv11s               370.37        21.3           9,413,187         0.951           0.965            0.987            0.847
+ YOLOv11m               243.90        67.6          20,030,803         0.955           0.950            0.984            0.846
+ YOLOv11l               222.22        86.6          25,280,083         0.957           0.942            0.982            0.841
+ YOLOv11x               217.39        194.4         56,828,179         0.933           0.955            0.980            0.828
+ YOLOv12n               307.37         6.3           2,556,923         0.939           0.965            0.986            0.840
+ YOLOv12s               294.12        21.2           9,231,267         0.949           0.961            0.987            0.845
+ YOLOv12m               204.08         67.1         20,105,683         0.938           0.962            0.984            0.839
+ YOLOv12l               163.93         88.5         26,339,843         0.952           0.949            0.983            0.840
+ YOLOv12x                97.09        198.5         59,044,499         0.938           0.954            0.982            0.825
+   RT-DETR              106.39        103.4         31,985,795         0.939           0.945            0.977            0.811
+   RF-DETR               66.21        76.3          31,854,308         0.913           0.724            0.977            0.806
+
+
+                                      In terms of computational efficiency, the YOLOv10n (6.5 GFLOPs, 2.27 M parameters)
+                                 and YOLOv11n (6.3 GFLOPs, 2.58 M parameters) models stand out as the fastest solutions
+                                 by far, with values of 769.23 FPS and 588.23 FPS, respectively. It has been observed that
+                                 FPS values decrease significantly as the number of parameters and GFLOPs increase.
+                                 YOLOv8x (71.7 M parameters, 343.7 GFLOPs) produces only 62.5 FPS, while YOLOv12x
+                                 (59.0 M parameters, 198.5 GFLOPs) remains at 97.09 FPS. Transformer-based RT-DETR
+                                 (103.4 GFLOPs, 106.39 FPS) and RF-DETR (76.3 GFLOPs, 66.21 FPS) models have lower
+                                 speeds compared to YOLO-based approaches. The prediction results for the models on
+                                 OTD without data augmentation are presented in Figure 8.
+
+
+
+
+                                                                                             https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                14 of 31
+
+
+
+
+                        Figure 8. Illustration of model predictions for the OTD dataset without data augmentation.
+
+                        4.2. Segmentation Results in OTD Dataset
+                             In this study, a segmentation task was added alongside the detection task. This task
+                        is beneficial for calculating tree canopy areas. Since published weights for YOLOv8 and
+                        YOLOv11 exist for the segmentation task, these two methods were analyzed. There is
+                        no significant difference between the methods in the mAP metric in the OTD dataset.
+                        Furthermore, applying augmentation did not improve the accuracy of segmentation. With-
+                        out augmentation, YOLOv8n achieved 0.956 mAP, while with augmentation, YOLOv11l
+                        reached 0.924 mAP. In all methods, precision values are significantly higher than recall
+                        values. The segmentation results for the OTD dataset are presented in Table 4. The segmen-
+                        tation predictions for the OTD dataset are illustrated in Figures 9 and 10.
+
+
+
+
+                                                                                   https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                       15 of 31
+
+
+
+                                  Table 4. Segmentation metrics for YOLOv8 and YOLOv11 in OTD dataset. The highest values are
+                                  marked in bold.
+
+                           OTD Dataset Without Augmentation                         OTD Dataset with Augmentation
+    Model          Precision      Recall        mAP         mAP50-95      Precision       Recall         mAP         mAP50-95
+ YOLOv8n                0.947      0.907        0.956         0.833         0.924         0.850          0.916          0.793
+ YOLOv8s                0.948      0.908        0.955         0.830         0.921         0.857          0.919          0.796
+ YOLOv8m                0.943      0.917        0.955         0.832         0.928         0.839          0.914          0.807
+ YOLOv8l                0.943      0.910        0.954         0.835         0.936         0.844          0.921          0.806
+ YOLOv8x                0.951      0.898        0.953         0.842         0.924         0.835          0.917          0.806
+ YOLOv11n               0.956      0.902        0.955         0.815         0.917         0.845          0.922          0.796
+ YOLOv11s               0.941      0.904        0.949         0.824         0.936         0.843          0.923          0.812
+ YOLOv11m               0.935      0.913        0.954         0.831         0.923         0.850          0.919          0.805
+ YOLOv11l               0.936      0.915        0.954         0.841         0.945         0.836          0.924          0.790
+ YOLOv11x               0.945      0.906        0.954         0.836         0.921         0.843          0.919          0.789
+
+
+
+
+                                  Figure 9. Illustration of segmentation results for the OTD dataset without data augmentation.
+                                  Incorrect estimations and missed parts are marked with red rectangles.
+
+                                        The YOLOv8 and YOLOv11 models perform tree detection as well as object boundary
+                                  identification through segmentation. In this study, the segmentation performance of
+                                  the algorithms was compared with the traditional object-based image analysis (OBIA)
+                                  approach. OBIA is used to produce image objects suitable for classifications in terms of
+                                  spatial properties and context [60]. Within the scope of OBIA, test images from both datasets
+                                  were segmented using the Simple Linear Iterative Clustering (SLIC) algorithm. The SLIC
+                                  superpixel algorithm is a crosstalk-based algorithm that uses the positional information of
+                                  a pixel located at the x,y position on an image, along with its value in the CIELab space [61].
+                                  The generated segments were labeled as olive tree and other for classification. Training and
+                                  test datasets were created and the Random Forest [62] algorithm was used for classification.
+                                  In the OTD dataset, the Random Forest parameters were defined as n_estimators = 800,
+                                  random_state = 64, and min_samples_split = 2. The SLIC parameters were applied as
+                                  n_segment = 600 and compactness = 12.
+
+
+
+
+                                                                                           https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                 16 of 31
+
+
+
+
+                        Figure 10. Illustration of segmentation results for the OTD dataset with data augmentation. Incorrect
+                        estimations and missed parts are marked with red rectangles.
+
+                             In the OTD test dataset, deep learning-based YOLO models demonstrated significantly
+                        superior performances compared to the traditional OBIA approach. According to Table A1,
+                        the OBIA approach (F1-score = 0.869) produced an F1-score approximately 6–7% lower
+                        compared to deep learning models. Both Precision (0.880) and Recall (0.859) values were
+                        significantly lower compared to YOLO models.
+
+                        4.3. Olive Tree Detection in Yalova Dataset
+                             The Yalova dataset contains fewer images than the OTD dataset. In the Yalova dataset,
+                        the mAP values of all models remained in the range of 0.758–0.878. According to Table 5,
+                        the highest precision values are achieved by YOLOv11n (0.864) and YOLOv8n (0.858).
+                        The highest overall detection performance was achieved by YOLOv8l with 0.878 mAP,
+                        YOLOv11m with 0.878 mAP, and YOLOv11x with 0.877 mAP. Notably, the YOLOv11
+                        family demonstrated a consistent performance with balanced precision–recall values across
+                        all variants. YOLOv11x achieved the best positioning accuracy in the Yalova dataset,
+                        reaching the highest mAP50-95 (0.680). Among the transformer-based models, RT-DETR
+                        lagged behind YOLOv11 and YOLOv8l/x with 0.775 mAP and 0.548 mAP50-95, while the
+                        RF-DETR model produced high mAP (0.875) and mAP50-95 (0.666) values (Figure 11).
+
+
+
+
+                        Figure 11. Benchmark charts of mAP and mAP50-95 for Yalova with data augmentation.
+
+
+
+
+                                                                                     https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                         17 of 31
+
+
+
+                                      When computing efficiency was examined, YOLOv10n offered the highest speeds with
+                                 a value of 357.14 FPS, and YOLOv11n offered the highest speeds with a value of 294.12 FPS.
+                                 As the model scale increased, sharp drops in FPS values were observed. YOLOv8x only
+                                 had 35.67 FPS, while YOLOv11x remained at 46.73 FPS. Figure 12 presents representative
+                                 model predictions for the Yalova dataset with data augmentation.
+
+                                 Table 5. Object detection metrics for the Yalova dataset with data augmentation. The highest values
+                                 are marked in bold.
+
+     Model               FPS        GFLOPs         Parameters       Precision          Recall           mAP           mAP50-95
+  YOLOv8n               312.50        12.0           3,258,269         0.858           0.780            0.844            0.630
+  YOLOv8s               192.31        42.4          11,779,987         0.835           0.789            0.856            0.622
+  YOLOv8m               103.09        110.0         27,222,963         0.857           0.739            0.849            0.616
+  YOLOv8l                56.82        220.1         45,912,659         0.818           0.828            0.878            0.676
+  YOLOv8x                35.67        343.7         71,721,619         0.838           0.836            0.862            0.623
+ YOLOv10n               357.14          6.5          2,265,363         0.758           0.761            0.779            0.548
+ YOLOv10s               294.12         21.4          7,218,387         0.853           0.727            0.800            0.564
+ YOLOv10m               185.19         58.9         15,313,747         0.822           0.703            0.758            0.541
+ YOLOv10b               120.48         91.6         19,004,883         0.786           0.718            0.772            0.549
+ YOLOv10l                95.24        120.0         24,310,099         0.828           0.705            0.771            0.556
+ YOLOv10x                68.97        160.0         29,397,491         0.792           0.711            0.763            0.535
+ YOLOv11n               294.12         6.3           2,582,347         0.864           0.762            0.858            0.640
+ YOLOv11s               200.00        21.3           9,413,187         0.838           0.804            0.861            0.652
+ YOLOv11m               100.00         67.6         20,030,803         0.855           0.798            0.878            0.660
+ YOLOv11l                89.29         86.6         25,280,083         0.847           0.797            0.869            0.677
+ YOLOv11x                46.73        194.4         56,828,179         0.849           0.824            0.877            0.680
+ YOLOv12n               250.00          6.3          2,556,923         0.821           0.736            0.801            0.575
+ YOLOv12s               208.33         21.2          9,231,267         0.801           0.717            0.771            0.571
+ YOLOv12m               137.00         67.1         20,105,683         0.816           0.754            0.801            0.589
+ YOLOv12l                94.34         88.5         26,339,843         0.774           0.728            0.799            0.583
+ YOLOv12x                51.81        198.5         59,044,499         0.769           0.749            0.770            0.569
+   RT-DETR              102.04        103.4         31,985,795         0.812           0.718            0.775            0.548
+   RF-DETR               74.13        76.3          31,854,308         0.783           0.793            0.875            0.666
+
+
+                                      Table 6 presents a comprehensive comparison of object detection performances on
+                                 the Yalova dataset using various YOLOv8, YOLOv10, YOLOv11, YOLOv12, RT-DETR,
+                                 and RF-DETR models without applying data augmentation techniques. Metrics cluster
+                                 around mAP ≈ 0.727–0.884 and mAP50-95 ≈ 0.501–0.686 (Figure 13). The relatively lower
+                                 mAP50-95 indicates that localization tightness is the main challenge without augmenta-
+                                 tion. Particularly, the highest mAP was obtained by the YOLOv8l and YOLOv8x methods.
+                                 The YOLOv10 series showed a more limited performance on the Yalova dataset without
+                                 data augmentation, with mAP values remaining between 0.727 and 0.806. The YOLOv12
+                                 series, with 0.770–0.801 mAP values, is more successful than the YOLOv10 but has a
+                                 lower performance than the YOLOv11. When transformer-based approaches were exam-
+                                 ined, the RT-DETR model exhibited a moderate performance with values of 0.775 mAP
+                                 and 0.561 mAP50-95, while the RF-DETR model achieved a competitive result with the
+                                 YOLOv11l and YOLOv8l/x models with values of 0.875 mAP and 0.667 mAP50-95. The
+                                 predictions are shown in Figure 14.
+
+
+
+
+                                                                                             https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                 18 of 31
+
+
+
+
+                        Figure 12. Illustration of model predictions for the Yalova dataset with data augmentation.
+
+
+
+
+                                                                                    https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                      19 of 31
+
+
+
+                                 Table 6. Object detection metrics for the Yalova dataset without data augmentation. The highest
+                                 values are marked in bold.
+
+     Model               FPS        GFLOPs        Parameters       Precision         Recall          mAP           mAP50-95
+  YOLOv8n               285.71        12.0          3,258,269        0.845           0.751           0.835            0.636
+  YOLOv8s               181.82        42.4         11,779,987        0.851           0.780           0.863            0.653
+  YOLOv8m               100.00        110.0        27,222,963        0.857           0.739           0.849            0.616
+  YOLOv8l                58.83        220.1        45,912,659        0.881           0.798           0.884            0.676
+  YOLOv8x                37.73        343.7        71,721,619        0.875           0.803           0.884            0.679
+ YOLOv10n               312.50         6.5          2,265,363        0.728           0.728           0.758            0.555
+ YOLOv10s               416.67         21.4         7,218,387        0.766           0.763           0.806            0.575
+ YOLOv10m               208.33         58.9        15,313,747        0.765           0.703           0.776            0.563
+ YOLOv10b               121.95         91.6        19,004,883        0.717           0.710           0.727            0.501
+ YOLOv10l                94.34        120.0        24,310,099        0.772           0.743           0.773            0.556
+ YOLOv10x                69.44        160.0        29,397,491        0.750           0.719           0.748            0.544
+ YOLOv11n               333.33          6.3         2,582,347        0.815           0.798           0.859            0.632
+ YOLOv11s               238.05         21.3         9,413,187        0.824           0.823           0.863            0.684
+ YOLOv11m               144.93         67.6        20,030,803        0.853           0.785           0.866            0.675
+ YOLOv11l               125.00         86.6        25,280,083        0.789           0.845           0.875            0.679
+ YOLOv11x                46.51        194.4        56,828,179        0.892           0.772           0.878            0.686
+ YOLOv12n               270.27          6.3         2,556,923        0.739           0.785           0.788            0.563
+ YOLOv12s               200.00         21.2         9,231,267        0.750           0.760           0.785            0.582
+ YOLOv12m               125.00         67.1        20,105,683        0.794           0.731           0.775            0.570
+ YOLOv12l                92.59         88.5        26,339,843        0.765           0.725           0.782            0.578
+ YOLOv12x                52.08        198.5        59,044,499        0.789           0.713           0.781            0.572
+   RT-DETR              104.67        103.4        31,985,795        0.772           0.725           0.775            0.561
+   RF-DETR               74.70        76.3         31,854,308        0.819           0.794           0.875            0.667
+
+
+
+
+                                 Figure 13. Benchmark charts of mAP and mAP50-95 for Yalova without data augmentation.
+
+                                      In terms of computational efficiency, the YOLOv10n and YOLOv11n models stand out.
+                                 The YOLOv10n produced 312.50 FPS with only 6.5 GFLOPs and 2.27 million parameters,
+                                 but its mAP and mAP50-95 values were relatively low at 0.758 and 0.555, respectively.
+
+
+
+
+                                                                                          https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                20 of 31
+
+
+
+
+                        Figure 14. Illustration of model predictions for the Yalova dataset without data augmentation.
+
+
+
+
+                                                                                    https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                        21 of 31
+
+
+
+                                  4.4. Segmentation Results in the Yalova Dataset
+                                        Table 7 compares the performance results obtained before and after data augmentation
+                                  for different model scales of the YOLOv8 and YOLOv11 architectures on the Yalova dataset.
+                                  The augmentation effect in the Yalova dataset differs from that in the OTD dataset. Data
+                                  augmentation in the Yalova dataset improved the predictive performance of some models.
+                                  It did not provide a consistent improvement in mAP and especially mAP50-95 metrics,
+                                  and in most cases led to a performance decrease. The precision metric increases after
+                                  augmentation, especially in nano, small, and medium models. It was determined that
+                                  the augmentation effect was relatively limited in YOLOv11 architectures, yielding only a
+                                  marginal performance increase in the YOLOv11m model. The segmentation results are
+                                  illustrated in Figures 15 and 16.
+
+                                  Table 7. Segmentation metrics for YOLOv8 and YOLOv11 in the Yalova dataset. The highest values
+                                  are marked in bold.
+
+                          Yalova Dataset Without Augmentation                       Yalova Dataset with Augmentation
+    Model          Precision      Recall         mAP        mAP50-95       Precision       Recall         mAP         mAP50-95
+ YOLOv8n                0.843      0.745         0.827         0.589         0.847          0.771         0.824          0.584
+ YOLOv8s                0.840      0.768         0.843         0.588         0.866          0.748         0.837          0.591
+ YOLOv8m                0.830      0.774         0.854         0.599         0.845          0.736         0.828          0.571
+ YOLOv8l                0.868      0.795         0.874         0.608         0.815          0.815         0.863          0.620
+ YOLOv8x                0.863      0.792         0.870         0.622         0.808          0.812         0.827          0.568
+ YOLOv11n               0.804      0.786         0.841         0.578         0.850          0.748         0.836          0.574
+ YOLOv11s               0.827      0.812         0.856         0.621         0.840          0.789         0.849          0.581
+ YOLOv11m               0.851      0.786         0.855         0.619         0.851          0.780         0.857          0.611
+ YOLOv11l               0.786      0.842         0.867         0.623         0.831          0.781         0.849          0.624
+ YOLOv11x               0.884      0.754         0.863         0.614         0.835          0.809         0.860          0.618
+
+
+
+
+                                  Figure 15. Illustration of segmentation results for the Yalova dataset without data augmentation.
+                                  Incorrect estimations and missed parts are marked with red rectangles.
+
+
+
+
+                                                                                            https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                            22 of 31
+
+
+
+
+                        Figure 16. Illustration of segmentation results for the Yalova dataset with data augmentation.
+                        Incorrect estimations and missed parts are marked with red rectangles.
+
+                             In the Yalova dataset, the Random Forest parameters were defined as n_estimators = 500,
+                        random_state = 42, and min_samples_split = 2. The SLIC parameters were applied as
+                        n_segment = 600 and compactness = 10. The OBIA approach demonstrated a performance
+                        quite close to deep learning models in the Yalova dataset. The YOLOv8l model offers
+                        approximately a 2% F1-score advantage over the OBIA. A comparison of YOLO and OBIA
+                        in the Yalova dataset is presented in Table A2.
+
+                        4.5. Tree Crown Size Analysis
+                             Beyond checking the tree detection performance of the algorithms, their accuracy in
+                        estimating the crown area of trees at the square meter level was also analyzed. Root mean
+                        square error (RMSE) analysis aims to measure whether algorithms truly make a meaningful
+                        contribution to real-world problems by revealing how accurately the model represents
+                        spatial quantities. The crown areas of all trees in the OTD and Yalova test datasets that
+                        could be detected by the algorithms were calculated and compared with ground truth. In
+                        both datasets, models that used augmentation had significantly lower RMSE values. When
+                        the predictions of the YOLOv8n model in the OTD dataset are examined, it is seen that
+                        the RMSE is obtained as 0.478 m2 when augmentation is applied, while it almost doubles
+                        to 0.915 m2 RMSE when no augmentation is applied. For the YOLOv11x model, data
+                        augmentation improves the crown area error by four. In the Yalova dataset, all models
+                        predict the crown area with a lower RMSE when augmentation is applied. YOLOv11
+                        models produced lower RMSE values than YOLOv8 models at all scales. For YOLOv8 and
+                        YOLOv11, as the model size increases (n → s → m → l → x), the RMSE decreases regularly.
+                        Examining the results in Table 8, the YOLOv11x model produces the most successful crown
+                        area predictions when augmentation is applied among all models.
+
+
+
+
+                                                                                https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                23 of 31
+
+
+
+                           Table 8. RMSE metrics (m2 ) for YOLOv8 and YOLOv11 in both datasets.
+
+                                      OTD Dataset                                        Yalova Dataset
+                             With                  Without                    With                    Without
+           Model
+                        Augmentation (m2 )     Augmentation (m2 )        Augmentation (m2 )       Augmentation (m2 )
+        YOLOv8n              ±0.478                   ±0.915                    ±0.556                    ±0.624
+        YOLOv8s              ±0.395                   ±0.842                    ±0.473                    ±0.519
+        YOLOv8m              ±0.312                   ±0.785                    ±0.419                    ±0.462
+        YOLOv8l              ±0.288                   ±0.714                    ±0.386                    ±0.418
+        YOLOv8x              ±0.245                   ±0.672                    ±0.342                    ±0.371
+       YOLOv11n              ±0.210                   ±0.745                    ±0.315                    ±0.348
+       YOLOv11s              ±0.192                   ±0.688                    ±0.287                    ±0.312
+       YOLOv11m              ±0.165                   ±0.610                    ±0.251                    ±0.273
+       YOLOv11l              ±0.148                   ±0.552                    ±0.228                    ±0.245
+       YOLOv11x              ±0.131                   ±0.514                    ±0.204                    ±0.221
+
+
+                           5. Discussion
+                           5.1. Evaluation of Tree Detection and Segmentation Performance
+                                 While YOLO models excel on the Yalova dataset, transformer models achieve compet-
+                           itive performances on the larger OTD dataset. RT-DETR and RF-DETR models generally
+                           require a sufficiently large and diverse dataset to demonstrate their full potential. Because
+                           the YOLOv10 model is optimized for speed and lightweight deployment rather than feature
+                           richness, it has limitations with complex or variable datasets, such as Yalova and OTD,
+                           which include objects of different sizes and backgrounds. The modest improvement in
+                           YOLOv10 metrics after data augmentation suggests that image diversity can reduce over-
+                           fitting, but the model’s structural constraints limit its ability to fully exploit the enriched
+                           features. The mAP value (0.976) obtained by RT-DETR indicates that transformer-based
+                           architectures’ abilities to model global context offers a decisive advantage on the OTD
+                           dataset (Table 2). In the OTD dataset with data augmentation, the YOLOv12 series and
+                           the YOLOv11 family stand out for their overall balance of performance and efficiency. At
+                           the same time, RT-DETR achieves the highest mAP but is less accurate than YOLO-based
+                           models in localization. RT-DETR and RF-DETR, as transformer-based models, are effective
+                           at modeling global context, which increases overall mAP by accurately detecting object
+                           presence. Transformer backbones generally operate on lower-resolution feature repre-
+                           sentations than CNN-based feature pyramids, which limit boundary accuracy in images
+                           containing detailed, dense objects, such as drone footage. Transformer models can lag
+                           behind CNNs in localization accuracy [63].
+                                 Without data augmentation, all YOLO models achieved a slightly higher mAP and
+                           mAP50-95 values with the OTD dataset. This indicates that the OTD dataset is highly
+                           representative and provides a sufficiently heterogeneous visual distribution. Relative to
+                           the no-augmentation results, augmentation generally improves mAP and modestly lifts
+                           or maintains mAP50-95. This means that data augmentation improves detection coverage
+                           and reduces overfitting for all models. YOLOv8 variations can learn object boundaries
+                           more reliably due to their deeper layer structure. YOLOv11n/s demonstrated the highest
+                           performance results on the OTD dataset. It is concluded that nano and small variants of the
+                           YOLOv11 architecture are particularly suitable for aerial or geospatial imagery enriched
+                           with synthetic variability. Transformer-based RT-DETR maintained a competitive precision
+                           and recall but showed limited sensitivity to data augmentation in terms of mAP. Overall,
+                           data augmentation contributed to a measurable enhancement of performance consistency,
+                           especially for convolutional-based architectures. Data augmentation significantly improved
+                           performance consistency, particularly in convolutional architectures in the OTD dataset.
+
+
+                                                                                    https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                            24 of 31
+
+
+
+                              The findings show that (Table 4), unlike object detection, segmentation performance
+                        on the OTD dataset is less sensitive to data augmentation and can already benefit from
+                        sufficient spatial variability in the original training data. In all models and experimental
+                        settings, sensitivity consistently exceeds recall. This indicates that the segmentation models
+                        produce fewer false positives, although they occasionally miss parts of the tree crowns. This
+                        behavior is particularly important in dense orchard scenes where tree crowns can overlap
+                        and exhibit complex boundary structures. The high sensitivity also demonstrates that the
+                        predicted segmentation masks are spatially accurate, which is crucial for reliable tree crown
+                        area estimation. Although small boundary errors remain in dense forest areas, overall
+                        qualitative results confirm the quantitative findings, and higher mAP values correspond to
+                        more complete and spatially consistent tree cover segmentation.
+                              The results in Tables 5 and 6 clearly show that the Yalova dataset presents a more
+                        challenging detection scenario compared to OTD. Tree complexity and shade challenges
+                        are particularly prominent in this dataset. Nevertheless, the models generally overcame
+                        these challenges. Significant performance degradation was observed at mAP50-95 values.
+                        This indicates that factors such as more irregular tree crowns, overlap, shadow effects,
+                        and background complexity make localization more difficult in the Yalova dataset. In
+                        particular, YOLOv8l and YOLOv8x stood out in the Yalova dataset with high mAP50-95
+                        values despite high GFLOPs and parameter numbers. This indicates that the YOLOv8
+                        architecture has stronger feature extraction and multi-scale representation capabilities.
+                        However, this advantage comes at a high cost in terms of computational performance.
+                        Transformer-based approaches have emerged as the strongest alternative for the Yalova
+                        dataset, underscoring the importance of contextual learning for irregular natural objects
+                        such as olive trees. In the Yalova dataset, without data augmentation, architectures that are
+                        more sensitive to deeper and contextual information are seen to offer advantages for high
+                        accuracy and precise localization. In particular, YOLOv11 models, YOLOv8 major variants,
+                        and RF-DETR stand out as the best solutions under these conditions. According to the
+                        results, data augmentation leads to a decrease in mAP50-95, particularly for the Yalova
+                        dataset. This indicates that augmentation improves object presence recognition but reduces
+                        boundary tightness. When strong geometric data enhancements such as ±10◦ tilt, rotation,
+                        and reflection are applied, the models learn spatial patterns that do not exactly correspond
+                        to the actual acquisition conditions, negatively impacting the localization expressed by
+                        mAP50-95. Conversely, in the larger OTD dataset, data scale increases the localization of
+                        more stable results.
+                              The segmentation results from the Yalova dataset enable an examination of the ef-
+                        fects of scene complexity and tree canopy morphology (Table 7). YOLOv8l, the model
+                        that performs best without data augmentation, demonstrates that deeper convolutional
+                        backbones with wider receptive fields are better suited to capturing the irregular and
+                        partially overlapping olive tree crowns found in the Yalova dataset. YOLOv11l maintains
+                        a similar high-IoU performance across both settings, indicating improved robustness in
+                        boundary localization. However, the segmentation performance of YOLOv8 and YOLOv11
+                        is identical. Therefore, dataset characteristics, not just architectural differences, signifi-
+                        cantly influence algorithm performance with the Yalova dataset. All models were found
+                        to have successful results in challenging situations, such as shadowing, and were able to
+                        distinguish tree crowns. However, glare in the border regions of the tree crowns, along
+                        with shade and leaf sparseness, results in missed areas, especially during the segmentation
+                        process (Figures 15 and 16). Nevertheless, high mAP values were obtained in detection
+                        and segmentation experiments.
+                              The fully automated approach presented in this study also addresses the segmentation
+                        problem, which has been overlooked in similar studies [64,65]. Transformer models were
+
+
+
+                                                                                https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                               25 of 31
+
+
+
+                        also included in this research. The results show that YOLO architectures perform more
+                        robustly on the smaller, more heterogeneous Yalova dataset. In contrast, transformer-
+                        based models (especially RT-DETR) achieve their strongest performance on the larger,
+                        more diverse OTD dataset (Table 2). Transformer architectures leverage richer training
+                        distributions through their global attention mechanisms, while CNNs are more efficient in
+                        scenarios with limited data. In the segmentation task, the methods showed less sensitivity
+                        to data augmentation, indicating that the spatial variability in the original dataset is already
+                        sufficient. Data augmentation provides fundamentally limited new information for pixel-
+                        level learning. While the traditional OBIA approach produces competitive results compared
+                        to deep learning in segmentation, it does not offer the ability to uniquely identify trees,
+                        particularly in object detection. Furthermore, the need for an operator to create and classify
+                        segments, and the reliance on image-based parameters, constitute disadvantages for use in
+                        fully automated systems.
+                             The analysis of olive tree canopy area allows for the evaluation of artificial intelligence
+                        models not merely as “higher-scoring systems,” but as measurement tools that numeri-
+                        cally represent the physical world. According to Table 8, data augmentation significantly
+                        improves the generalization ability of the model, especially in regression-based outputs
+                        such as area estimation. Considering the augmentation effect, it becomes clear that data
+                        diversity is as important as model architecture in geometric measurements such as tree
+                        crown area. The significant reduction in error values, especially in large-scale models,
+                        indicates that the increased model capacity allows for more successful learning of complex
+                        crown boundaries and irregular morphological structures. Higher RMSE values were
+                        generally obtained in the Yalova dataset. Compared to OTD, it has more complex crown
+                        overlaps and challenges in terms of shade/lighting. Separating trees with thin branches
+                        and trunks from the shadows is one of the prominent challenges in the Yalova dataset, and
+                        this makes boundary estimation difficult.
+
+                        5.2. Statistical Analysis for mAP Values
+                             In this study, average precision (AP) values calculated per image for the test datasets
+                        were used to evaluate whether performance differences between YOLO-based object detec-
+                        tion models were statistically significant. Inter-model comparisons were performed using
+                        a paired bootstrap resampling approach [66]; the distribution of AP differences for each
+                        pair of models was obtained. It does not require assuming a parametric distribution and is
+                        suitable for complex metrics such as mAP.
+
+                                                          1                   
+                                                             ∑
+                                                                    ( A)  ( B)
+                                              ∆AP(b) =            APi − APi      , b = 1, . . . , B                     (6)
+                                                          N i∈I
+                                                               b
+
+
+                                   ( A)        ( B)
+                        where APi       and APi refer to the AP values of the ith image of the two YOLO mod-
+                        els. N represents the number of test images, Ib is the bootstrap index set selected using
+                        substitution sampling, and B is the number of bootstrap repetitions. Statistical signifi-
+                        cance was determined based on the obtained p-values (p < 0.05), and the results were
+                        visualized with binary (significant/not significant) color coding. X shows the pairwise
+                        statistical significance of performance differences according to a paired bootstrap test
+                        (p < 0.05). Red cells indicate statistically significant differences, while green cells represent
+                        non-significant comparisons.
+                              In the Yalova dataset, without augmentation, significant differences are infrequent and
+                        scattered. Without data augmentation, the models’ performance is largely similar. Increas-
+                        ing architectural complexity does not provide a statistically consistent advantage. When
+                        data augmentation is applied to the Yalova dataset, the significant differences between the
+                        models decrease somewhat. Some pairs of models become statistically indistinguishable.
+
+
+                                                                                   https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                        26 of 31
+
+
+
+                                 Green areas are preserved, particularly among mid-level models. In the OTD without
+                                 augmentation dataset, significant differences are found, particularly between higher-level
+                                 models (l, x) and lower-level models. There are noticeable differences between transform-
+                                 ers and YOLOs. In the OTD dataset, augmentation clearly increases statistical reliability.
+                                 The statistical significance analysis reveals that data augmentation plays a critical role in
+                                 revealing actual performance differences among detection architectures, with this effect
+                                 being more pronounced with structurally diverse datasets (Figure 17).
+
+
+
+
+                        (a) Yalova—No augmentation                                  (b) Yalova—Augmented
+
+
+
+
+                        (c) OTD—No augmentation                                     (d) OTD—augmentated
+
+                                 Figure 17. Statistical analysis of mAP differences between methods.
+
+                                 6. Conclusions
+                                      In this study, convolutional neural networks (CNNs) and transformer-based deep
+                                 learning models were evaluated from a broad perspective for the purpose of identifying
+                                 olive trees. This study’s findings reveal that the performance of object detectors varies
+                                 significantly depending on the model variant, dataset size, and study region.
+                                      The results of this study have practical implications for the automation of olive culti-
+                                 vation. Automatic detection, tracking, and analysis of olive trees are possible, especially
+                                 thanks to the high spatial resolution of UAV images and artificial intelligence techniques.
+                                 The proposed AI-based automation is expected to provide advantages such as reduced
+                                 orchard operating costs and reduced crop losses for growers. The results of this study
+                                 are expected to provide significant insights into precision agriculture practices in olive
+
+
+
+                                                                                            https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                   27 of 31
+
+
+
+                        cultivation and to open avenues for research on orchard productivity, sustainability, smart
+                        agricultural practices, and infrastructure systems.
+                             A new olive tree detection dataset containing UAV images is also presented within the
+                        scope of this study. This makes a significant contribution to the literature by offering data
+                        diversity to enhance methodological studies in this field.
+                             For real-world applications, nano and small models stand out for their speed. However,
+                        these larger models delivered higher mAP and mAP50-95 values, providing a clear example
+                        of the trade-off between accuracy and speed. Lightweight models achieved near-state-of-
+                        the-art accuracy while offering significantly lower inference time and memory consumption,
+                        making them more suitable for real-time UAV applications than larger architectures. Crown
+                        area estimation is a crucial parameter in biomass and carbon stock studies. Relatively small
+                        differences in RMSE can lead to significant errors when scaled to larger areas. Therefore, in
+                        practical terms, the fact that the YOLOv11x model produces the lowest RMSE values in
+                        both datasets indicates that it is a preferable option in forestry and agricultural monitoring
+                        applications requiring a high accuracy.
+                             A further limitation of our study is the exclusion of spatial information. Specifically, in-
+                        ferences about tree dimensions can be made using precise positioning techniques. However,
+                        since the main objective of our study was a detailed comparison of object detection methods
+                        in precision agriculture applications, the results are consistent with our expectations.
+                             In future studies, multispectral UAV images are planned to be used for object detec-
+                        tion and classification. On the other hand, future studies will focus on controlled data
+                        enhancement experiments using the same policies specific to datasets to isolate the impact
+                        of each transformation. We also aim to use various vegetation indices to monitor plant
+                        health status alongside detection.
+
+                        Author Contributions: Conceptualization, M.E.A. and M.A.; methodology, M.E.A. and M.A.; soft-
+                        ware, M.E.A.; validation, M.E.A.; formal analysis, M.E.A.; investigation, M.A.; resources, M.E.A. and
+                        M.A.; data curation, M.A.; writing—original draft preparation, M.E.A. and M.A.; writing—review
+                        and editing, M.E.A.; visualization, M.E.A. and M.A.; supervision, M.E.A.; project administration,
+                        M.E.A.; funding acquisition, M.E.A. All authors have read and agreed to the published version of
+                        the manuscript.
+
+                        Funding: This research was funded by the Istanbul Technical University Scientific Research Projects
+                        Office (BAP), grant number MGA-2024-45734.
+
+                        Institutional Review Board Statement: Not applicable.
+
+                        Data Availability Statement: The original data presented in the study are openly available at
+                        https://app.roboflow.com/tugeomatics/yalova_dataset_olive_tree/ (accessed on 15 February 2026).
+
+                        Conflicts of Interest: The authors declare no conflicts of interest.
+
+                        Abbreviations
+                        The following abbreviations are used in this manuscript:
+
+                        YOLO         You Only Look Once
+                        UAV          Unmanned Aerial Vehicle
+                        RT-DETR      Real-Time Detection Transformer
+                        RF-DETR      Roboflow-Detection Transformer
+                        OTD          Olive Tree Detection
+                        VHR          Very High Resolution
+                        RGB          Red, Green, Blue
+                        SAM          Segment Anything Model
+                        AI           Artificial Intelligence
+                        CNN          Convolutional Neural Network
+
+
+
+                                                                                       https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                              28 of 31
+
+
+
+                        RMSE        Root Mean Square Error
+                        OTC         Olive Tree Crown
+                        CSPNet      Cross Stage Partial Network
+                        FPN         Feature Pyramid Network
+                        PAN         Path Aggregation Network
+                        NAS         Neural Architecture Search
+                        LiDAR       Light Detection and Ranging
+                        ViT         Vision Transformer
+                        FOV         Field of View
+                        GSD         Ground Sampling Distance
+                        NMS         Non-Maximum Suppression
+                        SPPF        Spatial Pyramid Pooling—Fast
+                        C2PSA       Cross Stage Partial with Spatial Attention
+                        mAP         Mean Average Precision
+                        AP          Average Precision
+                        TP          True Positive
+                        FP          False Positive
+                        FN          False Negative
+                        COCO        Common Objects in Context
+                        SLIC        Simple Linear Iterative Clustering
+                        OBIA        Object-Based Image Analysis
+                        IoU         Intersection over Union
+
+
+                        Appendix A
+                        Appendix A.1
+                        Table A1. Algorithm results for the OTD test dataset. YOLO algorithms are listed according to
+                        their highest F1-scores. The metrics of the OBIA approach are calculated independently of data
+                        augmentation, using only the test data. The highest values are marked in bold.
+
+                                 Model                 Precision                 Recall                 F1-Score
+                              YOLOv8n                     0.947                  0.907                    0.927
+                              YOLOv8s                     0.948                  0.908                    0.927
+                              YOLOv8m                     0.943                  0.917                    0.930
+                              YOLOv8l                     0.943                  0.910                    0.926
+                              YOLOv8x                     0.951                  0.898                    0.924
+                             YOLOv11n                     0.956                  0.902                    0.928
+                             YOLOv11s                     0.941                  0.904                    0.922
+                             YOLOv11m                     0.935                  0.913                    0.924
+                             YOLOv11l                     0.936                  0.915                    0.925
+                             YOLOv11x                     0.945                  0.906                    0.925
+                                 OBIA                     0.880                  0.859                    0.869
+
+                        Appendix A.2
+                        Table A2. Algorithm results for the Yalova test dataset. YOLO algorithms are listed according to
+                        their highest F1-scores. The metrics of the OBIA approach are calculated independently of data
+                        augmentation, using only the test data. The highest valsues are marked in bold.
+
+                                 Model                 Precision                 Recall                 F1-Score
+                              YOLOv8n                     0.847                  0.771                    0.807
+                              YOLOv8s                     0.866                  0.748                    0.802
+                              YOLOv8m                     0.830                  0.774                    0.801
+                              YOLOv8l                     0.868                  0.795                    0.830
+                              YOLOv8x                     0.863                  0.792                    0.826
+
+
+
+                                                                                  https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                                 29 of 31
+
+
+
+                                   Table A2. Cont.
+
+                                            Model                    Precision                    Recall                   F1-Score
+                                         YOLOv11n                       0.850                     0.748                      0.796
+                                         YOLOv11s                       0.827                     0.812                      0.820
+                                         YOLOv11m                       0.851                     0.786                      0.817
+                                         YOLOv11l                       0.786                     0.842                      0.813
+                                         YOLOv11x                       0.835                     0.809                      0.822
+                                             OBIA                       0.837                     0.793                      0.814
+
+References
+1.    Besnard, G.; Hernández, P.; Khadari, B.; Dorado, G.; Savolainen, V. Genomic Profiling of Plastid DNA Variation in the Mediter-
+      ranean Olive Tree. BMC Plant Biol. 2011, 11, 80. [CrossRef]
+2.    Šiljeg, A.; Marinović, R.; Domazetović, F.; Jurišić, M.; Marić, I.; Pand̄a, L.; Radočaj, D.; Milošević, R. GEOBIA and Vegetation
+      Indices in Extracting Olive Tree Canopies Based on Very High-Resolution UAV Multispectral Imagery. Appl. Sci. 2023, 13, 739.
+      [CrossRef]
+3.    Waleed, M.; Um, T.-W.; Khan, A.; Khan, U. Automatic Detection System of Olive Trees Using Improved K-Means Algorithm.
+      Remote Sens. 2020, 12, 760. [CrossRef]
+4.    Araújo, R.G.; Chavez-Santoscoy, R.A.; Parra-Saldívar, R.; Melchor-Martínez, E.M.; Iqbal, H.M.N. Agro-Food Systems and
+      Environment: Sustaining the Unsustainable. Curr. Opin. Environ. Sci. Health 2023, 31, 100413. [CrossRef]
+5.    Atapattu, A.J.; Ranasinghe, C.; Nuwarapaksha, T.D.; Udumann, S.S.; Dissanayaka, N.S. Sustainable Agriculture and Sustainable
+      Development Goals (SDGs). In Emerging Technologies and Marketing Strategies for Sustainable Agriculture; IGI Global Scientific
+      Publishing: Hershey, PA, USA, 2024; pp. 1–27.
+6.    Li, S.; Brandt, M.; Fensholt, R.; Kariryaa, A.; Igel, C.; Gieseke, F.; Nord-Larsen, T.; Oehmcke, S.; Carlsen, A.H.; Junttila, S.; et al.
+      Deep Learning Enables Image-Based Tree Counting, Crown Segmentation, and Height Prediction at National Scale. PNAS Nexus
+      2023, 2, pgad076. [CrossRef]
+7.    Srestasathiern, P.; Rakwatin, P. Oil Palm Tree Detection with High Resolution Multi-Spectral Satellite Imagery. Remote Sens. 2014,
+      6, 9749–9774. [CrossRef]
+8.    Jemaa, H.; Bouachir, W.; Leblon, B.; LaRocque, A.; Haddadi, A.; Bouguila, N. UAV-Based Computer Vision System for Orchard
+      Apple Tree Detection and Health Assessment. Remote Sens. 2023, 15, 3558. [CrossRef]
+9.    Biyik, M.Y.; Atik, M.E.; Duran, Z. Deep Learning-Based Vehicle Detection from Orthophoto and Spatial Accuracy Analysis. Int. J.
+      Eng. Geosci. 2023, 8, 138–145. [CrossRef]
+10.   Arkali, M.; Biyik, M.Y.; Atik, M.E. Comparative Analysis of Machine Learning Algorithms for Classification of UAV-Based
+      Photogrammetric Cultural Heritage Point Clouds. Int. Arch. Photogramm. Remote Sens. Spat. Inf. Sci. 2025, 48, 17–22. [CrossRef]
+11.   Atik, Ş. Classification of Urban Vegetation Utilizing Spectral Indices and DEM with Ensemble Machine Learning Methods. Int. J.
+      Environ. Geoinform. 2025, 12, 43–53. [CrossRef]
+12.   Minařík, R.; Langhammer, J. Use of a Multispectral UAV Photogrammetry for Detection and Tracking of Forest Disturbance
+      Dynamics. Int. Arch. Photogramm. Remote Sens. Spat. Inf. Sci. 2016, 41, 711–718. [CrossRef]
+13.   Atik, M.E.; Arkali, M.; Atik, S.O. Impact of UAV-Derived RTK/PPK Products on Geometric Correction of VHR Satellite Imagery.
+      Drones 2025, 9, 291. [CrossRef]
+14.   Moreno-Garcia, J.; Jimenez, L.; Rodriguez-Benitez, L.; Solana-Cipres, C.J. Fuzzy Logic Applied to Detect Olive Trees in High
+      Resolution Images. In Proceedings of the International Conference on Fuzzy Systems, Barcelona, Spain, 18–23 July 2010; pp. 1–7.
+15.   González, J.; Galindo, C.; Arevalo, V.; Ambrosio, G. Applying Image Analysis and Probabilistic Techniques for Counting Olive
+      Trees in High-Resolution Satellite Images. In Proceedings of the Advanced Concepts for Intelligent Vision Systems; Blanc-Talon, J.,
+      Philips, W., Popescu, D., Scheunders, P., Eds.; Springer: Berlin/Heidelberg, Germany, 2007; pp. 920–931.
+16.   Peters, J.; Van Coillie, F.; Westra, T.; De Wulf, R. Synergy of Very High Resolution Optical and Radar Data for Object-Based Olive
+      Grove Mapping. Int. J. Geogr. Inf. Sci. 2011, 25, 971–989. [CrossRef]
+17.   Li, H.; Huang, J.; Gu, Z.; He, D.; Huang, J.; Wang, C. Positioning of Mango Picking Point Using an Improved YOLOv8 Architecture
+      with Object Detection and Instance Segmentation. Biosyst. Eng. 2024, 247, 202–220. [CrossRef]
+18.   Sun, C.; Huang, C.; Zhang, H.; Chen, B.; An, F.; Wang, L.; Yun, T. Individual Tree Crown Segmentation and Crown Width
+      Extraction from a Heightmap Derived from Aerial Laser Scanning Data Using a Deep Learning Framework. Front. Plant Sci. 2022,
+      13, 914974. [CrossRef] [PubMed]
+19.   Shehzadi, T.; Hashmi, K.A.; Liwicki, M.; Stricker, D.; Afzal, M.Z. Object Detection with Transformers: A Review. Sensors 2025,
+      25, 6025. [CrossRef] [PubMed]
+
+
+
+
+                                                                                                    https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                                       30 of 31
+
+
+
+20.   Kim, J.; Kim, S.; Ju, C.; Son, H.I. Unmanned Aerial Vehicles in Agriculture: A Review of Perspective of Platform, Control, and
+      Applications. IEEE Access 2019, 7, 105100–105115. [CrossRef]
+21.   Barbedo, J.G.A. A Review on the Use of Unmanned Aerial Vehicles and Imaging Sensors for Monitoring and Assessing Plant
+      Stresses. Drones 2019, 3, 40. [CrossRef]
+22.   Chemin, Y.H.; Beck, P.S.A. A Method to Count Olive Trees in Heterogenous Plantations from Aerial Photographs. Preprints
+      2017, 2017100170. [CrossRef]
+23.   Moreno-Garcia, J.; Linares, L.J.; Rodriguez-Benitez, L.; Solana-Cipres, C. Olive Trees Detection in Very High Resolution Im-
+      ages. In International Conference on Information Processing and Management of Uncertainty in Knowledge-Based Systems; Springer:
+      Berlin/Heidelberg, Germany, 2010.
+24.   Khan, A.; Khan, U.; Waleed, M.; Khan, A.; Kamal, T.; Marwat, S.N.K.; Maqsood, M.; Aadil, F. Remote Sensing: An Automated
+      Methodology for Olive Tree Detection and Counting in Satellite Images. IEEE Access 2018, 6, 77816–77828. [CrossRef]
+25.   Li, W.; Fu, H.; Yu, L. Deep Convolutional Neural Network Based Large-Scale Oil Palm Tree Detection for High-Resolution Remote
+      Sensing Images. In Proceedings of the 2017 IEEE International Geoscience and Remote Sensing Symposium (IGARSS), Fort
+      Worth, TX, USA, 23–28 July 2017; pp. 846–849.
+26.   Jintasuttisak, T.; Edirisinghe, E.; Elbattay, A. Deep Neural Network Based Date Palm Tree Detection in Drone Imagery. Comput.
+      Electron. Agric. 2022, 192, 106560. [CrossRef]
+27.   Putra, Y.C.; Wijayanto, A.W. Automatic Detection and Counting of Oil Palm Trees Using Remote Sensing and Object-Based Deep
+      Learning. Remote Sens. Appl. Soc. Environ. 2023, 29, 100914. [CrossRef]
+28.   Chen, Y.; Xu, H.; Zhang, X.; Gao, P.; Xu, Z.; Huang, X. An Object Detection Method for Bayberry Trees Based on an Improved
+      YOLO Algorithm. Int. J. Digit. Earth 2023, 16, 781–805. [CrossRef]
+29.   Li, S.; Tao, T.; Zhang, Y.; Li, M.; Qu, H. YOLO V7-CS: A YOLO v7-Based Model for Lightweight Bayberry Target Detection Count.
+      Agronomy 2023, 13, 2952. [CrossRef]
+30.   Abozeid, A.; Alanazi, R.; Elhadad, A.; Taloba, A.I.; Abd El-Aziz, R.M. A Large-Scale Dataset and Deep Learning Model for
+      Detecting and Counting Olive Trees in Satellite Imagery. Comput. Intell. Neurosci. 2022, 2022, 1549842. [CrossRef]
+31.   Ye, Z.; Wei, J.; Lin, Y.; Guo, Q.; Zhang, J.; Zhang, H.; Deng, H.; Yang, K. Extraction of Olive Crown Based on UAV Visible Images
+      and the U2-Net Deep Learning Model. Remote Sens. 2022, 14, 1523. [CrossRef]
+32.   Ksibi, A.; Ayadi, M.; Soufiene, B.O.; Jamjoom, M.M.; Ullah, Z. MobiRes-Net: A Hybrid Deep Learning Model for Detecting and
+      Classifying Olive Leaf Diseases. Appl. Sci. 2022, 12, 10278. [CrossRef]
+33.   S, andric, I.; Irimia, R.; Petropoulos, G.P.; Anand, A.; Srivastava, P.K.; Ples, oianu, A.; Faraslis, I.; Stateras, D.; Kalivas, D. Tree’s De-
+      tection & Health’s Assessment from Ultra-High Resolution UAV Imagery and Deep Learning. Geocarto Int. 2022, 37, 10459–10479.
+      [CrossRef]
+34.   Mamalis, M.; Kalampokis, E.; Kalfas, I.; Tarabanis, K. Deep Learning for Detecting Verticillium Fungus in Olive Trees: Using
+      YOLO in UAV Imagery. Algorithms 2023, 16, 343. [CrossRef]
+35.   Hnida, Y.; Mahraz, M.A.; Yahyaouy, A.; Achebour, A.; Riffi, J.; Tairi, H. Enhanced Multi-Scale Detection of Olive Tree Crowns in
+      UAV Orthophotos Using a Deep Learning Architecture. Smart Agric. Technol. 2025, 12, 101126. [CrossRef]
+36.   Zhao, T.; Yang, Y.; Niu, H.; Wang, D.; Chen, Y. Comparing U-Net Convolutional Network with Mask R-CNN in the Performances
+      of Pomegranate Tree Canopy Segmentation. In Proceedings of the Multispectral, Hyperspectral, and Ultraspectral Remote Sensing
+      Technology, Techniques, and Applications VII; SPIE: Bellingham, WA, USA, 2018; Volume 10780, pp. 210–218.
+37.   Safonova, A.; Guirado, E.; Maglinets, Y.; Alcaraz-Segura, D.; Tabik, S. Olive Tree Biovolume from UAV Multi-Resolution Image
+      Segmentation with Mask R-CNN. Sensors 2021, 21, 1617. [CrossRef] [PubMed]
+38.   Abdallah, A.B.; Kallel, A.; Dammak, M.; Ali, A.B. Olive Tree and Shadow Instance Segmentation Based on Detectron2. In
+      Proceedings of the 2022 6th International Conference on Advanced Technologies for Signal and Image Processing (ATSIP),
+      Moncton, NB, Canada, 24–27 May 2022; pp. 1–5.
+39.   Alshammari, H.H.; Shahin, O.R. An Efficient Deep Learning Mechanism for the Recognition of Olive Trees in Jouf Region. Comput.
+      Intell. Neurosci. 2022, 2022, 9249530. [CrossRef]
+40.   Berni, J.A.J.; Zarco-Tejada, P.J.; Sepulcre-Cantó, G.; Fereres, E.; Villalobos, F. Mapping Canopy Conductance and CWSI in Olive
+      Orchards Using High Resolution Thermal Remote Sensing Imagery. Remote Sens. Environ. 2009, 113, 2380–2388. [CrossRef]
+41.   Taal, S.r.l. Tree Detected. 2024. Available online: https://zenodo.org/records/13121962 (accessed on 15 February 2026).
+42.   Atik, M.E.; Duran, Z.; Özgünlük, R. Comparison of YOLO Versions for Object Detection from Aerial Images. Int. J. Environ.
+      Geoinform. 2022, 9, 87–93. [CrossRef]
+43.   Redmon, J.; Divvala, S.; Girshick, R.; Farhadi, A. You Only Look Once: Unified, Real-Time Object Detection. In Proceedings of the
+      2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR); IEEE: Las Vegas, NV, USA, 2016; pp. 779–788.
+44.   Murat, A.A.; Kiran, M.S. A Comprehensive Review on YOLO Versions for Object Detection. Eng. Sci. Technol. Int. J. 2025,
+      70, 102161. [CrossRef]
+
+
+
+
+                                                                                                        https://doi.org/10.3390/geomatics6020022
+Geomatics 2026, 6, 22                                                                                                                 31 of 31
+
+
+
+45.   Kang, S.; Hu, Z.; Liu, L.; Zhang, K.; Cao, Z. Object Detection YOLO Algorithms and Their Industrial Applications: Overview and
+      Comparative Analysis. Electronics 2025, 14, 1104. [CrossRef]
+46.   Ghahremani, A.; Adams, S.D.; Norton, M.; Khoo, S.Y.; Kouzani, A.Z. Detecting Defects in Solar Panels Using the YOLO V10 and
+      V11 Algorithms. Electronics 2025, 14, 344. [CrossRef]
+47.   Sohan, M.; Sai Ram, T.; Rami Reddy, C.V. A Review on YOLOv8 and Its Advancements. In Proceedings of the Data Intelligence and
+      Cognitive Informatics; Jacob, I.J., Piramuthu, S., Falkowski-Gilski, P., Eds.; Springer Nature: Singapore, 2024; pp. 529–545.
+48.   Tian, Y.; Ye, Q.; Doermann, D. YOLOv12: Attention-Centric Real-Time Object Detectors. arXiv 2025, arXiv:2502.12524.
+49.   Terven, J.; Córdova-Esparza, D.-M.; Romero-González, J.-A. A Comprehensive Review of YOLO Architectures in Computer
+      Vision: From YOLOv1 to YOLOv8 and YOLO-NAS. Mach. Learn. Knowl. Extr. 2023, 5, 1680–1716. [CrossRef]
+50.   Adil Raja, M.; Loughran, R.; Mc Caffery, F. A Review of Performance of Recent YOLO Models on Cholecystectomy Tool Detection.
+      Meas. Digit. 2025, 2–3, 100007. [CrossRef]
+51.   Zhao, Y.; Lv, W.; Xu, S.; Wei, J.; Wang, G.; Dang, Q.; Liu, Y.; Chen, J. DETRs Beat YOLOs on Real-Time Object Detection.
+      In Proceedings of the 2024 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR); IEEE: Seattle, WA, USA,
+      2024; pp. 16965–16974.
+52.   Kong, Y.; Shang, X.; Jia, S. Drone-DETR: Efficient Small Object Detection for Remote Sensing Image Using Enhanced RT-DETR
+      Model. Sensors 2024, 24, 5496. [CrossRef]
+53.   Wang, S.; Xia, C.; Lv, F.; Shi, Y. RT-DETRv3: Real-Time End-to-End Object Detection with Hierarchical Dense Positive Supervision.
+      In Proceedings of the 2025 IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), Tucson, AZ, USA, 26
+      February–6 March 2025; pp. 1628–1636.
+54.   Lv, Z.; Dong, S.; Xia, Z.; He, J.; Zhang, J. Enhanced Real-Time Detection Transformer (RT-DETR) for Robotic Inspection of
+      Underwater Bridge Pier Cracks. Autom. Constr. 2025, 170, 105921. [CrossRef]
+55.   Hu, J.; Zheng, J.; Wan, W.; Zhou, Y.; Huang, Z. RT-DETR-EVD: An Emergency Vehicle Detection Method Based on Improved
+      RT-DETR. Sensors 2025, 25, 3327. [CrossRef]
+56.   Robinson, I.; Robicheaux, P.; Popov, M.; Ramanan, D.; Peri, N. RF-DETR: Neural Architecture Search for Real-Time Detection
+      Transformers. arXiv 2025, arXiv:2511.09554.
+57.   Dahiya, N.; Prakash, D.; Kundu, S.; Kuttan, S.R.; Suwalka, I.; Ayadi, M.; Dubale, M.; Hashmi, A. Optimised RFO Tuned RF-DETR
+      Model for Precision Urine Microscopy for Renal and Systemic Disease Diagnosis. Sci. Rep. 2025, 15, 25842. [CrossRef]
+58.   Sapkota, R.; Cheppally, R.H.; Sharda, A.; Karkee, M. RF-DETR Object Detection vs YOLOv12: A Study of Transformer-Based and
+      CNN-Based Architectures for Single-Class and Multi-Class Greenfruit Detection in Complex Orchard Environments Under Label
+      Ambiguity. arXiv 2025, arXiv:2504.13099.
+59.   Cepni, S.; Atik, M.E.; Duran, Z. Vehicle Detection Using Different Deep Learning Algorithms from Image Sequence. BJMC 2020,
+      8, 347–358. [CrossRef]
+60.   Isiler, M.; Yanalak, M.; Atik, M.E.; Atik, S.O.; Duran, Z. A Semi-Automated Two-Step Building Stock Monitoring Methodology for
+      Supporting Immediate Solutions in Urban Issues. Sustainability 2023, 15, 8979. [CrossRef]
+61.   Achanta, R.; Shaji, A.; Smith, K.; Lucchi, A.; Fua, P.; Süsstrunk, S. SLIC Superpixels Compared to State-of-the-Art Superpixel
+      Methods. IEEE Trans. Pattern Anal. Mach. Intell. 2012, 34, 2274–2282. [CrossRef]
+62.   Breiman, L. Random Forests. Mach. Learn. 2001, 45, 5–32. [CrossRef]
+63.   Carion, N.; Massa, F.; Synnaeve, G.; Usunier, N.; Kirillov, A.; Zagoruyko, S. End-to-End Object Detection with Transformers.
+      In Proceedings of the Computer Vision—ECCV 2020; Vedaldi, A., Bischof, H., Brox, T., Frahm, J.-M., Eds.; Springer International
+      Publishing: Cham, Switzerland, 2020; pp. 213–229.
+64.   Weinstein, B.G.; Marconi, S.; Bohlman, S.; Zare, A.; White, E. Individual Tree-Crown Detection in RGB Imagery Using Semi-
+      Supervised Deep Learning Neural Networks. Remote Sens. 2019, 11, 1309. [CrossRef]
+65.   Pantaleo, E.; Giannico, V.; Cilli, R.; Camposeo, S.; Elia, M.; Lafortezza, R.; Monaco, A.; Sanesi, G.; Tangaro, S.; Bellotti, R.; et al.
+      Automated Olive Grove Classification and Tree Counting in Very High Resolution Aerial Imagery Using Deep Learning. Smart
+      Agric. Technol. 2025, 12, 101551. [CrossRef]
+66.   Efron, B.; Tibshirani, R. An Introduction to the Bootstrap; Monographs on Statistics and Applied Probability; Chapman & Hall: Boca
+      Raton, FL, USA, 1998.
+
+
+Disclaimer/Publisher’s Note: The statements, opinions and data contained in all publications are solely those of the individual
+author(s) and contributor(s) and not of MDPI and/or the editor(s). MDPI and/or the editor(s) disclaim responsibility for any injury to
+people or property resulting from any ideas, methods, instructions or products referred to in the content.
+
+
+
+
+                                                                                                    https://doi.org/10.3390/geomatics6020022
+

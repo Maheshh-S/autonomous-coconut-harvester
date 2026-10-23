@@ -3,6 +3,119 @@
 - **Project Version:** 5.1 (Version 5 line; multilingual platform, committed)
 - **Current Status:** Committed through V5.1 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass → Multilingual Platform V5.0 → V5.1 fixes). **V5.x is implemented, verified, and committed** (HEAD `1c77165`). The blanket do-NOT-commit guard below applied to V5 while it awaited approval; it now applies to *future* work only — do NOT commit new work until approved.
 - **Completed (chronological summary — full detail in the version history below):**
+  - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
+    `paper/latex/main.tex` + `paper/latex/main.pdf` (11 pages) re-typeset from
+    `paper/Final year_IRJMETS_Paper.docx` to the IRJMETS template look (Cambria headings,
+    Times body, bullet section headings, numbered refs). All placeholders filled with
+    repo-verified data: Roboflow CC BY 4.0 provenance replaces "Kaggle", dataset counts
+    10,343 (9,048/865/430) and 7,297 (6,384/618/295), training config (YOLOv8n base, 50
+    epochs, 640 px, batch 16), Table 2 validation metrics (tree .841/.843/.877/.539;
+    ripeness all .760/.747/.783/.587 + per-class from `paper/results/summary.json`),
+    CPCRI palm-spacing citation ([10], 7.5–9 m) replacing "[add a citation]". Figures 1–5
+    re-used from the docx; Figs 4–6 added evidence images (dataset samples, confusion
+    matrices, PR curves) copied from `paper/results/`. Compiles clean with tectonic
+    (Cambria from MS-Office DFonts, Times from /System fonts); all pages render-verified.
+    Revision pass applied after review feedback: explicit integration-contribution framing
+    (intro + abstract), implementation-details paragraph (YOLOv8n ~3.0 M params / 6.2 MB,
+    Ultralytics-default optimizer & augmentations, checkpoint/`train_args`-verified,
+    vague "authors' local machine" hardware wording), CPU inference latency measured from
+    the shipped checkpoints (~56 ms tree / ~66 ms ripeness, median of 20), added "why"
+    discussion in Results A (971/632/346 val instance composition, Mature↔Potential overlap,
+    anchor-free + C2f rationale cited to [2]), expanded limitations (dataset domain gap,
+    lighting/night, small ripeness val, coconut-only, GPS synthetic/4 m radius assumption,
+    single farm/robot, no auth, DOM scaling), claim-softening sweep (safe→suitable,
+    robust→duplicate-free evidence, fully→owned entirely), tightened conclusion,
+    informative figure captions, fixed a wrong PR-curve cross-reference (was Figs 7/8,
+    now 6), references consistency ([3] adds no. 8).
+    Second revision round applied after follow-up review: contribution bullets reshaped
+    to the 4-item bold-label form (Platform / Perception integration / Workflow
+    evaluation / Analysis) with "The main contributions of this work are:" lead-in,
+    cause-effect interpretation added in-place in Results B-E (grid-spaced
+    one-tree-per-tile reasoning, pure step(dt) determinism, greedy-decision-lock routing
+    growth + Rosenkrantz-bound prediction, Gaussian-displacement duplicate probability),
+    Table 1 extended in place into a full training/inference configuration table (base
+    weights, epochs, batch, imgsz, optimizer, lr0/lrf, momentum/weight decay, warm-up,
+    loss gains, augmentations, training hardware, inference conf, metric IoU — all from
+    checkpoint train_args; Tables 2–6 keep their numbering), Table-1 prose trimmed to
+    avoid duplication, conclusion closed with an explicit future-work sentence (field
+    validation, multi-camera perception, adaptive strategies, hardware integration), and
+    takeaway clauses added to Fig 1–4, 6–7 captions. PDF now 11 pages. Author order
+    adjusted per user request: Mahesh S moved to first among the student authors
+    (2nd overall, after guide Dr.~Madhu B.K).
+    IRJMETS running masthead + footer added so every page carries the journal banner
+    (verbatim from the IRJMETS template header2/footer2.xml): every page top shows the
+    IRJMETS logo (`figures/extracted/image6.png`), right-aligned green e-ISSN
+    2582-5208, centered green journal name, navy peer-review subtitle, and the navy
+    `Volume:08/Issue:03/March-2026 / Impact Factor- 8.187 / www.irjmets.com` spread
+    line; every page bottom shows blue (0000FF), non-bold, underlined
+    `www.irjmets.com` flush left, green `@International Research Journal of
+    Modernization in Engineering, Technology and Science` non-bold flush right, and
+    the `[N]` page number centered below. Third revision round per user screenshots:
+    peer-review subtitle centered at 12pt (template para is jc=center, 12pt), the
+    volume/impact row bumped 11.5→12pt, footer URL recolored green→blue link with
+    `\bfseries` removed, footer attribution color 00A84C→00B050 with `\bfseries`
+    removed and dropped trailing `\hfill` so it lands flush right, unused
+    `irjgreen2` replaced by `irjlink`. Implemented with
+    fancyhdr `\fancyhead[C]`/`\fancyfoot[C]` as pure `\vbox`/`\hbox` stacks (fancyhdr
+    field arguments reject `\par`; minipage versions failed with "Paragraph ended
+    before \f@nch@fancyhf was complete"; `\makebox[\textwidth][c]` inside the header
+    vbox overflows by 480pt — centered lines use `\hbox to \textwidth{\hfil..\hfil}`).
+    Colors verbatim from the template XML:
+    green 00B050 / link-blue 0000FF / navy 1F497D / slate 44546A (`\definecolor` HTML
+    model). Geometry retuned for the taller masthead: `headheight=140.6426pt`
+    (fancyhdr-suggested), `top=2.09in`, `bottom=0.85in`, `headsep=10pt`,
+    `footskip=0.38in`. The duplicate in-body logo block on page 1 was removed.
+    PDF now 12 pages; all 12 pages render-verified for both masthead and footer
+    (e-ISSN ×12, Impact Factor ×12, REFERENCES ×1 in extracted text); compile clean,
+    no headheight warnings, no overfull boxes.
+    Fourth revision round (float pagination, per user feedback: no caption separated
+    from its figure/table, no white-space page-bottom gaps, **no image/table resized**
+    — only paragraph content may be trimmed/adjusted): all 6 `\tablecap` lines were
+    outside their `table` envs (captions orphaned when a table jumped pages) and all
+    15 floats used `[H]` (no text flow → gaps). Fix: `\tablecap`s folded inside their
+    tables (each preceded by `\vspace{-2pt}`), all `[H]`→`[!ht]`, `placeins` +
+    after-heading `\FloatBarrier` guards added, **then all 23 barriers removed again**
+    after 100-dpi renders showed they strand headings at page bottoms (the 17%/9%/6%
+    gaps on pp. 3/5/7). The stranded `REFERENCES` heading (p10 bottom vs refs on p11)
+    needed `needspace` (`\usepackage{needspace}` + `\needspace{5\baselineskip}`
+    before `\irjsec{REFERENCES}` — `\nopagebreak` alone failed because the break sits
+    in the bibliography's `\topsep` glue). Verified per-page: every figure/table has
+    its caption attached, floats stay near their sections, whitespace scan (60 dpi,
+    skipping header/footer bands) shows pp. 1–10 fill to 90%; compile: **11 pages**,
+    0 overfull boxes, e-ISSN/Impact ×11, REFERENCES ×1.
+    **Word submission regenerated** (`paper/IRJMETS_Veraxis_Submission.docx`): full
+    document.xml body rebuilt from the tex     source of truth by
+    `paper/irjmets_build_docx.py` (clones the fresh
+    `paper/template/Final year_IRJMETS_Paper.docx`
+    template for styles, numId 18 Roman section numbering, banner header/footer,
+    media image1–5 + rels rId8–12; keeps the template's five drawing XMLs VERBATIM;
+    adds new media image10–14 + rels rId30–34 for fig_dataset_samples, the cmat
+    tree/coconut pair and the PR tree/coconut pair with PIL-computed extents).
+    Title block from the tex (Madhu B.K*1, Mahesh S*2, Syeda Umme Haani*3,
+    S Mohammed Maaz*4, Akshatha G*5), abstract + keywords verbatim, 9 numbered
+    sections (ACKNOWLEDGEMENTS unnumbered centered), keywords divider line reused
+    from the template, 6 bordered centered tables (captions above, bold 10 pt),
+    8 bold centered figure captions, \cite → [n] per bib order ([10] = CPCRI),
+    10 reference paragraphs, math via INFIX map (× ≤ ≥ etc.). Verified: zip
+    integrity, 6 tables / numId18 ×9, no LaTeX residue or placeholders, Table 2
+    values + [10] present, 7 superscripts; visually page-verified via Word PDF
+    export (11 pages) — masthead, footer, figures, tables, refs all correct.
+    Note: the old docx trims (shortened abstract/limitations, `[add a citation]`,
+    empty Table 2) are superseded by the tex content; trims re-appliable on
+    request. The docx is now the sole maintained submission artifact (tex
+    deliverable frozen).
+    **Paper tree consolidated + references verified (committed):** `final-year-papers/`
+    moved to `paper/latex/`, base/template docx to `paper/template/`; stale IEEEtran
+    draft (`paper/main.tex` + 17.7 MB `main.pdf`), `main.log`s and the 47 MB superseded
+    `paper/figures/` intermediates removed; needed figs all live under
+    `paper/latex/figures/`. All 10 references verified against primary sources and
+    corrected in tex + docx ([3] Precision Agriculture vol. 20 **no. 6**, pp. 1107–1135;
+    [9] adds the datatracker.ietf.org URL; [10] adds July 1989). `Ref-Papers/` (4
+    copyrighted reference PDFs) kept locally under `.gitignore`. Docx rebuilt from the
+    current tex and zip-integrity verified; observed note: bibliography paragraphs
+    render without per-item `[n]` prefixes in the Word PDF export (in-text `[n]`
+    citations intact) — the numbering definition (numId 19 → `[1]`) exists in
+    numbering.xml but is not attached to the ref paragraphs.
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
     tree-matching into permanent `Tree` records, V1 `Task`/`Detection` model, V1 robot
     task polling/completion, dashboard/tree-detail/map/robot pages.
