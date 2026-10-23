@@ -5,7 +5,7 @@
 - **Completed (chronological summary — full detail in the version history below):**
   - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
     `paper/latex/main.tex` + `paper/latex/main.pdf` (11 pages) re-typeset from
-    `paper/Final year_IRJMETS_Paper.docx` to the IRJMETS template look (Cambria headings,
+    `paper/template/Final year_IRJMETS_Paper.docx` to the IRJMETS template look (Cambria headings,
     Times body, bullet section headings, numbered refs). All placeholders filled with
     repo-verified data: Roboflow CC BY 4.0 provenance replaces "Kaggle", dataset counts
     10,343 (9,048/865/430) and 7,297 (6,384/618/295), training config (YOLOv8n base, 50
@@ -116,6 +116,16 @@
     render without per-item `[n]` prefixes in the Word PDF export (in-text `[n]`
     citations intact) — the numbering definition (numId 19 → `[1]`) exists in
     numbering.xml but is not attached to the ref paragraphs.
+    **Submission artifact roles finalised (committed):** the author's manually edited
+    `paper/IRJMETS_Veraxis_Submission-EditedByauthor-Main.docx` is now the master
+    (canonical submission copy: `paper/IRJMETS_Veraxis_Submission.docx`,
+    byte-identical by SHA-256, master untouched); the auto-generated builder output
+    was demoted to `paper/IRJMETS_Veraxis_Submission-AutoDraft.docx` and
+    `irjmets_build_docx.py` re-pointed at that draft name so future rebuilds can
+    never clobber the main submission. Author-added figure sources
+    `paper/latex/figures/arc-main.png` (1536×1024) and
+    `paper/latex/figures/Fault.png` (1774×887) stored alongside the other figure
+    sources.
   - **V1 — Baseline integration:** YOLOv8 tree + coconut‑ripeness detection, GPS
     tree-matching into permanent `Tree` records, V1 `Task`/`Detection` model, V1 robot
     task polling/completion, dashboard/tree-detail/map/robot pages.

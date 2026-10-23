@@ -126,6 +126,11 @@ per-tree tile/pixel/bbox is persisted in a mission-scoped `TreeObservation` mode
 - **backend/** – FastAPI routers, DB session/models, domain logic
   (`harvest/`, `navigation/`, `robot/`, `simulation/`, `telemetry/`, `analytics/`).
 - **models/** – YOLO model files (gitignored).
+- **paper/** – IRJMETS paper deliverables, documentation output only (not runtime:
+  no component services it). Canonical submission `IRJMETS_Veraxis_Submission.docx`
+  (author-edited copy of `IRJMETS_Veraxis_Submission-EditedByauthor-Main.docx`,
+  master untouched); `irjmets_build_docx.py` regenerates only
+  `IRJMETS_Veraxis_Submission-AutoDraft.docx` from `paper/latex/main.tex`.
 
 ## Version 3 — Robot Simulation (FROZEN baseline, architecture only at V3.0; implemented V3.1–V3.8.7)
 

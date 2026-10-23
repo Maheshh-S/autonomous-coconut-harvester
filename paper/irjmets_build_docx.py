@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Build paper/IRJMETS_Veraxis_Submission.docx from paper/latex/main.tex.
+"""Build paper/IRJMETS_Veraxis_Submission-AutoDraft.docx from paper/latex/main.tex.
+
+This script's output is a DRAFT only. The canonical main submission is
+paper/IRJMETS_Veraxis_Submission.docx, a byte-identical copy of the author's
+manually edited paper/IRJMETS_Veraxis_Submission-EditedByauthor-Main.docx
+(never regenerate or overwrite those two from here).
 
 Base docx: paper/template/Final year_IRJMETS_Paper.docx — already carries the IRJMETS
 template styles, numbering (numId 18 = roman headings, numId 19 = [n] refs),
@@ -11,7 +16,7 @@ from PIL import Image as PILImage
 REPO = '/Users/mahesh/Developer/Major-Project/autonomous-coconut-harvester'
 TEX = f'{REPO}/paper/latex/main.tex'
 BASE_DOCX = f'{REPO}/paper/template/Final year_IRJMETS_Paper.docx'
-OUT_DOCX = f'{REPO}/paper/IRJMETS_Veraxis_Submission.docx'
+OUT_DOCX = f'{REPO}/paper/IRJMETS_Veraxis_Submission-AutoDraft.docx'
 FIGDIR = f'{REPO}/paper/latex/figures'
 WORK = '/tmp/hi5/build'
 EMU = 914400

@@ -7,8 +7,8 @@
 | **Project Name** | Autonomous Coconut Harvesting System |
 | **Document Version** | v1.0 Draft (frozen) |
 | **Repository** | `autonomous-coconut-harvester` |
-| **Last Updated** | 2026-07-16 |
-| **Status** | Architecture Frozen — Version 3 implemented through V3.8.7 (not yet committed) |
+| **Last Updated** | 2026-10-23 |
+| **Status** | Architecture Frozen — Version 3 implemented through V3.8.7 (committed; V4.0.x + V5.x follow, see `CURRENT.md`) |
 | **Owner** | Major Project Engineering Team |
 | **Classification** | Internal Engineering Reference |
 
@@ -31,6 +31,15 @@
 > labels are retained as historical record of the original gap analysis and are **not**
 > to be read as currently-unimplemented. See `CURRENT.md` for the authoritative
 > per-version implementation status.
+>
+> **Documentation deliverable note (2026-10-23):** the academic paper describing this
+> platform lives in `paper/` (IRJMETS format) — documentation output only, not
+> runtime code and no part of the product depends on it. The canonical submission is
+> `paper/IRJMETS_Veraxis_Submission.docx`, a byte-identical copy of the author's
+> manually edited `IRJMETS_Veraxis_Submission-EditedByauthor-Main.docx` (master kept
+> untouched); `paper/irjmets_build_docx.py` regenerates only the
+> `IRJMETS_Veraxis_Submission-AutoDraft.docx` draft from `paper/latex/main.tex`,
+> which is the content source of truth for the LaTeX deliverable.
 
 ---
 
@@ -151,7 +160,8 @@ Engine / Telemetry pipeline, Mission History & Analytics, the premium navigation
 redesign (`AppShell`), and the home page redesign (scroll-driven brand landing).
 The robot is simulated; the same HTTP/WebSocket contract is designed to be driven
 by real hardware without restructuring the backend. All work is implemented and
-verified but **not yet committed** — see `CURRENT.md` for per-version status. The
+verified — see `CURRENT.md` for per-version status (V4.0.x and V5.x are committed
+at `origin/main`). The
 **[Planned Enhancement]** markers elsewhere in this document are historical (see
 the implementation note at the top of this file).
 

@@ -34,6 +34,10 @@ Dashboard / Digital Twin (read-only supervision)
   framework; schema is evolved manually and ensured at startup (see below).
 - **ML:** Ultralytics YOLOv8 models in `models/` (`tree_detector.pt`,
   `coconut_detector.pt`). Both files are **gitignored** — they are local only.
+- **Paper deliverable:** IRJMETS paper in `paper/` (LaTeX source + documentation
+  output; not runtime code). `IRJMETS_Veraxis_Submission.docx` is the canonical
+  author-edited submission; `paper/irjmets_build_docx.py` regenerates only
+  `IRJMETS_Veraxis_Submission-AutoDraft.docx` from `paper/latex/main.tex`.
 - **Navigation:** rendered via `AppShell` component (desktop rail + mobile bottom
   nav + More sheet); imported in `frontend/app/layout.tsx`.
 
