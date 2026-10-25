@@ -4,8 +4,7 @@ Authoritative formatting rules for the Word (.docx) college report. Sources,
 in priority order:
 
 1. **VTU Examination Guidelines** — B.E./B.Tech. project-report rules
-   (`documentation/Examination Guidelines – Visvesvaraya Technological
-   University (1).pdf`).
+   (`documentation/VTU-examination-guidelines.pdf`).
 2. **College sample report** (2024-25, guide-approved) —
    `documentation/COLLEGE_SCANNED-Project Report sample copy 2024-25 copy.pdf`.
 3. **Decisions locked while drafting** (Tasks 9–36, `current-report.md`) —

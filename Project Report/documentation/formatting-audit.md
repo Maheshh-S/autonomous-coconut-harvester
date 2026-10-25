@@ -9,7 +9,7 @@ instruction or manual edit during drafting). Where a rule exists in more than
 one source, the strictest applicable source is named first.
 
 Sources:
-- **VTU** = `Examination Guidelines – Visvesvaraya Technological University.pdf`
+- **VTU** = `VTU-examination-guidelines.pdf`
 - **College** = `COLLEGE_SCANNED-Project Report sample copy 2024-25 copy.pdf`
 - **User** = your directives/manual edits (logged in `current-report.md`,
   Tasks 9–48)

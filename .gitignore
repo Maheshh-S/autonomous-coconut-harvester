@@ -75,9 +75,11 @@ models/
 htmlcov/
 
 # -----------------------------
-# Build
+# Build (Python packaging artifacts at the repo ROOT only — anchored so the
+# rule does not shadow "Project Report/build/", which holds the versioned
+# report toolchain)
 # -----------------------------
-build/
+/build/
 dist/
 *.egg-info/
 
@@ -149,10 +151,19 @@ Ref-Papers/
 Project Report/*.docx
 Project Report/~$*
 Project Report/build/placeholders/
+Project Report/build/__pycache__/
 # third-party scanned sample report (department-internal, kept local)
 Project Report/documentation/COLLEGE_SCANNED-*.pdf
+# UUID-named author screenshot — byte-duplicate of the tracked
+# documentation/diagrams/4.1.1-module-architecture.png; local copy only
+Project Report/00BD246C-A0B4-4A93-8893-CBDF79996928.png
 
 # College report: raw screenshot imports from the author's machine. The picked,
 # processed figure sources live in Project Report/documentation/diagrams/ —
 # this raw folder stays local only.
 Project Report/SS/
+
+# Research-paper author figure dumps: every file here is a byte-identical copy
+# of figures already tracked under paper/latex/figures/ (or figures/extracted/)
+# and main.tex references none of them — kept locally, out of the repo.
+paper/latex/figures/Research-paper-Imgs/

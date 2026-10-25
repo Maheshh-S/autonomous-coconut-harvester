@@ -41,8 +41,13 @@ Project Report/
     ├── generate_module_diagram.py   draws Fig 4.1.1 (matplotlib)
     ├── build_part0_tables.py  one-off: converted Part 0 lists to tables
     ├── patch_appendix.py      one-off: restructured the appendix
-    └── placeholders/          generated placeholder images
+    └── placeholders/          generated placeholder images (gitignored)
 ```
+
+> The toolchain scripts and `page_map.json` are **git-tracked** (since the
+> 2026-10-25 hygiene pass; the global `/build/` ignore rule is root-anchored so
+> it no longer shadows this folder). Only `placeholders/` and `__pycache__/`
+> stay local.
 
 ## 2. Environment (exact, with the pitfalls)
 

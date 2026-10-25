@@ -113,6 +113,37 @@
     times a job re-run passed with no code change; treat that error as an
     infrastructure flake, not a regression. The durable fix, if it recurs,
     is self-hosting the locale fonts with `next/font/local`.
+    (10) Repo hygiene pass — docs/report/paper/images (2026-10-25, user-
+    approved; nothing deleted anywhere, duplicates hidden via .gitignore
+    instead per the user's choice):
+    a. **.gitignore bug fixed:** the global `build/` rule (Python packaging
+    artifacts) shadowed `Project Report/build/`, leaving the entire report
+    toolchain (build_report.py, content_*.py, page_map.json) unversioned —
+    contradicting the repo-as-source-of-truth rule. The rule is now
+    root-anchored (`/build/`) and the toolchain (11 scripts + page_map.json)
+    is committed; `placeholders/` and `__pycache__/` stay ignored.
+    b. **Byte-verified duplicates untracked (still on disk, now ignored):**
+    `paper/latex/figures/Research-paper-Imgs/` (10-11 files, every one an
+    exact copy of figures already tracked at figures/ or figures/extracted/,
+    unreferenced by main.tex), `Project Report/00BD246C-….png` (UUID-named
+    copy of diagrams/4.1.1-module-architecture.png), and the 31 stale
+    `frontend/shots/` screenshots (tracked although the ignore rule
+    predates them). Kept tracked deliberately: `documentation/paper-figures/`
+    (8 of 9 files are read by the report builder at those paths) and
+    `diagrams/B.1-B.3`.
+    c. **Renames:** `demo_images/ripness-Check-demo-images/` →
+    `ripeness-check-demo-images/` (misspelling; no code references — seed and
+    Dockerfile use farm_view only; the CURRENT.md history line above keeps
+    the old name as a historical record), and `documentation/Examination
+    Guidelines – Visvesvaraya Technological University (1).pdf` →
+    `VTU-examination-guidelines.pdf` (browser "(1)" suffix and en-dash
+    dropped; citations updated in report-format-spec.md and
+    formatting-audit.md; historical task logs left as written).
+    d. Deferred discussion items (no action): assets/clips ~101 MB tracked
+    vs the "gitignored by design" live-site note; demo_images 81 MB tracked
+    incl. a byte-identical farm_view_02/03 pair; "Project Report/" space in
+    the dir name; frontend e2e path `demo_images/coconut/coconut6.jpg`
+    that does not exist; empty `.engineering/` subdirs referenced by docs.
   - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
     `paper/latex/main.tex` + `paper/latex/main.pdf` (11 pages) re-typeset from
     `paper/template/Final year_IRJMETS_Paper.docx` to the IRJMETS template look (Cambria headings,
