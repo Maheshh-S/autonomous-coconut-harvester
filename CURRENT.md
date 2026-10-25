@@ -97,6 +97,22 @@
     Vercel `/` and `/survey` return 200. The runtime reset intentionally
     emptied the shared Neon DB (fresh-start request); the user's manual-test
     mission (Mission-01, 8/8 tiles COMPLETED) is preserved as mission 1.
+    (9) Working-tree closure (2026-10-25): the two IRJMETS submission docx
+    files had diverged by 14 bytes after a post-copy author edit of the
+    master — the canonical `IRJMETS_Veraxis_Submission.docx` was re-synced as
+    a byte-identical copy of `IRJMETS_Veraxis_Submission-EditedByauthor-
+    Main.docx` (the repo's recorded promotion operation), and the author's
+    paper figure sources (`paper/latex/figures/Research-paper-Imgs/`) are now
+    committed. `Project Report/SS/` (7.1 MB raw screenshot imports, superseded
+    by the picked B.1-B.3 appendix figures, which are committed) is
+    gitignored. Known CI flake recorded here for future runs: `next/font/
+    google` fetches Noto Sans fonts from Google at build time, and the GitHub
+    runner's network intermittently fails that fetch ("next/font/google
+    queries have exactly one entry" / "Module not found: .../font/google/
+    font") — twice on 2026-10-25 (Noto Sans Malayalam, then Kannada). Both
+    times a job re-run passed with no code change; treat that error as an
+    infrastructure flake, not a regression. The durable fix, if it recurs,
+    is self-hosting the locale fonts with `next/font/local`.
   - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
     `paper/latex/main.tex` + `paper/latex/main.pdf` (11 pages) re-typeset from
     `paper/template/Final year_IRJMETS_Paper.docx` to the IRJMETS template look (Cambria headings,
