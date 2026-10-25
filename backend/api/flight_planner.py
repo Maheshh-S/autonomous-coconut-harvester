@@ -64,6 +64,7 @@ class TraversalPattern(str, Enum):
     """How waypoints are walked across the grid."""
 
     BOUSTROPHEDON = "BOUSTROPHEDON"  # lawnmower / snake sweep (§8.3)
+    SERIAL = "SERIAL"  # every row left-to-right — image N lands in reading order
 
 
 class FlightPlannerError(ValueError):
@@ -121,13 +122,16 @@ class FlightPlan:
 
 
 # Default coverage grid for the demo dataset (two 10-frame missions). Explicitly
-# configured — NOT derived from the image count. Top-left origin, boustrophedon
-# sweep, standard survey spacing. Deterministic.
+# configured — NOT derived from the image count. Top-left origin, SERIAL sweep
+# (plain reading order: image 5 sits directly below image 1, matching the
+# numbered demo tiles), standard survey spacing. Deterministic. V5.2: switched
+# from BOUSTROPHEDON so the twin renders the tiles in the order the user named
+# them; the boustrophedon pattern remains available for flight-realistic sweeps.
 DEFAULT_PLANNER_CONFIG = PlannerConfig(
     rows=2,
     cols=4,
     origin=GridOrigin.TOP_LEFT,
-    traversal_pattern=TraversalPattern.BOUSTROPHEDON,
+    traversal_pattern=TraversalPattern.SERIAL,
     row_spacing=SPACING_DEG,
     column_spacing=SPACING_DEG,
 )
@@ -141,26 +145,34 @@ def _waypoint_order(
 ) -> List[Tuple[int, int]]:
     """Yield (row, col) cells in flown order for the configured geometry.
 
-    Only ``BOUSTROPHEDON`` is supported (the spec's §8.3 coverage pattern). The
-    sweep starts at the configured ``origin`` corner; on alternate rows the
-    columns are reversed (classic lawnmower). Geometry (rows/cols) comes from the
-    config — this function never derives it.
+    Supported patterns:
+      - ``BOUSTROPHEDON`` — the spec's §8.3 coverage pattern; the sweep starts at
+        the configured ``origin`` corner and alternate rows reverse (classic
+        lawnmower, no wasted transit on a real drone).
+      - ``SERIAL`` — every row walks in the first-row direction, so capture
+        position N is plain reading order: image 5 lands directly below image 1.
+        Used for the demo dataset so the mosaic matches the numbered tiles.
+
+    Geometry (rows/cols) comes from the config — this function never derives it.
     """
 
-    if pattern != TraversalPattern.BOUSTROPHEDON:
+    if pattern not in (TraversalPattern.BOUSTROPHEDON, TraversalPattern.SERIAL):
         raise FlightPlannerError(f"Unsupported traversal pattern: {pattern}")
 
     # Normalise row/col iteration direction from the origin corner.
     row_indices = list(range(rows))
     if origin in (GridOrigin.BOTTOM_LEFT, GridOrigin.BOTTOM_RIGHT):
         row_indices = list(reversed(row_indices))
-    # First row's column direction (subsequent rows reverse).
+    # First row's column direction. SERIAL keeps it on every row.
     forward_first = origin in (GridOrigin.TOP_LEFT, GridOrigin.BOTTOM_LEFT)
 
     order: List[Tuple[int, int]] = []
     for ri, r in enumerate(row_indices):
         # Even sweep index -> first-row direction; odd -> reversed.
-        cols_forward = (ri % 2 == 0) == forward_first
+        cols_forward = (
+            (ri % 2 == 0) == forward_first
+            or pattern is TraversalPattern.SERIAL
+        )
         col_sequence = range(cols) if cols_forward else reversed(range(cols))
         for c in col_sequence:
             order.append((r, c))

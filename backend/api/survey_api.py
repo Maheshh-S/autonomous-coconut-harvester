@@ -2,10 +2,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-import uuid
 import math
 import re
 import cv2
+from psycopg2.extras import execute_values
 import numpy as np
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
@@ -289,7 +289,11 @@ async def upload_survey_images(
 
         saved = []
         for order, (upload, ext, contents) in enumerate(received, start=start_order + 1):
-            stored_name = f"{uuid.uuid4().hex}{ext}"
+            # V5.2: store as "<order>-<original name>" instead of a random uuid —
+            # the file on disk then reads in the same capture order the mission
+            # uses, and the twin's served image URL shows which tile it is.
+            safe_stem = re.sub(r"[^A-Za-z0-9._-]", "_", Path(upload.filename or "image").stem)[:80]
+            stored_name = f"{order:02d}-{safe_stem}{ext}"
             (mission_dir / stored_name).write_bytes(contents)
             image = SurveyImage(
                 mission_id=mission_id,
@@ -361,12 +365,12 @@ def generate_tiles_for_mission(
         .order_by(SurveyImage.upload_order)
         .all()
     )
-    existing = {
-        row[0]
-        for row in db.query(SurveyTile.image_id)
+    existing_tiles = (
+        db.query(SurveyTile)
         .filter(SurveyTile.mission_id == mission_id)
         .all()
-    }
+    )
+    existing = {t.image_id for t in existing_tiles}
 
     # Version 2.8.3 — the survey geometry is produced by the simulated Flight
     # Planner (``SimulationFlightPlanner``) from an EXPLICIT ``PlannerConfig``
@@ -383,31 +387,49 @@ def generate_tiles_for_mission(
         raise HTTPException(status_code=422, detail=str(exc))
     placement_by_image = {p.image_id: p for p in flight.placements}
 
-    created = 0
+    # V5.2: the tile rows go in via one execute_values INSERT. ORM adds here
+    # flush row-by-row on psycopg2 (executemany is not wire-batched), costing
+    # one remote-DB round trip per tile. created_at/updated_at are Python-side
+    # defaults in the model, so the raw INSERT supplies them explicitly.
+    now = datetime.utcnow()
+    tile_rows = []
     for image in images:
         if image.id in existing:
             continue
         p = placement_by_image[image.id]
-        db.add(
-            SurveyTile(
-                mission_id=mission_id,
-                image_id=image.id,
-                status=SurveyTileStatus.PENDING.value,
-                capture_order=p.capture_order,
-                grid_row=p.grid_row,
-                grid_col=p.grid_col,
-                center_gps_lat=p.center_gps_lat,
-                center_gps_lon=p.center_gps_lon,
+        tile_rows.append(
+            (
+                mission_id,
+                image.id,
+                SurveyTileStatus.PENDING.value,
+                p.capture_order,
+                p.grid_row,
+                p.grid_col,
+                p.center_gps_lat,
+                p.center_gps_lon,
+                now,
+                now,
             )
         )
-        created += 1
+    if tile_rows:
+        execute_values(
+            db.connection().connection.cursor(),
+            "INSERT INTO survey_tiles "
+            "(mission_id, image_id, status, capture_order, grid_row, "
+            "grid_col, center_gps_lat, center_gps_lon, created_at, "
+            "updated_at) VALUES %s",
+            tile_rows,
+        )
+    created = len(tile_rows)
     db.commit()
 
     # Backfill metadata for any pre-V2 tiles that predate these columns, so a
     # re-run heals older rows (image dimensions still require reprocessing).
-    for tile in (
-        db.query(SurveyTile).filter(SurveyTile.mission_id == mission_id).all()
-    ):
+    # V5.2: only pre-existing rows can be legacy (the rows inserted above are
+    # born with metadata), so the mission-wide re-query is gone; the empty
+    # commit round trip is skipped when nothing needed healing.
+    healed = False
+    for tile in existing_tiles:
         if tile.grid_row is None or tile.capture_order is None:
             p = placement_by_image.get(tile.image_id)
             if p is None:
@@ -417,16 +439,18 @@ def generate_tiles_for_mission(
             tile.capture_order = p.capture_order
             tile.center_gps_lat = p.center_gps_lat
             tile.center_gps_lon = p.center_gps_lon
-    db.commit()
+            healed = True
+    if healed:
+        db.commit()
 
-    # Keep the denormalized mission tile counter in sync with the actual tile rows.
-    mission = db.query(SurveyMission).filter(SurveyMission.id == mission_id).first()
-    if mission is not None:
-        mission.tile_count = (
-            db.query(func.count(SurveyTile.id))
-            .filter(SurveyTile.mission_id == mission_id)
-            .scalar()
-            or 0
+    # Keep the denormalized mission tile counter in sync with the actual tile
+    # rows. V5.2: computed from the rows already in hand (was a COUNT query)
+    # and written with one UPDATE (was SELECT + ORM update + commit) — one
+    # remote round trip instead of three.
+    if existing_tiles or tile_rows:
+        db.connection().connection.cursor().execute(
+            "UPDATE survey_missions SET tile_count = %s WHERE id = %s",
+            (len(existing_tiles) + len(tile_rows), mission_id),
         )
         db.commit()
 
@@ -521,6 +545,26 @@ def _recompute_representative_observations(db, tree_ids) -> None:
         if tree is not None:
             tree.current_observation_id = representative.id
 
+    # V5.2: write the pointer updates in ONE statement. Mutating the ORM objects
+    # above would emit one UPDATE per tree at commit (~0.25 s each on the remote
+    # Neon DB — 243 trees meant a minute of pure round-trips); expunging the
+    # loaded rows and sending a single unnest UPDATE collapses that to one.
+    if by_tree:
+        rep_map = {
+            tid: min(obs, key=lambda o: _representative_sort_key(o, tile_dims)).id
+            for tid, obs in by_tree.items()
+        }
+        for tree in trees.values():
+            db.expunge(tree)
+        conn_cursor = db.connection().connection.cursor()
+        conn_cursor.execute(
+            "UPDATE trees SET current_observation_id = v.obs_id "
+            "FROM (SELECT * FROM unnest(%(ids)s::int[], %(obs)s::int[]) "
+            "      AS t(id, obs_id)) AS v "
+            "WHERE trees.id = v.id",
+            {"ids": list(rep_map.keys()), "obs": list(rep_map.values())},
+        )
+
 
 def match_trees_for_mission(db, mission_id: int) -> int:
     mission = (
@@ -542,6 +586,22 @@ def match_trees_for_mission(db, mission_id: int) -> int:
         .order_by(SurveyTile.id)
         .all()
     )
+
+    # V5.2: one prefetch of every tile's detections (was one query per tile —
+    # N remote-DB round trips). Per-tile order is preserved by the sort key.
+    dets_by_tile: dict = {}
+    if tiles:
+        for d in (
+            db.query(TileDetection)
+            .filter(
+                TileDetection.survey_tile_id.in_([t.id for t in tiles])
+            )
+            .order_by(
+                TileDetection.survey_tile_id, TileDetection.detection_index
+            )
+            .all()
+        ):
+            dets_by_tile.setdefault(d.survey_tile_id, []).append(d)
     # Working set of all permanent Trees for GPS matching. Kept as *plain dicts*
     # (id + match fields only) rather than live ORM objects: holding 302 persistent
     # ``Tree`` rows in the session makes them dirty, and the implicit autoflush
@@ -604,12 +664,7 @@ def match_trees_for_mission(db, mission_id: int) -> int:
             tile.image_width = int(img_w)
             tile.image_height = int(img_h)
 
-        detections = (
-            db.query(TileDetection)
-            .filter(TileDetection.survey_tile_id == tile.id)
-            .order_by(TileDetection.detection_index)
-            .all()
-        )
+        detections = dets_by_tile.get(tile.id, [])
         for d in detections:
             cx = (d.x1 + d.x2) / 2.0
             cy = (d.y1 + d.y2) / 2.0
@@ -725,89 +780,126 @@ def match_trees_for_mission(db, mission_id: int) -> int:
     # which both the observation rows and the deferred tree updates depend on.
     # ``no_autoflush`` guarantees the only writes are our explicit batched ones —
     # no per-object UPDATE round-trips for the matched (dict-held) trees.
+    # V5.2: the inserts go through psycopg2 ``execute_values`` — a TRUE single
+    # round-trip — because every other path degrades to one statement per row on
+    # this driver (ORM flush, insertmanyvalues and executemany alike), and the
+    # remote Neon DB costs ~0.25 s per statement: 243 row-by-row inserts were the
+    # bulk of the mission's 141 s matching time.
     with db.no_autoflush:
-        db.flush()
-        # Map each new ORM Tree back to the lightweight dict used during matching,
-        # so the observation rows assembled below carry the real (assigned) id.
-        # Multiple detections can converge on the SAME new stub tree — they share
-        # the same dict reference — so we resolve by (dict, Tree) pair rather than
-        # zipping observation dicts 1:1 with the ORM objects; a 1:1 zip would drop
-        # the extra converged observations and leave their tree_id NULL on insert.
-        # We also record the real id in touched_tree_ids so the representative pass
-        # below repoints these brand-new trees' current_observation_id. Previously
-        # only None was added (the stub's id before flush) and was silently skipped,
-        # leaving every new tree's current_observation_id NULL and the Digital Twin
-        # empty for a first survey.
-        for rdict, t in new_tree_pairs:
-            # Immutable public code derived from the row id — unique/stable.
-            t.tree_code = f"TREE-{t.id:04d}"
-            rdict["id"] = t.id
-            touched_tree_ids.add(t.id)
-            tree_updates[t.id] = {
-                "id": t.id,
-                "last_seen_mission_id": mission_id,
-                "times_seen": 1,
-                "last_matching_confidence": None,
-                "last_box_w": t.last_box_w,
-                "last_box_h": t.last_box_h,
-                "availability": "ACTIVE",
-            }
+        if new_tree_pairs:
+            conn_cursor = db.connection().connection.cursor()
+            inserted = execute_values(
+                conn_cursor,
+                "INSERT INTO trees (gps_lat, gps_lon, detected_time, "
+                "first_seen_mission_id, last_seen_mission_id, times_seen, "
+                "availability, lifecycle_state, last_box_w, last_box_h) "
+                "VALUES %s RETURNING id",
+                [
+                    (
+                        t.gps_lat, t.gps_lon, t.detected_time,
+                        t.first_seen_mission_id, t.last_seen_mission_id,
+                        t.times_seen, t.availability, t.lifecycle_state,
+                        t.last_box_w, t.last_box_h,
+                    )
+                    for _, t in new_tree_pairs
+                ],
+                fetch=True,
+            )
+            # Map each new row id back to the lightweight dict used during
+            # matching, so the observation rows assembled below carry the real id.
+            # Multiple detections can converge on the SAME new stub tree — they
+            # share the same dict reference — so we resolve by (dict, Tree) pair.
+            # We also record the real id in touched_tree_ids so the representative
+            # pass below repoints these brand-new trees' current_observation_id.
+            for (rdict, t), (real_id,) in zip(new_tree_pairs, inserted):
+                # Immutable public code derived from the row id — unique/stable.
+                rdict["id"] = real_id
+                touched_tree_ids.add(real_id)
+                tree_updates[real_id] = {
+                    "id": real_id,
+                    "last_seen_mission_id": mission_id,
+                    "times_seen": 1,
+                    "last_matching_confidence": None,
+                    "last_box_w": t.last_box_w,
+                    "last_box_h": t.last_box_h,
+                    "availability": "ACTIVE",
+                    "tree_code": f"TREE-{real_id:04d}",
+                }
+            # Detach the never-flushed ORM stubs so the session does not try to
+            # insert them again at commit (their rows now exist via execute_values).
+            for _, t in new_tree_pairs:
+                db.expunge(t)
 
     # Batched Tree UPDATEs (§V2.5): every existing-tree metadata refresh collapses
-    # into a single executemany round-trip instead of one UPDATE per tree over the
-    # remote DB. A raw statement is used because SQLAlchemy's bulk_update_mappings
-    # issues a round-trip per row here (79s for 302 rows) — see verification notes.
+    # into a single VALUES-join UPDATE instead of one UPDATE per tree over the
+    # remote DB (~0.25 s/statement on Neon — the old executemany form degraded to
+    # one statement per row on psycopg2, 79 s for 302 rows). New trees are folded
+    # into the same statement so their write-once tree_code is set in the same
+    # round-trip as the metadata refresh.
     if tree_updates:
-        db.execute(
-            text(
-                "UPDATE trees SET "
-                "last_seen_mission_id = :last_seen_mission_id, "
-                "times_seen = :times_seen, "
-                "last_matching_confidence = :last_matching_confidence, "
-                "last_box_w = :last_box_w, "
-                "last_box_h = :last_box_h, "
-                "availability = :availability "
-                "WHERE id = :id"
-            ),
+        has_code = any(u.get("tree_code") for u in tree_updates.values())
+        conn_cursor = db.connection().connection.cursor()
+        # Explicit :: casts: an untyped VALUES list in UPDATE ... FROM arrives
+        # as text parameters, which Postgres cannot coerce to the column types.
+        execute_values(
+            conn_cursor,
+            "UPDATE trees AS t SET "
+            "last_seen_mission_id = v.last_seen_mission_id, "
+            "times_seen = v.times_seen, "
+            "last_matching_confidence = v.last_matching_confidence, "
+            "last_box_w = v.last_box_w, "
+            "last_box_h = v.last_box_h, "
+            "availability = v.availability"
+            + (", tree_code = v.tree_code" if has_code else "")
+            + " FROM (VALUES %s) AS v(id, last_seen_mission_id, times_seen, "
+            "last_matching_confidence, last_box_w, last_box_h, availability"
+            + (", tree_code" if has_code else "")
+            + ") WHERE t.id = v.id",
             [
-                {
-                    "id": u["id"],
-                    "last_seen_mission_id": u["last_seen_mission_id"],
-                    "times_seen": u["times_seen"],
-                    "last_matching_confidence": u["last_matching_confidence"],
-                    "last_box_w": u["last_box_w"],
-                    "last_box_h": u["last_box_h"],
-                    "availability": u["availability"],
-                }
+                (
+                    u["id"], u["last_seen_mission_id"], u["times_seen"],
+                    u["last_matching_confidence"], u["last_box_w"],
+                    u["last_box_h"], u["availability"],
+                    *([u["tree_code"]] if has_code else []),
+                )
                 for u in tree_updates.values()
                 if u.get("id") is not None
             ],
+            template="(%s::int, %s::int, %s::int, %s::float8, %s::int, %s::int, %s::text"
+                     + (", %s::text" if has_code else "") + ")",
         )
 
     # Assemble the observation rows now that every tree id (including freshly
-    # inserted ones) is known, then write them in a single batched INSERT — this
-    # collapses ~N detection round-trips into one query against the remote DB.
+    # inserted ones) is known, then write them in one single-round-trip INSERT —
+    # ~N detection rows become one statement against the remote DB.
     observation_rows = [
-        {
-            "tree_id": od["tree"]["id"],
-            "mission_id": od["mission_id"],
-            "survey_tile_id": od["survey_tile_id"],
-            "local_pixel_x": od["local_pixel_x"],
-            "local_pixel_y": od["local_pixel_y"],
-            "bbox_x1": od["bbox_x1"],
-            "bbox_y1": od["bbox_y1"],
-            "bbox_x2": od["bbox_x2"],
-            "bbox_y2": od["bbox_y2"],
-            "confidence": od["confidence"],
-            "gps_lat": od["gps_lat"],
-            "gps_lon": od["gps_lon"],
-            "created_at": od["created_at"],
-        }
+        (
+            od["tree"]["id"],
+            od["mission_id"],
+            od["survey_tile_id"],
+            od["local_pixel_x"],
+            od["local_pixel_y"],
+            od["bbox_x1"],
+            od["bbox_y1"],
+            od["bbox_x2"],
+            od["bbox_y2"],
+            od["confidence"],
+            od["gps_lat"],
+            od["gps_lon"],
+            od["created_at"],
+        )
         for od in observation_data
+        if od["tree"]["id"] is not None
     ]
     if observation_rows:
-        db.bulk_insert_mappings(
-            TreeObservation, observation_rows
+        conn_cursor = db.connection().connection.cursor()
+        execute_values(
+            conn_cursor,
+            "INSERT INTO tree_observations (tree_id, mission_id, "
+            "survey_tile_id, local_pixel_x, local_pixel_y, bbox_x1, bbox_y1, "
+            "bbox_x2, bbox_y2, confidence, gps_lat, gps_lon, created_at) "
+            "VALUES %s",
+            observation_rows,
         )
 
     db.commit()
@@ -827,17 +919,53 @@ def match_trees_for_mission(db, mission_id: int) -> int:
 # detections. No permanent Tree records, no GPS, no matching.
 
 
+def _decode_tile_frame(image):
+    """Decode one survey image's bytes from disk. Returns (frame, None) on
+    success or (None, reason). Pure file I/O — no DB access, so both the
+    single-tile path and the batched pass share it."""
+    img_path = SURVEY_UPLOAD_ROOT / str(image.mission_id) / image.filename
+    if not img_path.exists():
+        return None, "image file missing on disk"
+    frame = cv2.imdecode(
+        np.frombuffer(img_path.read_bytes(), np.uint8), cv2.IMREAD_COLOR
+    )
+    if frame is None:
+        return None, "could not decode image bytes"
+    return frame, None
+
+
+def _detect_tile_rows(frame, tile_id: int):
+    """Run the tree detector on one decoded frame. Pure — no DB access.
+
+    Returns (rows, (w, h)) where rows are ``survey_tile_detections`` INSERT
+    tuples (tile_id, detection_index, x1, y1, x2, y2, confidence, created_at).
+    Shared by ``process_tile`` (single-tile contract) and the batched
+    ``process_pending_tiles_for_mission`` so the detection logic exists once.
+    """
+    img_h, img_w = frame.shape[:2]
+    results = tree_model(frame, conf=0.4)
+    now = datetime.utcnow()
+    rows = []
+    for r in results:
+        for i, box in enumerate(r.boxes):
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+            rows.append((tile_id, i, x1, y1, x2, y2, float(box.conf[0]), now))
+    return rows, (int(img_w), int(img_h))
+
+
 def process_tile(db, tile: SurveyTile) -> int:
+    """Process ONE tile end-to-end with per-tile commits.
+
+    Kept for callers that need the single-tile contract — the reprocess
+    endpoint's ``limit`` grind mode (memory-tight hosts) processes tiles one
+    request at a time and relies on the intermediate PROCESSING/COMPLETED
+    commits persisting between calls. The full-mission path uses the batched
+    ``process_pending_tiles_for_mission`` instead.
+    """
     image = (
         db.query(SurveyImage).filter(SurveyImage.id == tile.image_id).first()
     )
     if image is None:
-        tile.status = SurveyTileStatus.FAILED.value
-        db.commit()
-        return 0
-
-    img_path = SURVEY_UPLOAD_ROOT / str(image.mission_id) / image.filename
-    if not img_path.exists():
         tile.status = SurveyTileStatus.FAILED.value
         db.commit()
         return 0
@@ -847,48 +975,37 @@ def process_tile(db, tile: SurveyTile) -> int:
     db.commit()
 
     try:
-        contents = img_path.read_bytes()
-        npimg = np.frombuffer(contents, np.uint8)
-        frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+        frame, _reason = _decode_tile_frame(image)
         if frame is None:
-            raise ValueError("could not decode image bytes")
+            raise ValueError("tile image could not be decoded")
+
+        detection_rows, (img_w, img_h) = _detect_tile_rows(frame, tile.id)
 
         # Version 2 (§V2.5): persist the tile image dimensions here — this is the
         # single stage that already decodes the file, so the twin never re-decodes.
-        img_h, img_w = frame.shape[:2]
-        tile.image_width = int(img_w)
-        tile.image_height = int(img_h)
-
-        results = tree_model(frame, conf=0.4)
+        tile.image_width = img_w
+        tile.image_height = img_h
 
         # Idempotent retry: clear any prior detections for this tile, then store
         # the fresh set. The (survey_tile_id, detection_index) unique constraint
-        # is a secondary guard.
+        # is a secondary guard. V5.2: the inserts go through execute_values —
+        # ORM adds here flush one INSERT per detection at commit, and a 30-box
+        # tile over the remote Neon DB (~0.25 s/statement) meant ~8 s per tile.
         db.query(TileDetection).filter(
             TileDetection.survey_tile_id == tile.id
         ).delete()
-
-        created = 0
-        for r in results:
-            for i, box in enumerate(r.boxes):
-                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                confidence = float(box.conf[0])
-                db.add(
-                    TileDetection(
-                        survey_tile_id=tile.id,
-                        detection_index=i,
-                        x1=x1,
-                        y1=y1,
-                        x2=x2,
-                        y2=y2,
-                        confidence=confidence,
-                    )
-                )
-                created += 1
+        if detection_rows:
+            execute_values(
+                db.connection().connection.cursor(),
+                "INSERT INTO survey_tile_detections "
+                "(survey_tile_id, detection_index, x1, y1, x2, y2, "
+                "confidence, created_at) VALUES %s",
+                detection_rows,
+            )
 
         tile.status = SurveyTileStatus.COMPLETED.value
         db.commit()
-        return created
+        return len(detection_rows)
     except Exception:
         db.rollback()
         tile.status = SurveyTileStatus.FAILED.value
@@ -897,16 +1014,97 @@ def process_tile(db, tile: SurveyTile) -> int:
 
 
 def process_pending_tiles_for_mission(db, mission_id: int) -> int:
+    """Process every PENDING tile of a mission in one batched pass.
+
+    V5.2: the remote Neon DB costs ~0.25 s per statement, and the old per-tile
+    loop spent ~10 round trips per tile (image query, PROCESSING lock commit
+    + pool re-checkout ping, delete, insert, COMPLETED commit + ping) — about
+    2.7 s per tile of pure latency for ~0.1 s of real work. This pass keeps
+    the same observable behaviour (PENDING pick-up, PROCESSING lock,
+    idempotent delete-then-insert, COMPLETED/FAILED terminal states, §V2.5
+    dimension persistence) in ~7 statements total.
+
+    Recovery is unchanged: a crash mid-batch leaves tiles in PROCESSING, which
+    the reprocess endpoint resets to PENDING for a retry.
+    """
     tiles = (
         db.query(SurveyTile)
         .filter(SurveyTile.mission_id == mission_id)
         .filter(SurveyTile.status == SurveyTileStatus.PENDING.value)
+        .order_by(SurveyTile.capture_order, SurveyTile.id)
         .all()
     )
-    total_detections = 0
+    if not tiles:
+        return 0
+
+    images = {
+        i.id: i
+        for i in db.query(SurveyImage).filter(
+            SurveyImage.id.in_([t.image_id for t in tiles])
+        ).all()
+    }
+
+    # Lock the whole batch in one statement (same guard as the per-tile path:
+    # concurrent runs only pick up PENDING tiles).
+    db.query(SurveyTile).filter(
+        SurveyTile.id.in_([t.id for t in tiles])
+    ).update(
+        {SurveyTile.status: SurveyTileStatus.PROCESSING.value},
+        synchronize_session=False,
+    )
+    db.commit()
+
+    detection_rows = []
+    tile_outcomes = []  # (tile, dims-or-None); None dims -> FAILED
     for tile in tiles:
-        total_detections += process_tile(db, tile)
-    return total_detections
+        image = images.get(tile.image_id)
+        frame, _reason = (
+            _decode_tile_frame(image) if image is not None else (None, "no image row")
+        )
+        if frame is None:
+            tile_outcomes.append((tile, None))
+            continue
+        rows, dims = _detect_tile_rows(frame, tile.id)
+        detection_rows.extend(rows)
+        tile_outcomes.append((tile, dims))
+
+    tile_ids = [t.id for t in tiles]
+    db.query(TileDetection).filter(
+        TileDetection.survey_tile_id.in_(tile_ids)
+    ).delete(synchronize_session=False)
+    if detection_rows:
+        execute_values(
+            db.connection().connection.cursor(),
+            "INSERT INTO survey_tile_detections "
+            "(survey_tile_id, detection_index, x1, y1, x2, y2, "
+            "confidence, created_at) VALUES %s",
+            detection_rows,
+        )
+
+    # One VALUES-join UPDATE writes each tile's terminal status + dimensions.
+    now = datetime.utcnow()
+    status_rows = [
+        (
+            t.id,
+            SurveyTileStatus.COMPLETED.value if dims else SurveyTileStatus.FAILED.value,
+            dims[0] if dims else None,
+            dims[1] if dims else None,
+            now,
+        )
+        for t, dims in tile_outcomes
+    ]
+    execute_values(
+        db.connection().connection.cursor(),
+        "UPDATE survey_tiles AS s SET "
+        "status = v.status, image_width = v.w, image_height = v.h, "
+        "updated_at = v.updated_at "
+        "FROM (VALUES %s) AS v(id, status, w, h, updated_at) "
+        "WHERE s.id = v.id",
+        status_rows,
+        template="(%s::int, %s::text, %s::int, %s::int, %s::timestamp)",
+    )
+    db.commit()
+    return len(detection_rows)
 
 
 # -------------------------
