@@ -251,6 +251,22 @@ models/           YOLOv8 weights (gitignored): tree_model/, coconut_model/
   `frontend/verify_v361.js` (robot visualization) must pass with **0 console
   errors**.
 
+## Deployment
+
+- **CI:** GitHub Actions (`.github/workflows/ci.yml`) runs on every push to
+  `main` and on PRs: backend compile + AST gates, frontend `tsc --noEmit` +
+  `i18n:check` + `next build`, and a Docker-shape check. Playwright stays an
+  attended local gate (it needs live servers and a seeded DB).
+- **Backend:** deployed on Render (Docker, blueprint `render.yaml`, service
+  `veraxis-backend`) from `Dockerfile.backend`; health check `GET /health`.
+  Free-tier notes: the instance cannot run YOLO inference (seeding uses
+  precomputed detections) and sleep/redeploys wipe `uploads/` — the Docker
+  image bakes the demo set and `AUTO_HEAL_UPLOADS` restores the active
+  mission's bytes at boot.
+- **Frontend:** deployed on Vercel from `frontend/` (App Router).
+- **Database:** PostgreSQL on Neon, connected via the `DATABASE_URL` Render
+  secret; schema is ensured at startup by `backend/database/init_db.py`.
+
 See `AGENTS.md` for the full engineering guide, `ARCHITECTURE.md` for the
 component/dependency map, `CURRENT.md` for version history, and
 `PROJECT_SPECIFICATION.md` for the frozen specification.

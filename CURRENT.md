@@ -1,8 +1,27 @@
 # CURRENT.md
 
-- **Project Version:** 5.1 (Version 5 line; multilingual platform, committed)
-- **Current Status:** Committed through V5.1 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass → Multilingual Platform V5.0 → V5.1 fixes). **V5.x is implemented, verified, and committed** (HEAD `1c77165`). The blanket do-NOT-commit guard below applied to V5 while it awaited approval; it now applies to *future* work only — do NOT commit new work until approved.
+- **Project Version:** 5.2 (Version 5 line; multilingual platform, committed)
+- **Current Status:** Committed through V5.2 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass → Multilingual Platform V5.0 → V5.1 fixes → V5.2 hardening). **V5.x is implemented, verified, and committed.** The blanket do-NOT-commit guard below applied to V5 while it awaited approval; it now applies to *future* work only — do NOT commit new work until approved.
 - **Completed (chronological summary — full detail in the version history below):**
+  - **V5.2 hardening (2026-10-25) — deterministic survey ordering + battery recalibration:**
+    (1) Survey uploads are now ordered by filename digits, not multipart arrival
+    order: the browser presents selected files in unstable selection order, which
+    used to shuffle tile placement between identical uploads and change the
+    overlap behaviour. `survey_api.py` sorts each batch with a natural sort key
+    (digit runs compare numerically, so any naming works: `farm_view_01`…
+    `farm_view_08`, and 10 sorts after 2). upload_order drives the Flight
+    Planner's capture positions and, via tile creation order, the permanent-tree
+    ID sequence — so the same 8 tiles now always produce the same mosaic and the
+    first tile's detections get the lowest tree IDs. Verified live: a shuffled
+    upload of the 8 demo images stored upload_order 1→8 by digit order (test
+    mission deleted afterwards; run `backend/reset_runtime.py` for a full fresh
+    start with IDs restarting at 1).
+    (2) Battery drain recalibrated: `BATTERY_DRAIN_PER_S = 0.1 /
+    DEFAULT_SIMULATION_SPEED` in `simulation/config.py` — ~1% per 10 real
+    seconds at the unchanged 60× speed (was ~1% per second, which emptied the
+    battery after one or two trees). Single consumer is `engine.py`; nothing
+    else reads the constant.
+  - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
   - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
     `paper/latex/main.tex` + `paper/latex/main.pdf` (11 pages) re-typeset from
     `paper/template/Final year_IRJMETS_Paper.docx` to the IRJMETS template look (Cambria headings,
