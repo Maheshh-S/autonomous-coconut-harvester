@@ -106,6 +106,21 @@ const IMAGE_EXT = /\.(jpe?g|png)$/i;
 const FARM_DEFAULT_LAT = 12.1947222;
 const FARM_DEFAULT_LON = 76.6100556;
 
+// V5.2 — natural-order key for filenames: digit runs compare numerically, so
+// any naming works (tile2 < tile10, farm_view_01 < farm_view_08). Companion to
+// the backend's own natural sort; kept client-side so the visible file list is
+// already in capture order before upload.
+const NATURAL_RE = /(\d+)|(\D+)/g;
+function naturalNameKey(name: string): (number | string)[] {
+  const out: (number | string)[] = [];
+  const lower = name.toLowerCase();
+  let m: RegExpExecArray | null;
+  while ((m = NATURAL_RE.exec(lower)) !== null) {
+    out.push(m[1] !== undefined ? parseInt(m[1], 10) : m[2]);
+  }
+  return out;
+}
+
 // V4.0.4 — step rail with scroll-spy (module scope: the page re-renders often).
 // Gives the long pipeline page a persistent sense of place; anchors jump via
 // native hash links, the band observer highlights the step on screen.
@@ -575,6 +590,14 @@ export default function SurveyPage() {
     const selected = Array.from(e.target.files ?? []).filter(
       (f) => IMAGE_EXT.test(f.name) || f.type.startsWith("image/")
     );
+    // Natural filename sort (digit runs compare numerically, so any naming
+    // works: tile2 < tile10). The browser presents folder picks in its own
+    // order, which is not stable across selections of the same set.
+    selected.sort((a, b) => {
+      const ka = naturalNameKey(a.name)
+      const kb = naturalNameKey(b.name)
+      return ka < kb ? -1 : ka > kb ? 1 : 0
+    })
     setFiles(selected);
     setDone(false);
     setError(null);
@@ -586,13 +609,11 @@ export default function SurveyPage() {
     setError(null);
     setDone(false);
     try {
-      for (const file of files) {
-        const data = await uploadSurveyImages(selectedMissionId, [file]);
-        const uploaded = data.uploaded?.[0];
-        if (uploaded) {
-          setImages((prev) => [...prev, { ...uploaded, url: API_BASE_URL + uploaded.url }]);
-        }
-      }
+      // Single batch request: the backend assigns upload_order by filename
+      // digits, and one multipart POST beats N sequential round-trips.
+      const data = await uploadSurveyImages(selectedMissionId, files);
+      const uploaded: UploadedImage[] = data.uploaded ?? [];
+      setImages(uploaded.map((u) => ({ ...u, url: API_BASE_URL + u.url })));
       setDone(true);
     } catch (err) {
       setError(t("errUpload", { msg: (err as Error).message }));

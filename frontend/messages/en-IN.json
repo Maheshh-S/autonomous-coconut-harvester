@@ -472,6 +472,7 @@
   "uploader": {
     "dropTitle": "Choose a close-up coconut photo",
     "dropSub": "JPG or PNG — detection runs on the device server.",
+    "uploadCta": "Upload coconut image",
     "detect": "Detect Coconuts",
     "detecting": "Detecting…",
     "needPhoto": "Choose a photo first",

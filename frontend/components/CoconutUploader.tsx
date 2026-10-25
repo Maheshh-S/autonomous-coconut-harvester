@@ -68,6 +68,9 @@ export default function CoconutUploader({
         <span className="cu-sub">
           {image ? image.name : t("dropSub")}
         </span>
+        <span className="cu-cta" role="presentation">
+          {t("uploadCta")}
+        </span>
       </label>
 
       <div style={{ marginTop: 12 }}>
@@ -136,6 +139,25 @@ export default function CoconutUploader({
           text-overflow: ellipsis;
           white-space: nowrap;
           max-width: 100%;
+        }
+        .cu-cta {
+          margin-top: 10px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 40px;
+          padding: 9px 20px;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--color-accent);
+          background: var(--color-accent);
+          color: #fff;
+          font-weight: 600;
+          font-size: 13px;
+          transition: background 120ms var(--ease-out);
+        }
+        .cu-dropzone:hover .cu-cta {
+          background: var(--color-accent-deep);
+          border-color: var(--color-accent-deep);
         }
         .cu-detect {
           padding: 11px 18px;
