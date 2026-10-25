@@ -1,7 +1,7 @@
 # CURRENT.md
 
 - **Project Version:** 5.2 (Version 5 line; multilingual platform, committed)
-- **Current Status:** Committed through V5.2 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass → Multilingual Platform V5.0 → V5.1 fixes → V5.2 hardening). **V5.x is implemented, verified, and committed.** The blanket do-NOT-commit guard below applied to V5 while it awaited approval; it now applies to *future* work only — do NOT commit new work until approved.
+- **Current Status:** Committed through V5.2 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass → Multilingual Platform V5.0 → V5.1 fixes → V5.2 hardening). **V5.2 is implemented, user-accepted, committed and deployed** (HEAD `854a088`; CI green; Render + Vercel verified live — see V5.2 item (8)). The blanket do-NOT-commit guard below applies to *future* work only — do NOT commit new work until approved.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V5.2 hardening (2026-10-25) — deterministic survey ordering + battery recalibration:**
     (1) Survey uploads are now ordered by filename digits, not multipart arrival
@@ -75,6 +75,28 @@
     errors (also exercised the recalibrated battery: 99.99% draining slowly,
     recharge OK). Docs synced: DECISIONS.md (6b amendment), ARCHITECTURE.md,
     PROJECT_SPECIFICATION.md §8.3, PROJECT_DOSSIER.md.
+    (8) Acceptance, commits and deployment (2026-10-25): the user's manual
+    localhost test of the full flow passed ("all good working correctly"),
+    unlocking the commit gate. Decisions taken with the user for this work:
+    **batched synchronous Complete** chosen over background processing
+    (~22 s warm is acceptable; no new architecture), the upload progress bar
+    **left as-is** (jumps 0→done on the single batch request — per-file
+    ticking was part of the old shuffling behaviour), SERIAL traversal as the
+    frozen planner default (Decision 6b amendment), `process_tile`'s
+    single-tile contract preserved for the reprocess grind mode, and
+    seed_api/pool config deliberately untouched. Commits pushed to main:
+    `d46c199` (backend pipeline), `14828fc` (frontend upload + CTA),
+    `854a088` (docs). CI run `40201277424`: the first attempt failed in
+    `next build` on a transient `next/font/google` fetch of Noto Sans
+    Malayalam on the GitHub runner (pre-existing font setup, unrelated to
+    these changes; the same commit built green locally and in the previous
+    run) — job re-run → backend, frontend and docker-shape all **success**.
+    Deployment verified live: Render `/health` ok and confirmed running the
+    new code (a shuffled live upload stored upload_order 1→8 with the new
+    `01-farm_view_01.png` naming; the check mission was deleted afterwards);
+    Vercel `/` and `/survey` return 200. The runtime reset intentionally
+    emptied the shared Neon DB (fresh-start request); the user's manual-test
+    mission (Mission-01, 8/8 tiles COMPLETED) is preserved as mission 1.
   - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
     `paper/latex/main.tex` + `paper/latex/main.pdf` (11 pages) re-typeset from
     `paper/template/Final year_IRJMETS_Paper.docx` to the IRJMETS template look (Cambria headings,
