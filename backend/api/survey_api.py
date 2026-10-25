@@ -4,6 +4,7 @@ from typing import List, Optional
 
 import uuid
 import math
+import re
 import cv2
 import numpy as np
 from fastapi import APIRouter, HTTPException, UploadFile, File
@@ -47,6 +48,21 @@ SURVEY_UPLOAD_ROOT = Path(__file__).resolve().parents[2] / "uploads" / "survey"
 # Supported formats per PROJECT_SPECIFICATION.md §7.3 (JPEG/PNG).
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 MAX_IMAGE_BYTES = 25 * 1024 * 1024  # §55: enforce a size cap
+
+
+def _natural_filename_key(name: str) -> list:
+    """Sort key giving tile1 < tile2 < tile10 (digit runs compare numerically).
+
+    Upload batches must keep filename order: the browser presents multipart
+    files in selection order, which is not stable across uploads of the same
+    set. upload_order drives the Flight Planner's capture positions and, via
+    tile creation order, the permanent-tree ID sequence — so an unstable order
+    changes the mosaic and the overlap behaviour between identical uploads.
+    """
+    return [
+        int(part) if part.isdigit() else part
+        for part in re.split(r"(\d+)", name.casefold())
+    ]
 
 
 class SurveyMissionCreate(BaseModel):
@@ -255,6 +271,11 @@ async def upload_survey_images(
                     ),
                 )
             received.append((upload, ext, contents))
+
+        # Deterministic capture order: assign upload_order by filename, not by
+        # the multipart arrival order, so re-uploading the same image set always
+        # produces the same tile placement (and the same tree ID sequence).
+        received.sort(key=lambda item: _natural_filename_key(item[0].filename or ""))
 
         mission_dir = SURVEY_UPLOAD_ROOT / str(mission_id)
         mission_dir.mkdir(parents=True, exist_ok=True)
