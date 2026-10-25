@@ -75,7 +75,9 @@ single source of truth; the frontend never computes business results.
   truth for survey-mission geometry**. An explicit `PlannerConfig` (`rows`, `cols`,
   `origin`, `traversal_pattern`, `row_spacing`, `column_spacing`) owns the tile
   grid — never derived from the image count (no `sqrt` / divisor / nearest-rectangle
-  heuristic). It emits `rows*cols` waypoints in boustrophedon (lawnmower) order and
+  heuristic). It emits `rows*cols` waypoints in the configured traversal order —
+  SERIAL (plain reading order, the V5.2 default so tile 5 sits directly below
+  tile 1) or BOUSTROPHEDON (lawnmower, for flight-realistic sweeps) — and
   slots uploaded images into those positions by `upload_order`; fewer images populate
   only available positions, more images raise a validation error (HTTP 422). Centre
   GPS per position comes from `api/gps_projection.py`. `survey_api.

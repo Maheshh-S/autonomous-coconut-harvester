@@ -459,18 +459,18 @@ InspectionImage -> YOLOv8 coconut_detector.pt
 
 The **Flight Planner** (`backend/api/flight_planner.py`) is the **source of truth for survey-mission geometry**. It is simulated because drone/camera hardware is not yet integrated; the geometry contract is the deliverable.
 
-**PlannerConfig (Frozen Default):**
+**PlannerConfig (Frozen Default; traversal amended to SERIAL in V5.2):**
 ```python
 DEFAULT_PLANNER_CONFIG = PlannerConfig(
-    rows=5, cols=2,
+    rows=2, cols=4,
     origin=TOP_LEFT,
-    traversal_pattern=BOUSTROPHEDON,
+    traversal_pattern=SERIAL,   # reading order (V5.2); BOUSTROPHEDON available
     row_spacing=standard, column_spacing=standard
 )
 ```
 
 **Outputs:**
-- `rows x cols` waypoints in boustrophedon (lawnmower) order
+- `rows x cols` waypoints in the configured traversal order (SERIAL = reading order by default; BOUSTROPHEDON lawnmower available)
 - Uploaded images slotted by `upload_order` into planned positions
 - Fewer images than planned -> only available positions populated
 - More images than planned -> HTTP 422 validation error

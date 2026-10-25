@@ -19,8 +19,9 @@
     Flight Planner** (`backend/api/flight_planner.py`), not by the frontend and not
     from the image count. The planner owns `rows`, `cols`, `origin`, `traversal_pattern`,
     `row_spacing`, `column_spacing` via an explicit, frozen `PlannerConfig`
-    (`DEFAULT_PLANNER_CONFIG` = 5×2, TOP_LEFT, BOUSTROPHEDON, standard spacing —
-    deterministic, configured for the demo dataset); it emits `rows*cols` **waypoints**
+    (`DEFAULT_PLANNER_CONFIG` = 2×4, TOP_LEFT, SERIAL, standard spacing —
+    deterministic, configured for the demo dataset; originally BOUSTROPHEDON —
+    see the V5.2 amendment below); it emits `rows*cols` **waypoints**
     and slots the uploaded images into the planned capture positions (by
     `upload_order`). **No `sqrt`, no divisor search, no nearest-rectangle heuristic
     remains** (the V2.8.2 `_choose_grid_shape` was deleted in V2.8.3). If fewer images
@@ -38,6 +39,17 @@
   drone/camera hardware is not yet integrated; the geometry contract is the
   deliverable, and a real autopilot path slots in behind the same
   `SimulationFlightPlanner` / `PlannerConfig` interface.
+  - **Decision 6b amendment (V5.2, 2026-10-25) — default traversal is SERIAL:**
+    `DEFAULT_PLANNER_CONFIG.traversal_pattern` switched from BOUSTROPHEDON to the
+    new `SERIAL` pattern (every row walked in the first-row direction, so capture
+    position N is plain reading order: image 5 lands directly below image 1).
+    Reason: the demo tiles are numbered in reading order, and the boustrophedon
+    sweep's reversed second row made the twin's bottom row appear mirrored even
+    when the upload order was correct — users read it as shuffled data.
+    BOUSTROPHEDON remains implemented and available for flight-realistic sweeps;
+    only the frozen default changed. The stale "5×2" grid in this record was also
+    corrected to the actual 2×4. Determinism and the planner-owns-geometry
+    contract are unchanged.
 
 - **Decision 7 — Version 3 Robot Simulation architecture (FROZEN)**: Version 3
   introduces **one simulated, time-driven harvesting robot** that executes a

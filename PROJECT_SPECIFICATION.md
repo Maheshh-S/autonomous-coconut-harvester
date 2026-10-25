@@ -679,10 +679,18 @@ trees.
 
 ## 8.3 Tile ordering
 
-Tiles are processed in the **coverage-path order** produced by
-`mapping/coverage_path.py` (a lawnmower / boustrophedon sweep). Ordering matters
-because it lets progress be reported as "tile k of N" and lets the digital twin be
-revealed in a spatially coherent sweep rather than in random jumps.
+Tiles are processed in the **coverage-path order** produced by the Flight
+Planner (`backend/api/flight_planner.py`). Ordering matters because it lets
+progress be reported as "tile k of N" and lets the digital twin be revealed in a
+spatially coherent sweep rather than in random jumps.
+
+> **V5.2 amendment (2026-10-25):** the default traversal pattern is **SERIAL**
+> (plain reading order — capture position N is row-major, so image 5 lands
+> directly below image 1). This replaced the original lawnmower / boustrophedon
+> default because the demo tiles are numbered in reading order and the
+> boustrophedon sweep's reversed second row made the twin's bottom row appear
+> mirrored. BOUSTROPHEDON remains implemented for flight-realistic sweeps; the
+> planner-owns-geometry contract (Decision 6b) is unchanged.
 
 ## 8.4 Processing sequence
 

@@ -616,7 +616,8 @@ supersedes it explicitly.
 
 ### [2025-10-25] Task 53 — Git: ignore rules set; documentation/toolchain pushed; Word drafts kept local
 
-- **Status:** DONE (committed and pushed to origin/main)
+- **Status:** DONE — committed as `087a216` and pushed to `origin/main`
+  (74 files).
 - **What:** User asked to wire the report work into Git: ignore what should be ignored, push the rest. The Word drafts stay local — after the guide's changes the user will rename the final and trigger the rename+commit+push.
 - **.gitignore additions:** `Project Report/*.docx` (all Word drafts + lock files), `Project Report/~$*`, `Project Report/build/placeholders/` (generated), `Project Report/documentation/COLLEGE_SCANNED-*.pdf` (third-party department-internal scan, kept local).
 - **Pushed to origin/main:** documentation (formatting-audit.md, word-toolchain.md, report-format-spec.md, report-content-map.md, list-of-figures.md, lit-survey-verification.md, college-report-toc.md, diagrams/, ui-screens/, paper-figures/, images/PROJECT_UI, REF-Old-Docs-resources decks, VTU guidelines pdf), build/ toolchain (builder, content modules, page_map.json, diagram generator, patch scripts), current-report.md, AllFindsPaper.md, and the user's module-diagram PNG.
@@ -657,3 +658,14 @@ supersedes it explicitly.
     (recreate via `uv venv /tmp/report-build-venv --python 3.13 && uv pip
     install --python /tmp/report-build-venv/bin/python python-docx pillow`
     if missing).
+
+### [2026-10-25] Task 54 — Part 6 appendices reworked: A structure table (Times New Roman), B dataset screenshots, and a listings line-break repair
+
+- **What the user asked:** review the new `SS/` dataset screenshots, add the ones that define the datasets (what we use, its link, how many images) into Appendix B, and rebuild Appendix A so the source-code structure is cleanly visible, in Times New Roman, explaining each part's responsibility (what / why / how). Touch only Part 6's appendix.
+- **Screenshot review (11 files in `SS/`):** picked 3; copies live in `documentation/diagrams/` as `B.1-dataset-workspace-structure.png` (oagg: both workspaces' folder tree), `B.2-dataset-samples.jpeg` (nzia: close-up bunches + aerial views), `B.3-dataset-annotation.jpeg` (nxfo: image + YOLO label file). Rejected: near-duplicate crops (oaoq, oaqe, oawh too small), file-list dumps (obag, objq), redundant wide shots (nvoq, nwzz, ocab).
+- **Dataset facts verified on disk** (not from memory): tree corpus = Roboflow "Coconut-tree Detector2" v8, CC BY 4.0, universe.roboflow.com/kevonteh-brown-8k5io/coconut-tree-detector2, local splits 9,048 / 865 / 430 = 10,343 images; ripeness corpus = Roboflow "Coconut Maturity Detection" v7, CC BY 4.0, universe.roboflow.com/coconut-maturity-detection/coconut-maturity-detection, local splits 6,384 / 618 / 295 = 7,297 images. Table B.1 numbers match the local counts exactly.
+- **Appendix A change:** deleted the monospace ASCII tree (the jumbled block); Table A.1's Responsibility column rewritten with real per-folder responsibilities (what it contains, why and how it is used); intro paragraph updated to point at the table. Listings A.1–A.4 kept as Courier code (they are code, not structure).
+- **Root-cause defect found and fixed (affects the whole appendix, pre-existing):** every `("code", ...)` block in `content_ch6_back.py` was written as adjacent string literals with no `\n`, so the builder emitted each listing as ONE collapsed line (Word showed the whole listing as run-on mush). All four listings now carry real newlines; the docx listings were rebuilt one VCode paragraph per line (70 total). This was part of the "jumbled" look the user flagged.
+- **Method:** surgical in-place edit of `Draft1. Part 6.docx` via `/tmp/edit_part6_appendix.py` (python-docx), NOT a rebuild — the user's margin (1.25"/1"/0.75"/0.75"), spacing and border edits are preserved byte-for-byte outside the touched paragraphs. `content_ch6_back.py` updated in parallel so builder source and docx stay in sync for future rebuilds.
+- **Verified:** copy converted to PDF (stale-copy rule), pages rendered and inspected: Appendix starts on labelled page 59 (unchanged, so Part 0 numbers hold: References 55, Publications 58, Appendix 59); Table A.1 clean TNR; listings line-broken; Figs B.1–B.3 with captions below; Appendix C now starts on page 64 (was 63) — Part 0 lists no A–D sub-entries so no Part 0 change needed. Humanizer scan clean (no banned words, no dashes).
+- **Safety:** pre-edit backup at `Draft1. Part 6 (backup before appendix fix).docx` (delete after the user confirms) and `/tmp/Part6-pre-appendix-backup.docx`. **Part 6 was OPEN in Word during the edit — the user must close it WITHOUT saving and reopen to see the new appendix.**

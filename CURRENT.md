@@ -21,7 +21,60 @@
     seconds at the unchanged 60× speed (was ~1% per second, which emptied the
     battery after one or two trees). Single consumer is `engine.py`; nothing
     else reads the constant.
-  - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
+    (3) Ripeness uploader CTA: `CoconutUploader` now shows an explicit accent
+    "Upload coconut image" button inside the dropzone (was a dashed box with a
+    hidden file input and no visible browse affordance). Presentation only —
+    the hidden `input[type=file]`, text contracts and click behaviour are
+    unchanged; new `uploader.uploadCta` key added to all 7 locales (554 keys,
+    i18n:check green).
+    (4) Runtime data reset executed (2026-10-25) via `backend/reset_runtime.py`
+    for the user's fresh manual test: all runtime tables cleared, identities
+    restarted at 1, robot singletons preserved; first new survey produces
+    tree id 1 in tile capture order.
+    (5) Survey pipeline order made fully deterministic (follow-up to (1), after
+    the user's manual test found the mosaic still flipped): the frontend had
+    uploaded files ONE REQUEST PER FILE (browser folder-pick order is unstable),
+    the planner's boustrophedon sweep reversed the second grid row, and stored
+    files were uuid-named. Fixes: `survey/page.tsx` natural-sorts the selection
+    client-side and sends ONE batched multipart request; `flight_planner.py`
+    adds a SERIAL traversal (plain reading order — tile 5 directly below tile
+    1) and `DEFAULT_PLANNER_CONFIG` now uses it (Decision 6b amendment;
+    BOUSTROPHEDON retained); stored filenames are `NN-originalname.ext` so disk
+    and URLs read in capture order. Verified e2e: shuffled uploads store
+    upload_order 1→8, grid (0,0)…(1,3) in reading order, trees TREE-0001…0243
+    in capture order, re-survey dedups (243 stays 243).
+    (6) Survey processing latency fixed (the "twin renders but trees not
+    clickable for minutes" symptom). Measured root causes: YOLO inference for
+    all 8 tiles is 0.9 s — the cost was ~0.25-0.8 s PER STATEMENT against the
+    remote Neon DB, and the pipeline emitted hundreds of row-by-row statements
+    (ORM flushes and psycopg2 executemany are NOT wire-batched):
+    `match_trees_for_mission` alone measured 141 s. Fixes, all via psycopg2
+    `execute_values` / single-statement SQL in `survey_api.py`: new-tree
+    inserts + metadata updates in one VALUES-join UPDATE each; observation
+    inserts in one statement; representative-observation pointers via one
+    `unnest` UPDATE; per-tile detection inserts batched (raw INSERT must
+    supply `created_at` — the ORM's Python-side default does not apply);
+    `process_pending_tiles_for_mission` rebuilt as one batched pass (lock all
+    → infer all → one delete → one insert → one status+dims UPDATE, ~7
+    statements, keeping `process_tile`'s single-tile contract for the
+    reprocess `limit` grind mode); tile-row creation, tile-count update and
+    the legacy backfill guard batched/trimmed in `generate_tiles_for_mission`;
+    match_trees detection reads collapsed from one query per tile to one.
+    Result (warm server, same demo mission): complete 42 s → 22 s; stage
+    times match_trees 141 s → 6.3 s, tile pass 22 s → 9 s, generate 4.7 s →
+    2.9 s. Remaining time is Neon's per-write round-trip floor (~0.6-0.8 s
+    per commit cycle on the free tier), not application behaviour. Correctness
+    verified: per-tile detection counts exactly match model output
+    (32/28/28/31/32/33/28/31), idempotent reprocess (no duplicate detections,
+    trees or observations), failure path (missing image → that tile FAILED,
+    others COMPLETED) and recovery via reprocess both work.
+    (7) Verification for (5)+(6): py_compile green; tsc 0 errors; i18n:check
+    green (554 keys × 7); `next build` 10 routes; Playwright `verify_v26`
+    14/15 (the single console error is the documented gitignored
+    `/clips/*.mp4` 404, pre-existing) and `verify_v361` PASS with 0 console
+    errors (also exercised the recalibrated battery: 99.99% draining slowly,
+    recharge OK). Docs synced: DECISIONS.md (6b amendment), ARCHITECTURE.md,
+    PROJECT_SPECIFICATION.md §8.3, PROJECT_DOSSIER.md.
   - **IRJMETS paper conversion + revision (docs deliverable, verification complete, committed):**
     `paper/latex/main.tex` + `paper/latex/main.pdf` (11 pages) re-typeset from
     `paper/template/Final year_IRJMETS_Paper.docx` to the IRJMETS template look (Cambria headings,
