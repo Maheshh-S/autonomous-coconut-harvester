@@ -151,3 +151,8 @@ Project Report/~$*
 Project Report/build/placeholders/
 # third-party scanned sample report (department-internal, kept local)
 Project Report/documentation/COLLEGE_SCANNED-*.pdf
+
+# College report: raw screenshot imports from the author's machine. The picked,
+# processed figure sources live in Project Report/documentation/diagrams/ —
+# this raw folder stays local only.
+Project Report/SS/
