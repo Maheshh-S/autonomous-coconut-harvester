@@ -144,3 +144,10 @@ frontend/shots/
 # Reference papers (copyrighted third-party PDFs — local only, never commit)
 # -----------------------------
 Ref-Papers/
+# ---- College report (Project Report/): Word drafts stay local until the
+# ---- guide-reviewed final is renamed and pushed
+Project Report/*.docx
+Project Report/~$*
+Project Report/build/placeholders/
+# third-party scanned sample report (department-internal, kept local)
+Project Report/documentation/COLLEGE_SCANNED-*.pdf

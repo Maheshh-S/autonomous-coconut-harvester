@@ -1,0 +1,48 @@
+%% §4.5 Use Case Diagram — final content (mirrors the accepted images/4.5-use-case-diagram.png)
+%% Actors: FARMER (primary), ROBOT (secondary)
+%% 12 use cases, 4 <<include>> relationships
+graph LR
+  FARMER((FARMER))
+  ROBOT((ROBOT))
+
+  subgraph PLATFORM["VERAXIS PLATFORM"]
+    subgraph S1["Survey and Mapping"]
+      U1([Upload Drone Survey])
+      U2([Detect and Match Trees])
+    end
+    subgraph S2["Inspection and Inventory"]
+      U3([Conduct Ripeness Inspection])
+      U4([Review Inventory Snapshot])
+    end
+    subgraph S3["Digital Twin Visualisation"]
+      U5([View Digital Twin])
+      U6([View Dashboard])
+    end
+    subgraph S4["Harvest Planning"]
+      U7([Plan Harvest Mission])
+      U8([Filter Eligible Trees])
+    end
+    subgraph S5["Robot Execution"]
+      U9([Control Robot Mission])
+      U10([Track Robot State])
+    end
+    subgraph S6["Monitoring and Analytics"]
+      U11([Monitor Live Telemetry])
+      U12([View Mission History and Analytics])
+    end
+  end
+
+  FARMER --- U1
+  FARMER --- U3
+  FARMER --- U5
+  FARMER --- U6
+  FARMER --- U7
+  FARMER --- U9
+  FARMER --- U12
+  ROBOT --- U9
+  ROBOT --- U11
+
+  U1 -. <<include>> .-> U2
+  U3 -. <<include>> .-> U4
+  U7 -. <<include>> .-> U8
+  U9 -. <<include>> .-> U10
