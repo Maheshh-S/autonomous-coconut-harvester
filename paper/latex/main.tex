@@ -169,7 +169,7 @@ Robot status is held in eight states (Idle, Moving, Climbing, Scanning, Harvesti
 \irjsec{EXPERIMENTAL SETUP}
 Two kinds of evidence are reported. First, the two YOLOv8 detectors were trained on public image datasets published on Roboflow under the CC BY 4.0 licence: a single-class coconut tree dataset for the tree detector and a three-class coconut maturity dataset for the ripeness model, with 10,343 images (9,048 training, 865 validation, 430 test) in the tree set and 7,297 images (6,384 training, 618 validation, 295 test) in the maturity set: the maturity validation split contains 971 Premature, 632 Potential and 346 Mature instances.
 
-All training and inference hyperparameters were taken from the checkpoints' recorded configuration and are summarised in Table 1. Measured on the same machine with the models running on the CPU, a single 640 px image is processed in about 56 ms by the tree detector and about 66 ms by the ripeness detector (median of 20 timed runs after 10 warm-up runs), which is fast enough to keep the inspection interaction responsive. The trained weights are hosted publicly on Hugging Face (insenix/tree\_detector and insenix/coconut\_detector).
+All training and inference hyperparameters were taken from the checkpoints' recorded configuration and are summarised in Table 1. Measured on the same machine with the models running on the CPU, a single 640 px image is processed in about 56 ms by the tree detector and about 66 ms by the ripeness detector (median of 20 timed runs after 10 warm-up runs), which is fast enough to keep the inspection interaction responsive. The trained weights are hosted publicly on Hugging Face (maheshhs/tree\_detector and maheshhs/coconut\_detector).
 
 \begin{figure}[!ht]
 \centering

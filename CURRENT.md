@@ -2,6 +2,7 @@
 
 - **Project Version:** 5.2 (Version 5 line; multilingual platform, committed)
 - **Current Status:** Committed through V5.2 (Survey → Twin → Inspection → Inventory → Harvest Mission → Robot Simulation → Mission History & Analytics → Navigation Redesign → Home Page Redesign → Digital Twin Interaction Overhaul → Dashboard Mini-Map + Robot Simulation Upgrade → Cross-Cutting Quick Wins + Hero System → Registry + Discovery Pass → Multilingual Platform V5.0 → V5.1 fixes → V5.2 hardening). **V5.2 is implemented, user-accepted, committed and deployed** (HEAD `854a088`; CI green; Render + Vercel verified live — see V5.2 item (8)). The blanket do-NOT-commit guard below applies to *future* work only — do NOT commit new work until approved.
+- **Hugging Face username update (2026-10-27):** updated the Docker build defaults, deployment runbook, README, paper source, and report-generation sources from the previous owner to `maheshhs`. The public model URLs were checked successfully (HTTP 200). Render needs a backend redeploy to rebuild its image; no Vercel or model-specific Render runtime environment variables need changing, and Railway is not used by this project. Generated Word/PDF files were intentionally left untouched.
 - **Completed (chronological summary — full detail in the version history below):**
   - **V5.2 hardening (2026-10-25) — deterministic survey ordering + battery recalibration:**
     (1) Survey uploads are now ordered by filename digits, not multipart arrival

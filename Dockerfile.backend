@@ -33,8 +33,8 @@ COPY backend/ /app/backend/
 # Weights are gitignored, so a clean clone (Render, CI) never carries them:
 # download from Hugging Face (public, ungated) unless the build context
 # already has them (local builds stay fast + offline-capable).
-ARG TREE_URL=https://huggingface.co/insenix/tree_detector/resolve/main/tree_detector.pt
-ARG COCONUT_URL=https://huggingface.co/insenix/coconut_detector/resolve/main/coconut_detector.pt
+ARG TREE_URL=https://huggingface.co/maheshhs/tree_detector/resolve/main/tree_detector.pt
+ARG COCONUT_URL=https://huggingface.co/maheshhs/coconut_detector/resolve/main/coconut_detector.pt
 RUN mkdir -p /app/models/tree_model /app/models/coconut_model \
     && (test -f models/tree_model/tree_detector.pt \
         && cp models/tree_model/tree_detector.pt /app/models/tree_model/tree_detector.pt \

@@ -33,7 +33,11 @@ Dashboard / Digital Twin (read-only supervision)
 - **Database:** PostgreSQL (Neon) via `DATABASE_URL` in `.env`. No migration
   framework; schema is evolved manually and ensured at startup (see below).
 - **ML:** Ultralytics YOLOv8 models in `models/` (`tree_detector.pt`,
-  `coconut_detector.pt`). Both files are **gitignored** — they are local only.
+  `coconut_detector.pt`). Both files are **gitignored**. The deployed backend
+  Docker image downloads them from the public Hugging Face repositories
+  [`maheshhs/tree_detector`](https://huggingface.co/maheshhs/tree_detector)
+  and
+  [`maheshhs/coconut_detector`](https://huggingface.co/maheshhs/coconut_detector).
 - **Paper deliverable:** IRJMETS paper in `paper/` (LaTeX source + documentation
   output; not runtime code). `IRJMETS_Veraxis_Submission.docx` is the canonical
   author-edited submission; `paper/irjmets_build_docx.py` regenerates only
@@ -231,7 +235,8 @@ models/           YOLOv8 weights (gitignored): tree_model/, coconut_model/
    ```
 
 > Model weights (`models/**/*.pt`) and `.env` are gitignored and must be present
-> locally for detection endpoints to work.
+> locally for local detection endpoints to work. The deployed Render Docker
+> image downloads the weights from Hugging Face during its build.
 
 ## Run
 
@@ -259,6 +264,10 @@ models/           YOLOv8 weights (gitignored): tree_model/, coconut_model/
   attended local gate (it needs live servers and a seeded DB).
 - **Backend:** deployed on Render (Docker, blueprint `render.yaml`, service
   `veraxis-backend`) from `Dockerfile.backend`; health check `GET /health`.
+  The image fetches public YOLO weights from Hugging Face during the Docker
+  build. After changing model repository URLs, redeploy Render to rebuild the
+  image; no model-specific Vercel or Render runtime environment variables are
+  required. Railway is not part of the current deployment.
   Free-tier notes: the instance cannot run YOLO inference (seeding uses
   precomputed detections) and sleep/redeploys wipe `uploads/` — the Docker
   image bakes the demo set and `AUTO_HEAL_UPLOADS` restores the active

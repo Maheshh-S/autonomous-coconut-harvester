@@ -181,11 +181,11 @@ tail = '''    ("h2", "Appendix A: Source Code Structure"),
      [["tree_detector.pt", "YOLOv8n", "1 (coconut_tree)",
        "3,011,800 parameters, 6.2 MB",
        "serves the survey pipeline and /drone/detection; about 56 ms per "
-       "640 px frame on CPU; weights at Hugging Face insenix/tree_detector"],
+       "640 px frame on CPU; weights at Hugging Face maheshhs/tree_detector"],
       ["coconut_detector.pt", "YOLOv8n",
        "3 (Mature, Potential, Premature)", "3,011,800 parameters, 6.2 MB",
        "serves inspection processing and /detect/coconuts; about 66 ms "
-       "per frame on CPU; weights at Hugging Face insenix/coconut_detector"]],
+       "per frame on CPU; weights at Hugging Face maheshhs/coconut_detector"]],
      [1.3, 0.9, 1.3, 1.2, 1.9], 9),
     ("h2", "Appendix D: API Endpoint List"),
     ("body",
